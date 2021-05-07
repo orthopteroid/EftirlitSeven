@@ -11,4 +11,4 @@ Douane itself contains lots of great logic and infrastructure that I've leverage
 
 # Provenance
 
-All core douane-originating logic and types are located in `douane.c` and `douane_types.h`. The code factoring necessary to make douane's core logic into a subcomponent has been conducted to help ensure compliance of douane's gpl based license: structs, types and functions that owe their heritage to douane are prefixed `douane_`. I have no desire to misrepresent the hard work of any authors of the material I'm relying upon here for this project.
+All core douane-originating logic and types are located in `douane.c` and `douane_types.h`. The code factoring necessary to make douane's core logic into a subcomponent has been conducted to help ensure compliance of douane's gpl based license: structs, types and functions that owe their heritage to douane are prefixed `douane_`. I have no desire to misrepresent the hard work of any authors of the material I'm relying upon here as my own work for this project.
