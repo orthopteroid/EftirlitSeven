@@ -29,19 +29,16 @@ struct douane_nlpacket {
 // psi is the type douane uses to cache and associate: process-name X process-id X tcp-sequence-no X inode
 struct douane_psi
 {
-  unsigned long     i_ino;                     // Process socket file inode
-  pid_t             pid;                       // PID of the process
-  char              process_path[PATH_LENGTH +1]; // Path of the process, +1 for null
-  uint32_t          sequence;                  // TCP sequence (Is be 0 for non TCP packets)
+  unsigned long i_ino;                     // Process socket file inode // todo: get the right type here...
+  pid_t         pid;                       // PID of the process
+  char          process_path[PATH_LENGTH +1]; // Path of the process, +1 for null
+  uint32_t      sequence;                  // TCP sequence (Is be 0 for non TCP packets)
 };
 
 struct douane_rule
 {
-  char              process_path[PATH_LENGTH +1];
-  bool              allowed;
-  //
-  struct list_head  list;
-  struct rcu_head   rcu;
+  char process_path[PATH_LENGTH +1];
+  bool allowed;
 };
 
 #endif // _DOUANE_TYPES_H_

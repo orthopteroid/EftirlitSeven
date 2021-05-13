@@ -28,24 +28,33 @@
 #include "rules.h"
 #include "module.h"
 
+// queueable wrapper for kfree_rcu
+struct douane_rule_rcu
+{
+  struct douane_rule r;
+  //
+  struct list_head  list;
+  struct rcu_head   rcu;
+};
+
 DEFINE_SPINLOCK(rules_lock);
 LIST_HEAD(rules_list);
 
 void rules_print(const uint32_t packet_id)
 {
-  struct douane_rule * rule;
+  struct douane_rule_rcu * rule;
 
   rcu_read_lock();
   list_for_each_entry_rcu(rule, &rules_list, list)
   {
-    LOG_DEBUG(0, (rule->allowed ? "allowed %s" : "blocked %s"), rule->process_path);
+    LOG_DEBUG(0, (rule->r.allowed ? "allowed %s" : "blocked %s"), rule->r.process_path);
   }
   rcu_read_unlock();
 }
 
 void rules_append(const char * process_path, const bool is_allowed, const uint32_t packet_id)
 {
-  struct douane_rule * rule;
+  struct douane_rule_rcu * rule;
 
   if (process_path == NULL)
   {
@@ -59,15 +68,15 @@ void rules_append(const char * process_path, const bool is_allowed, const uint32
     return;
   }
 
-  rule = (struct douane_rule *)kzalloc(sizeof(struct douane_rule), GFP_ATOMIC);
+  rule = (struct douane_rule_rcu *)kzalloc(sizeof(struct douane_rule_rcu), GFP_ATOMIC);
   if(rule == NULL)
   {
     LOG_ERR(0, "kzmalloc failed");
     return;
   }
 
-  strncpy(rule->process_path, process_path, PATH_LENGTH);
-  rule->allowed = is_allowed;
+  strncpy(rule->r.process_path, process_path, PATH_LENGTH);
+  rule->r.allowed = is_allowed;
 
   spin_lock(&rules_lock);
   rcu_read_lock();
@@ -75,13 +84,13 @@ void rules_append(const char * process_path, const bool is_allowed, const uint32
   rcu_read_unlock();
   spin_unlock(&rules_lock);
 
-  LOG_DEBUG(0, (rule->allowed ? "allowed %s" : "blocked %s"), rule->process_path);
+  LOG_DEBUG(0, (rule->r.allowed ? "allowed %s" : "blocked %s"), rule->r.process_path);
 }
 
 void rules_clear(const uint32_t packet_id)
 {
-  struct douane_rule * rule;
-  int           rule_cleaned_records = 0;
+  struct douane_rule_rcu * rule;
+  int rule_cleaned_records = 0;
 
   if (list_empty(&rules_list))
   {
@@ -106,7 +115,7 @@ void rules_clear(const uint32_t packet_id)
 
 void rules_remove(const unsigned char * process_path, const uint32_t packet_id)
 {
-  struct douane_rule * rule;
+  struct douane_rule_rcu * rule;
 
   if (process_path == NULL)
   {
@@ -124,7 +133,7 @@ void rules_remove(const unsigned char * process_path, const uint32_t packet_id)
   rcu_read_lock();
   list_for_each_entry_rcu(rule, &rules_list, list)
   {
-    if (strncmp(rule->process_path, process_path, PATH_LENGTH) == 0)
+    if (strncmp(rule->r.process_path, process_path, PATH_LENGTH) == 0)
     {
       list_del_rcu(&rule->list);
       rcu_read_unlock();
@@ -144,7 +153,7 @@ void rules_remove(const unsigned char * process_path, const uint32_t packet_id)
 
 int rules_search(struct douane_rule * rule_out, const unsigned char * process_path, const uint32_t packet_id)
 {
-  struct douane_rule * rule;
+  struct douane_rule_rcu * rule;
 
   if (process_path == NULL)
   {
@@ -161,10 +170,10 @@ int rules_search(struct douane_rule * rule_out, const unsigned char * process_pa
   rcu_read_lock();
   list_for_each_entry_rcu(rule, &rules_list, list)
   {
-    if (strncmp(rule->process_path, process_path, PATH_LENGTH) == 0)
+    if (strncmp(rule->r.process_path, process_path, PATH_LENGTH) == 0)
     {
-      LOG_DEBUG(0, (rule->allowed ? "found allowed %s" : "found blocked %s"), rule->process_path);
-      memcpy(rule_out, rule, sizeof(struct douane_rule));
+      LOG_DEBUG(0, (rule->r.allowed ? "found allowed %s" : "found blocked %s"), rule->r.process_path);
+      memcpy(rule_out, &rule->r, sizeof(struct douane_rule));
 
       rcu_read_unlock();
       return 0;

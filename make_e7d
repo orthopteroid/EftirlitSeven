@@ -1,0 +1,1 @@
+g++ -g -O0 -std=c++14 -Wall -I/usr/include/libnl3/ -L/lib/x86_64-linux-gnu/ src/e7d.cpp -lnl-3 -lnl-genl-3 -o e7d
