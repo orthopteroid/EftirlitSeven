@@ -16,7 +16,7 @@ enum nf_ip_hook_priorities {
   NF_IP_PRI_LAST = INT_MAX
 };
 // ~~~~
-#include <linux/netdevice.h>	    // net_device
+#include <linux/netdevice.h>      // net_device
 #include <linux/netfilter.h>      // nf_register_hook(), nf_unregister_hook(), nf_register_net_hook(), nf_unregister_net_hook()
 #include <linux/netlink.h>        // NLMSG_SPACE(), nlmsg_put(), NETLINK_CB(), NLMSG_DATA(), NLM_F_REQUEST, netlink_unicast(), netlink_kernel_release(), nlmsg_hdr(), NETLINK_USERSOCK, netlink_kernel_create()
 
@@ -65,12 +65,43 @@ DEFINE_SPINLOCK(netlink_lock);
 struct sock * daemon_socket = NULL;
 pid_t daemon_pid = 0;
 
+static bool enabled = true;
+static bool logging = true;
+
 ///////////////
+
+void douane_enable_set(bool value, const uint32_t stack_id)
+{
+  LOG_DEBUG(packet_id, "enable change to %s", value ? "enable" : "disable");
+
+  enabled = value;
+}
+
+void douane_enable_get(bool * value_out, const uint32_t stack_id)
+{
+  LOG_DEBUG(packet_id, "get enable value of %s", enabled ? "enable" : "disable");
+
+  *value_out = enabled;
+}
+
+void douane_logging_set(bool value, const uint32_t stack_id)
+{
+  LOG_DEBUG(packet_id, "logging change to %s", value ? "enable" : "disable");
+
+  logging = value;
+}
+
+void douane_logging_get(bool * value_out, const uint32_t stack_id)
+{
+  LOG_DEBUG(packet_id, "get logging value of %s", logging ? "enable" : "disable");
+
+  *value_out = logging;
+}
 
 void douane_renew_daemon_socket(const uint32_t packet_id)
 {
   LOG_DEBUG(packet_id, "renewing netlink socket");
-  
+
   spin_lock(&netlink_lock);
   if (daemon_socket)
     netlink_kernel_release(daemon_socket);
@@ -119,7 +150,7 @@ void douane_nlhandler(struct sk_buff *skb)
   struct douane_nlpacket * activity = NLMSG_DATA(nlh);
   struct douane_rule existing_rule;
   uint32_t packet_id;
-  
+
   get_random_bytes(&packet_id, sizeof(packet_id));
 
   if (activity == NULL)
@@ -479,6 +510,12 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
     return NF_ACCEPT;
   }
 
+  if (enabled == false)
+  {
+    LOG_DEBUG(packet_id, "NF_ACCEPT (all filtering is disabled)");
+    return NF_ACCEPT;
+  }
+
   if (skb == NULL)
   {
     LOG_ERR(packet_id, "NF_ACCEPT (socket buffer is null)");
@@ -624,9 +661,9 @@ int douane_init(void)
     LOG_ERR(0, "netlink_kernel_create failed");
     return -1;
   }
-  
+
   nf_register_net_hook(&init_net, &netfilter_config);
-  
+
   return 0;
 }
 
