@@ -58,20 +58,20 @@ void rules_append(const char * process_path, const bool is_allowed, const uint32
 
   if (process_path == NULL)
   {
-    LOG_ERR(0, "process_path is null");
+    LOG_ERR(packet_id, "process_path is null");
     return;
   }
 
   if (strlen(process_path) > PATH_LENGTH)
   {
-    LOG_ERR(0, "process_path too long");
+    LOG_ERR(packet_id, "process_path too long");
     return;
   }
 
   rule = (struct douane_rule_rcu *)kzalloc(sizeof(struct douane_rule_rcu), GFP_ATOMIC);
   if(rule == NULL)
   {
-    LOG_ERR(0, "kzmalloc failed");
+    LOG_ERR(packet_id, "kzmalloc failed");
     return;
   }
 
@@ -84,7 +84,7 @@ void rules_append(const char * process_path, const bool is_allowed, const uint32
   rcu_read_unlock();
   spin_unlock(&rules_lock);
 
-  LOG_DEBUG(0, (rule->r.allowed ? "allowed %s" : "blocked %s"), rule->r.process_path);
+  LOG_DEBUG(packet_id, (rule->r.allowed ? "allowed %s" : "blocked %s"), rule->r.process_path);
 }
 
 void rules_clear(const uint32_t packet_id)
@@ -94,7 +94,7 @@ void rules_clear(const uint32_t packet_id)
 
   if (list_empty(&rules_list))
   {
-    LOG_DEBUG(0, "rules_list empty");
+    LOG_DEBUG(packet_id, "rules_list empty");
     return;
   }
 
@@ -110,7 +110,7 @@ void rules_clear(const uint32_t packet_id)
   rcu_read_unlock();
   spin_unlock(&rules_lock);
 
-  LOG_DEBUG(0, "%d rule(s) successfully cleaned", rule_cleaned_records);
+  LOG_DEBUG(packet_id, "%d rule(s) successfully cleaned", rule_cleaned_records);
 }
 
 void rules_remove(const unsigned char * process_path, const uint32_t packet_id)
@@ -119,13 +119,13 @@ void rules_remove(const unsigned char * process_path, const uint32_t packet_id)
 
   if (process_path == NULL)
   {
-    LOG_ERR(0, "process_path is null");
+    LOG_ERR(packet_id, "process_path is null");
     return;
   }
 
   if (strlen(process_path) > PATH_LENGTH)
   {
-    LOG_ERR(0, "process_path too long");
+    LOG_ERR(packet_id, "process_path too long");
     return;
   }
 
@@ -141,14 +141,14 @@ void rules_remove(const unsigned char * process_path, const uint32_t packet_id)
 
       kfree_rcu(rule, rcu);
 
-      LOG_DEBUG(0, "deleted rule for %s", process_path);
+      LOG_DEBUG(packet_id, "deleted rule for %s", process_path);
       return;
     }
   }
   rcu_read_unlock();
   spin_unlock(&rules_lock);
 
-  LOG_DEBUG(0, "no rule to delete for %s", process_path);
+  LOG_DEBUG(packet_id, "no rule to delete for %s", process_path);
 }
 
 int rules_search(struct douane_rule * rule_out, const unsigned char * process_path, const uint32_t packet_id)
@@ -157,13 +157,13 @@ int rules_search(struct douane_rule * rule_out, const unsigned char * process_pa
 
   if (process_path == NULL)
   {
-    LOG_ERR(0, "process_path is null");
+    LOG_ERR(packet_id, "process_path is null");
     return -1;
   }
 
   if (strlen(process_path) > PATH_LENGTH)
   {
-    LOG_ERR(0, "process_path too long");
+    LOG_ERR(packet_id, "process_path too long");
     return -1;
   }
 
@@ -172,7 +172,7 @@ int rules_search(struct douane_rule * rule_out, const unsigned char * process_pa
   {
     if (strncmp(rule->r.process_path, process_path, PATH_LENGTH) == 0)
     {
-      LOG_DEBUG(0, (rule->r.allowed ? "found allowed %s" : "found blocked %s"), rule->r.process_path);
+      LOG_DEBUG(packet_id, (rule->r.allowed ? "found allowed %s" : "found blocked %s"), rule->r.process_path);
       memcpy(rule_out, &rule->r, sizeof(struct douane_rule));
 
       rcu_read_unlock();
