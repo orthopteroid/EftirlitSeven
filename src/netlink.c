@@ -129,11 +129,12 @@ struct dnl_recvfns * nl_rfns = NULL;
 
 static struct genl_family dnl_family; // fwd decl
 
+// rcu-friendly variable size array of netlink attrib pointers
 struct nlattrptr_stack_rcu
 {
   struct rcu_head rcu;
   //
-  struct nlattr * a[0];
+  struct nlattr * a[];
 };
 
 /////////
