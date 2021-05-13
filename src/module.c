@@ -98,7 +98,7 @@ static int __init mod_init(void)
     struct net_device *dev = first_net_device(&init_net);
     while(dev)
     {
-      LOG_DBG(0, "net_device found: name: %s - ifindex: %d", dev->name, dev->ifindex);
+      LOG_DEBUG(0, "net_device found: name: %s - ifindex: %d", dev->name, dev->ifindex);
       dev = next_net_device(dev);
     }
   }

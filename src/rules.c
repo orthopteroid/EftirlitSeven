@@ -47,7 +47,7 @@ void rules_print(const uint32_t packet_id)
   rcu_read_lock();
   list_for_each_entry_rcu(rule, &rules_list, list)
   {
-    LOG_DEBUG(0, (rule->r.allowed ? "allowed %s" : "blocked %s"), rule->r.process_path);
+    LOG_DEBUG(packet_id, "%s %s", (rule->r.allowed ? "allowed" : "blocked"), rule->r.process_path);
   }
   rcu_read_unlock();
 }
@@ -128,7 +128,7 @@ void rules_append(const char * process_path, const bool is_allowed, const uint32
   rcu_read_unlock();
   spin_unlock(&rules_lock);
 
-  LOG_DEBUG(packet_id, (rule->r.allowed ? "allowed %s" : "blocked %s"), rule->r.process_path);
+  LOG_DEBUG(packet_id, "%s %s", (rule->r.allowed ? "allowed" : "blocked"), rule->r.process_path);
 }
 
 void rules_clear(const uint32_t packet_id)
@@ -216,7 +216,7 @@ int rules_search(struct douane_rule * rule_out, const unsigned char * process_pa
   {
     if (strncmp(rule->r.process_path, process_path, PATH_LENGTH) == 0)
     {
-      LOG_DEBUG(packet_id, (rule->r.allowed ? "found allowed %s" : "found blocked %s"), rule->r.process_path);
+      LOG_DEBUG(packet_id, "found %s %s", (rule->r.allowed ? "allowed" : "blocked"), rule->r.process_path);
       memcpy(rule_out, &rule->r, sizeof(struct douane_rule));
 
       rcu_read_unlock();

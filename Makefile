@@ -7,8 +7,8 @@ MODULE_AUTHOR=orthopteroid@gmail.com
 
 MOD_DEFINES=-DMOD_NAME=\"$(MODULE_NAME)\" -DMOD_VERSION=\"$(MODULE_VERSION)\" -DMOD_AUTHOR=\"$(MODULE_AUTHOR)\"
 
-EXTRA_CFLAGS=-g $(MOD_DEFINES)
-#EXTRA_CFLAGS=-g $(MOD_DEFINES) -DDEBUG
+#EXTRA_CFLAGS=-g $(MOD_DEFINES)
+EXTRA_CFLAGS=-g $(MOD_DEFINES) -DDEBUG
 
 # obj-m, <something>-y and <something>-objs inform the make and kbuild module
 # machinery what is being built. multifile modules appear to need to be located

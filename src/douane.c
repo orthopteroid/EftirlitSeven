@@ -70,28 +70,28 @@ static bool logging = true;
 
 ///////////////
 
-void douane_enable_set(bool value, const uint32_t stack_id)
+void douane_enable_set(bool value, const uint32_t packet_id)
 {
   LOG_DEBUG(packet_id, "enable change to %s", value ? "enable" : "disable");
 
   enabled = value;
 }
 
-void douane_enable_get(bool * value_out, const uint32_t stack_id)
+void douane_enable_get(bool * value_out, const uint32_t packet_id)
 {
   LOG_DEBUG(packet_id, "get enable value of %s", enabled ? "enable" : "disable");
 
   *value_out = enabled;
 }
 
-void douane_logging_set(bool value, const uint32_t stack_id)
+void douane_logging_set(bool value, const uint32_t packet_id)
 {
   LOG_DEBUG(packet_id, "logging change to %s", value ? "enable" : "disable");
 
   logging = value;
 }
 
-void douane_logging_get(bool * value_out, const uint32_t stack_id)
+void douane_logging_get(bool * value_out, const uint32_t packet_id)
 {
   LOG_DEBUG(packet_id, "get logging value of %s", logging ? "enable" : "disable");
 
@@ -623,7 +623,7 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
 
     if (rules_search(&existing_rule, psi.process_path, packet_id) < 0)
     {
-      LOG_DEBUG(packet_id, "NF_QUEUE (rules_search failed for %s)" psi.process_path);
+      LOG_DEBUG(packet_id, "NF_QUEUE (rules_search failed for %s)", psi.process_path);
       return NF_QUEUE;
     }
     else

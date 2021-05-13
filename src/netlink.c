@@ -5,7 +5,7 @@
 #include <linux/kernel.h>         // Needed for KERN_INFO
 #include <linux/version.h>        // Needed for LINUX_VERSION_CODE >= KERNEL_VERSION
 
-#include <linux/netdevice.h>	    // net_device
+#include <linux/netdevice.h>      // net_device
 #include <linux/netfilter.h>      // nf_register_hook(), nf_unregister_hook(), nf_register_net_hook(), nf_unregister_net_hook()
 #include <linux/netlink.h>        // NLMSG_SPACE(), nlmsg_put(), NETLINK_CB(), NLMSG_DATA(), NLM_F_REQUEST, netlink_unicast(), netlink_kernel_release(), nlmsg_hdr(), NETLINK_USERSOCK, netlink_kernel_create()
 
@@ -285,7 +285,7 @@ int dnl_send_rules(int count, const struct douane_rule * rules, const uint32_t s
 
   attrptr_stack = kzalloc(sizeof(struct nlattrptr_stack_rcu) + sizeof(struct nlattr *) * count, GFP_ATOMIC );
   if(attrptr_stack == NULL) goto fail;
-  
+
 /*
   // a list built with recursive enumeration...
   std::deque<struct nlattr *> attrptr_stack;
@@ -303,13 +303,13 @@ int dnl_send_rules(int count, const struct douane_rule * rules, const uint32_t s
     attrptr_stack.pop_front();
   }
   dnl_printrc( "dnl_send", dnl_send(&ms) );
-*/  
-  
+*/
+
   // a list built with recursive enumeration...
   for(i = 0; i < count; i++)
   {
     attrptr_stack->a[i] = nla_nest_start(ms.msg, DOUANE_NL_ATTR_RULENESTED | NLA_F_NESTED); // | NESTED required with ubuntu libnl 3.2.29
-    
+
     if(0>nla_put_string(ms.msg, DOUANE_NL_ATTR_PROCESS_STR, (const char*) &rules[i].process_path)) goto fail;
     if(0>nla_put_flag(ms.msg, rules[i].allowed ? DOUANE_NL_ATTR_ALLOW : DOUANE_NL_ATTR_BLOCK)) goto fail;
     //if(0>nla_put_flag(ms.msg, rules[i].enabled ? DOUANE_NL_ATTR_ENABLE : DOUANE_NL_ATTR_DISABLE)) goto fail;
@@ -320,9 +320,9 @@ int dnl_send_rules(int count, const struct douane_rule * rules, const uint32_t s
     i = count - j;
     nla_nest_end(ms.msg, attrptr_stack->a[i]);
   }
-  
+
   if(0>_dnl_send(&ms)) goto fail;
-  
+
   kfree_rcu(attrptr_stack, rcu);
 
   LOG_DEBUG(stack_id, "complete");
@@ -374,17 +374,17 @@ static int _dnl_comm_echo(struct sk_buff *skb_in, struct genl_info *info)
 
     do {
       int rc = 0;
-      
+
       tmp_attr = curr_attrs[DOUANE_NL_ATTR_ECHONESTED];
       if(!tmp_attr) { LOG_DEBUG(stack_id, "end of list"); break; }
-      
+
       memset(curr_attrs, 0, sizeof(curr_attrs));
       rc = nla_parse_nested(curr_attrs, DOUANE_NL_ATTR_MAX, tmp_attr, dnl_policy, NULL);
       if(rc!=0) { LOG_ERR(stack_id, "!nla_parse_nested"); break; }
-      
+
       tmp_attr = curr_attrs[DOUANE_NL_ATTR_ECHOBODY];
       if(!tmp_attr) { LOG_ERR(stack_id, "!DOUANE_NL_ATTR_ECHOBODY"); break; }
-      
+
       mydata = (char*)nla_data(tmp_attr);
       if(!mydata) { LOG_ERR(stack_id, "!nla_data"); break; }
 
@@ -403,6 +403,7 @@ fail:
 
 static int _dnl_comm_event(struct sk_buff *skb_in, struct genl_info *info)
 {
+  uint32_t stack_id = _dnl_stackid();
   LOG_DEBUG(stack_id, "called");
   return 0;
 }
@@ -410,7 +411,7 @@ static int _dnl_comm_event(struct sk_buff *skb_in, struct genl_info *info)
 static int _dnl_comm_log(struct sk_buff *skb_in, struct genl_info *info)
 {
   uint32_t stack_id = _dnl_stackid();
-  
+
   LOG_DEBUG(stack_id, "start");
 
   if(!netlink_capable(skb_in, CAP_NET_ADMIN))
@@ -439,7 +440,7 @@ static int _dnl_comm_log(struct sk_buff *skb_in, struct genl_info *info)
     if(0>nla_put_flag(ms.msg, logging ? DOUANE_NL_ATTR_ENABLE : DOUANE_NL_ATTR_DISABLE)) goto failquery;
     if(0>_dnl_send(&ms)) goto failquery;
     return 0;
-    
+
 failquery:
     LOG_ERR(stack_id, "DOUANE_NL_ATTR_QUERY error");
     _dnl_clean(&ms);
@@ -451,7 +452,7 @@ failquery:
 static int _dnl_comm_mode(struct sk_buff *skb_in, struct genl_info *info)
 {
   uint32_t stack_id = _dnl_stackid();
-  
+
   LOG_DEBUG(stack_id, "start");
 
   if (info->attrs[DOUANE_NL_ATTR_HELLO])
@@ -480,7 +481,7 @@ static int _dnl_comm_mode(struct sk_buff *skb_in, struct genl_info *info)
     if(0>nla_put_flag(ms.msg, enable ? DOUANE_NL_ATTR_ENABLE : DOUANE_NL_ATTR_DISABLE)) goto failquery;
     if(0>_dnl_send(&ms)) goto failquery;
     return 0;
-    
+
 failquery:
     LOG_ERR(stack_id, "DOUANE_NL_ATTR_QUERY error");
     _dnl_clean(&ms);
@@ -508,13 +509,13 @@ static int _dnl_comm_rule(struct sk_buff *skb_in, struct genl_info *info)
   }
 
   // model after _dnl_comm_echo ?
-  
+
   {
     uint32_t u32proc = 0, u32prot = 0, u32user = 0, u32group = 0;
     char *szdev = "";
     struct nlattr *na = 0;
     struct douane_rule rule;
-    
+
     memset(&rule, 0, sizeof(struct douane_rule));
 
     if ((na=info->attrs[DOUANE_NL_ATTR_PROCESS_ID])) u32proc=nla_get_u32(na);
@@ -530,13 +531,13 @@ static int _dnl_comm_rule(struct sk_buff *skb_in, struct genl_info *info)
     //rule.enabled = info->attrs[DOUANE_NL_ATTR_DISABLE] ? false : true;
     //rule.log = info->attrs[DOUANE_NL_ATTR_LOG] ? true : false;
     //rule.log = info->attrs[DOUANE_NL_ATTR_NOLOG] ? false : true;
-    
+
   /*
       if (info->attrs[DOUANE_NL_ATTR_REMOVE])
       {
       }
   */
-    if(nl_rfns) nl_rfns->rule_add(&rule, stack_id);    
+    if(nl_rfns) nl_rfns->rule_add(&rule, stack_id);
   }
 
   return 0;
@@ -545,7 +546,7 @@ static int _dnl_comm_rule(struct sk_buff *skb_in, struct genl_info *info)
 static int _dnl_comm_rules(struct sk_buff *skb_in, struct genl_info *info)
 {
   uint32_t stack_id = _dnl_stackid();
-  
+
   LOG_DEBUG(stack_id, "start");
 
   if(!netlink_capable(skb_in, CAP_NET_ADMIN))
@@ -601,7 +602,7 @@ int dnl_init(struct dnl_recvfns * rfns)
   }
 
   nl_rfns = rfns;
-  
+
   return 0;
 }
 
