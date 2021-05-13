@@ -10,4 +10,6 @@ void rules_clear(const uint32_t packet_id);
 void rules_remove(const unsigned char * process_path, const uint32_t packet_id);
 int rules_search(struct douane_rule * rule_out, const unsigned char * process_path, const uint32_t packet_id);
 
+int rules_get(struct douane_ruleset_rcu ** ruleset_out_rcufree, const uint32_t packet_id);
+
 #endif // _RULES_H_

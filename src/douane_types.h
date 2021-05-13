@@ -41,4 +41,13 @@ struct douane_rule
   bool allowed;
 };
 
+// rcu-friendly variable size array of rules
+struct douane_ruleset_rcu
+{
+  struct rcu_head rcu;
+  //
+  int count;
+  struct douane_rule rules[];
+};
+
 #endif // _DOUANE_TYPES_H_

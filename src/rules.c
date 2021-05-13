@@ -8,7 +8,7 @@
 #include <linux/kernel.h>         // Needed for KERN_INFO
 #include <linux/version.h>        // Needed for LINUX_VERSION_CODE >= KERNEL_VERSION
 
-#include <linux/netdevice.h>	    // net_device
+#include <linux/netdevice.h>      // net_device
 #include <linux/netfilter.h>      // nf_register_hook(), nf_unregister_hook(), nf_register_net_hook(), nf_unregister_net_hook()
 #include <linux/netlink.h>        // NLMSG_SPACE(), nlmsg_put(), NETLINK_CB(), NLMSG_DATA(), NLM_F_REQUEST, netlink_unicast(), netlink_kernel_release(), nlmsg_hdr(), NETLINK_USERSOCK, netlink_kernel_create()
 
@@ -50,6 +50,50 @@ void rules_print(const uint32_t packet_id)
     LOG_DEBUG(0, (rule->r.allowed ? "allowed %s" : "blocked %s"), rule->r.process_path);
   }
   rcu_read_unlock();
+}
+
+int rules_get(struct douane_ruleset_rcu ** ruleset_out_rcufree, const uint32_t packet_id)
+{
+  struct douane_rule_rcu * rule;
+  size_t allocsize = 0;
+  int i = 0;
+
+  if(ruleset_out_rcufree == NULL)
+  {
+    LOG_ERR(packet_id, "ruleset_out is null");
+    return -1;
+  }
+
+  rcu_read_lock();
+  list_for_each_entry_rcu(rule, &rules_list, list)
+  {
+    i++;
+  }
+  rcu_read_unlock();
+
+  // NB: large allocations can't be freed by rcu when the tag offset is too large.
+  // luckily, we need the tag at the front of the struct to have an internal variable length array.
+  // see __is_kvfree_rcu_offset
+  allocsize = sizeof(struct douane_ruleset_rcu) + sizeof(struct douane_rule) * i;
+
+  *ruleset_out_rcufree = kzalloc(allocsize, GFP_ATOMIC );
+  if(*ruleset_out_rcufree == NULL)
+  {
+    LOG_ERR(packet_id, "kzalloc failure");
+    return -1;
+  }
+
+  (*ruleset_out_rcufree)->count = i;
+
+  i = 0;
+  rcu_read_lock();
+  list_for_each_entry_rcu(rule, &rules_list, list)
+  {
+    memcpy( &((*ruleset_out_rcufree)->rules[i]), &(rule->r), sizeof(struct douane_rule) );
+  }
+  rcu_read_unlock();
+
+  return 0;
 }
 
 void rules_append(const char * process_path, const bool is_allowed, const uint32_t packet_id)
