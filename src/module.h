@@ -4,7 +4,7 @@
 // eftirlit7 (gpl3) - orthopteroid@gmail.com
 // forked from douane-lkms (gpl3) - zedtux@zedroot.org
 
-#if FALSE
+#if 0
 
 #define LOG_INFO(id, fmt, ...) \
   pr_info("I " MOD_NAME "(%u):%s:%d: " fmt "\n", id, __FUNCTION__, __LINE__, ##__VA_ARGS__)
