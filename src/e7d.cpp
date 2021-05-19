@@ -54,8 +54,8 @@
 // userspace
 // https://stackoverflow.com/questions/21601521/how-to-use-the-libnl-library-to-trigger-nl80211-commands
 
-#define DOUANE_NL_NAME "douane"
-#define DOUANE_NL_VERSION 1
+#define ENL_NAME "douane"
+#define ENL_VERSION 1
 
 // <state> = enable | disable
 // <criteria> = [process] [protocol] [device] [user] [group]
@@ -71,48 +71,48 @@
 
 // command enumeration
 enum {
-  DOUANE_NL_COMM_UNSUPP,
-  DOUANE_NL_COMM_ECHO, // removeme: old demo code
-  DOUANE_NL_COMM_LOG,
-  DOUANE_NL_COMM_MODE,
-  DOUANE_NL_COMM_RULE,
-  DOUANE_NL_COMM_RULES,
-  DOUANE_NL_COMM_EVENT,
-  __DOUANE_NL_COMM_MAX,
+  ENL_COMM_UNSUPP,
+  ENL_COMM_ECHO, // removeme: old demo code
+  ENL_COMM_LOG,
+  ENL_COMM_MODE,
+  ENL_COMM_RULE,
+  ENL_COMM_RULES,
+  ENL_COMM_EVENT,
+  __ENL_COMM_MAX,
 };
-#define DOUANE_NL_COMM_MAX (__DOUANE_NL_COMM_MAX-1)
+#define ENL_COMM_MAX (__ENL_COMM_MAX-1)
 
 // attribute enumeration
 enum {
-  DOUANE_NL_ATTR_UNSUPP,
-  DOUANE_NL_ATTR_ECHOBODY, // removeme: old demo code
-  DOUANE_NL_ATTR_ECHONESTED, // removeme: old demo code
-  DOUANE_NL_ATTR_RULENESTED,
+  ENL_ATTR_UNSUPP,
+  ENL_ATTR_ECHOBODY, // removeme: old demo code
+  ENL_ATTR_ECHONESTED, // removeme: old demo code
+  ENL_ATTR_RULENESTED,
   // <state>
-  DOUANE_NL_ATTR_ENABLE,
-  DOUANE_NL_ATTR_DISABLE,
+  ENL_ATTR_ENABLE,
+  ENL_ATTR_DISABLE,
   // <criteria>
-  DOUANE_NL_ATTR_PROCESS_ID,
-  DOUANE_NL_ATTR_PROTOCOL_ID,
-  DOUANE_NL_ATTR_USER_ID,
-  DOUANE_NL_ATTR_GROUP_ID,
-  DOUANE_NL_ATTR_PROCESS_STR,
-  DOUANE_NL_ATTR_DEVICE_STR,
+  ENL_ATTR_PROCESS_ID,
+  ENL_ATTR_PROTOCOL_ID,
+  ENL_ATTR_USER_ID,
+  ENL_ATTR_GROUP_ID,
+  ENL_ATTR_PROCESS_STR,
+  ENL_ATTR_DEVICE_STR,
   // <action>
-  DOUANE_NL_ATTR_ALLOW,
-  DOUANE_NL_ATTR_BLOCK,
-  DOUANE_NL_ATTR_LOG,
-  DOUANE_NL_ATTR_NOLOG,
+  ENL_ATTR_ALLOW,
+  ENL_ATTR_BLOCK,
+  ENL_ATTR_LOG,
+  ENL_ATTR_NOLOG,
   // misc
-  DOUANE_NL_ATTR_REMOVE,
-  DOUANE_NL_ATTR_QUERY,
-  DOUANE_NL_ATTR_CLEAR,
-  DOUANE_NL_ATTR_HELLO,
-  DOUANE_NL_ATTR_BYE,
+  ENL_ATTR_REMOVE,
+  ENL_ATTR_QUERY,
+  ENL_ATTR_CLEAR,
+  ENL_ATTR_HELLO,
+  ENL_ATTR_BYE,
   //
-  __DOUANE_NL_ATTR_MAX,
+  __ENL_ATTR_MAX,
 };
-#define DOUANE_NL_ATTR_MAX (__DOUANE_NL_ATTR_MAX-1)
+#define ENL_ATTR_MAX (__ENL_ATTR_MAX-1)
 
 ///////////
 
@@ -213,7 +213,7 @@ static int e7_prep(MSGSTATE* ms, uint8_t comm) {
   ms->msg = nlmsg_alloc();
   if (ms->msg<0) return -1;
 
-  ms->hdr = genlmsg_put(ms->msg, NL_AUTO_PORT, NL_AUTO_SEQ, nl_familyid, 0, 0, comm, DOUANE_NL_VERSION);
+  ms->hdr = genlmsg_put(ms->msg, NL_AUTO_PORT, NL_AUTO_SEQ, nl_familyid, 0, 0, comm, ENL_VERSION);
   if (ms->hdr) return 0;
 
   if (ms->msg) nlmsg_free(ms->msg);
@@ -233,31 +233,31 @@ static int e7_send(MSGSTATE* ms) {
 }
 
 static int e7_nlcallback(struct nl_msg *msg, void *arg) {
-  struct nlattr * attribs[DOUANE_NL_ATTR_MAX +1]; // +1 because attrib 0 is nl_skipped
+  struct nlattr * attribs[ENL_ATTR_MAX +1]; // +1 because attrib 0 is nl_skipped
 
   struct genlmsghdr *gnlh = (struct genlmsghdr *)nlmsg_data(nlmsg_hdr(msg));
-  nla_parse(attribs, DOUANE_NL_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
+  nla_parse(attribs, ENL_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
 
   switch(gnlh->cmd) {
-  case DOUANE_NL_COMM_ECHO:
-    printf("Kernel replied: %s\n", nla_get_string(attribs[DOUANE_NL_ATTR_ECHOBODY]));
+  case ENL_COMM_ECHO:
+    printf("Kernel replied: %s\n", nla_get_string(attribs[ENL_ATTR_ECHOBODY]));
     break;
-  case DOUANE_NL_COMM_LOG:
+  case ENL_COMM_LOG:
     printf("Unrecognized log message\n");
     break;
-  case DOUANE_NL_COMM_MODE:
-    printf("DOUANE_NL_COMM_MODE message\n");
-    if(attribs[DOUANE_NL_ATTR_BYE]) stop = true;
+  case ENL_COMM_MODE:
+    printf("ENL_COMM_MODE message\n");
+    if(attribs[ENL_ATTR_BYE]) stop = true;
     break;
-  case DOUANE_NL_COMM_RULE:
+  case ENL_COMM_RULE:
     printf("Unrecognized rule message\n");
     break;
-  case DOUANE_NL_COMM_RULES:
+  case ENL_COMM_RULES:
     printf("Unrecognized rules message\n");
 /* TODO: parse nested rules
-  if(info->attrs[DOUANE_NL_ATTR_ECHONESTED])
+  if(info->attrs[ENL_ATTR_ECHONESTED])
   {
-    struct nlattr * curr_attrs[DOUANE_NL_ATTR_MAX +1]; // +1 because attrib 0 is nl_skipped
+    struct nlattr * curr_attrs[ENL_ATTR_MAX +1]; // +1 because attrib 0 is nl_skipped
 
     memcpy(curr_attrs, info->attrs, sizeof(curr_attrs));
 
@@ -266,15 +266,15 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
     do {
       int rc = 0;
 
-      tmp_attr = curr_attrs[DOUANE_NL_ATTR_ECHONESTED];
+      tmp_attr = curr_attrs[ENL_ATTR_ECHONESTED];
       if(!tmp_attr) { LOG_DEBUG(stack_id, "end of list"); break; }
 
       memset(curr_attrs, 0, sizeof(curr_attrs));
-      rc = nla_parse_nested(curr_attrs, DOUANE_NL_ATTR_MAX, tmp_attr, e7_policy, NULL);
+      rc = nla_parse_nested(curr_attrs, ENL_ATTR_MAX, tmp_attr, e7_policy, NULL);
       if(rc!=0) { LOG_ERR(stack_id, "!nla_parse_nested"); break; }
 
-      tmp_attr = curr_attrs[DOUANE_NL_ATTR_ECHOBODY];
-      if(!tmp_attr) { LOG_ERR(stack_id, "!DOUANE_NL_ATTR_ECHOBODY"); break; }
+      tmp_attr = curr_attrs[ENL_ATTR_ECHOBODY];
+      if(!tmp_attr) { LOG_ERR(stack_id, "!ENL_ATTR_ECHOBODY"); break; }
 
       mydata = (char*)nla_data(tmp_attr);
       if(!mydata) { LOG_ERR(stack_id, "!nla_data"); break; }
@@ -285,8 +285,8 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
   }
 */
     break;
-  case DOUANE_NL_COMM_EVENT:
-    printf("event %s\n", nla_get_string(attribs[DOUANE_NL_ATTR_PROCESS_STR]));
+  case ENL_COMM_EVENT:
+    printf("event %s\n", nla_get_string(attribs[ENL_ATTR_PROCESS_STR]));
     break;
   default:
     printf("Unrecognized message\n");
@@ -416,41 +416,41 @@ int main(void)
               printf("ya whatever\n");
               break;
             case crc32("hello"):
-              e7_printrc( "e7_prep", e7_prep(&ms, DOUANE_NL_COMM_MODE) );
-              e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, DOUANE_NL_ATTR_HELLO) );
+              e7_printrc( "e7_prep", e7_prep(&ms, ENL_COMM_MODE) );
+              e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, ENL_ATTR_HELLO) );
               e7_printrc( "e7_send", e7_send(&ms) );
               break;
             case crc32("bye"):
-              e7_printrc( "e7_prep", e7_prep(&ms, DOUANE_NL_COMM_MODE) );
-              e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, DOUANE_NL_ATTR_BYE) );
+              e7_printrc( "e7_prep", e7_prep(&ms, ENL_COMM_MODE) );
+              e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, ENL_ATTR_BYE) );
               e7_printrc( "e7_send", e7_send(&ms) );
               //stop = true;
               break;
             case crc32("hiby"):
-              e7_printrc( "e7_prep", e7_prep(&ms, DOUANE_NL_COMM_MODE) );
-              e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, DOUANE_NL_ATTR_HELLO) );
-              e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, DOUANE_NL_ATTR_BYE) );
+              e7_printrc( "e7_prep", e7_prep(&ms, ENL_COMM_MODE) );
+              e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, ENL_ATTR_HELLO) );
+              e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, ENL_ATTR_BYE) );
               e7_printrc( "e7_send", e7_send(&ms) );
               //stop = true;
               break;
             case crc32("echo"):
-              e7_printrc( "e7_prep", e7_prep(&ms, DOUANE_NL_COMM_ECHO) );
-              e7_printrc( "nla_put_string", nla_put_string(ms.msg, DOUANE_NL_ATTR_ECHOBODY, "Hello World") );
+              e7_printrc( "e7_prep", e7_prep(&ms, ENL_COMM_ECHO) );
+              e7_printrc( "nla_put_string", nla_put_string(ms.msg, ENL_ATTR_ECHOBODY, "Hello World") );
               e7_printrc( "e7_send", e7_send(&ms) );
               break;
             case crc32("en"): // echonest
               {
-                e7_printrc( "e7_prep", e7_prep(&ms, DOUANE_NL_COMM_ECHO) );
-                e7_printrc( "nla_put_string", nla_put_string(ms.msg, DOUANE_NL_ATTR_ECHOBODY, "OUTER") );
+                e7_printrc( "e7_prep", e7_prep(&ms, ENL_COMM_ECHO) );
+                e7_printrc( "nla_put_string", nla_put_string(ms.msg, ENL_ATTR_ECHOBODY, "OUTER") );
                 // a list built with recursive enumeration...
                 std::deque<struct nlattr *> attrptr_stack;
                 std::string inner;
                 for(int z=0;z<3;z++)
                 {
-                  // there appears to be overhead for each entry, but it seems to be around DOUANE_NL_ATTR_MAX bytes. hmmm.
+                  // there appears to be overhead for each entry, but it seems to be around ENL_ATTR_MAX bytes. hmmm.
                   inner = inner + "INNER ";
-                  attrptr_stack.push_front( nla_nest_start(ms.msg, DOUANE_NL_ATTR_ECHONESTED | NLA_F_NESTED) ); // | NESTED required with ubuntu libnl 3.2.29
-                  e7_printrc( "nla_put_string", nla_put_string(ms.msg, DOUANE_NL_ATTR_ECHOBODY, inner.c_str()) );
+                  attrptr_stack.push_front( nla_nest_start(ms.msg, ENL_ATTR_ECHONESTED | NLA_F_NESTED) ); // | NESTED required with ubuntu libnl 3.2.29
+                  e7_printrc( "nla_put_string", nla_put_string(ms.msg, ENL_ATTR_ECHOBODY, inner.c_str()) );
                 }
                 while(!attrptr_stack.empty())
                 {
@@ -469,8 +469,8 @@ int main(void)
   }
 
   printf("Shutting down...\n");
-  e7_printrc( "e7_prep", e7_prep(&ms, DOUANE_NL_COMM_MODE) );
-  e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, DOUANE_NL_ATTR_BYE) );
+  e7_printrc( "e7_prep", e7_prep(&ms, ENL_COMM_MODE) );
+  e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, ENL_ATTR_BYE) );
   e7_printrc( "e7_send", e7_send(&ms) );
 
   return 0;

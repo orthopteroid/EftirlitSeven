@@ -35,8 +35,8 @@
 
 ////////////////////
 
-#define DOUANE_NL_NAME "douane"
-#define DOUANE_NL_VERSION 1
+#define ENL_NAME "douane"
+#define ENL_VERSION 1
 
 // <state> = enable | disable
 // <criteria> = [process] [protocol] [device] [user] [group]
@@ -52,55 +52,55 @@
 
 // command enumeration
 enum {
-  DOUANE_NL_COMM_UNSUPP,
-  DOUANE_NL_COMM_ECHO, // removeme: old demo code
-  DOUANE_NL_COMM_LOG,
-  DOUANE_NL_COMM_MODE,
-  DOUANE_NL_COMM_RULE,
-  DOUANE_NL_COMM_RULES,
-  DOUANE_NL_COMM_EVENT,
-  __DOUANE_NL_COMM_MAX,
+  ENL_COMM_UNSUPP,
+  ENL_COMM_ECHO, // removeme: old demo code
+  ENL_COMM_LOG,
+  ENL_COMM_MODE,
+  ENL_COMM_RULE,
+  ENL_COMM_RULES,
+  ENL_COMM_EVENT,
+  __ENL_COMM_MAX,
 };
-#define DOUANE_NL_COMM_MAX (__DOUANE_NL_COMM_MAX-1)
+#define ENL_COMM_MAX (__ENL_COMM_MAX-1)
 
 // attribute enumeration
 enum {
-  DOUANE_NL_ATTR_UNSUPP,
-  DOUANE_NL_ATTR_ECHOBODY, // removeme: old demo code
-  DOUANE_NL_ATTR_ECHONESTED, // removeme: old demo code
-  DOUANE_NL_ATTR_RULENESTED,
+  ENL_ATTR_UNSUPP,
+  ENL_ATTR_ECHOBODY, // removeme: old demo code
+  ENL_ATTR_ECHONESTED, // removeme: old demo code
+  ENL_ATTR_RULENESTED,
   // <state>
-  DOUANE_NL_ATTR_ENABLE,
-  DOUANE_NL_ATTR_DISABLE,
+  ENL_ATTR_ENABLE,
+  ENL_ATTR_DISABLE,
   // <criteria>
-  DOUANE_NL_ATTR_PROCESS_ID,
-  DOUANE_NL_ATTR_PROTOCOL_ID,
-  DOUANE_NL_ATTR_USER_ID,
-  DOUANE_NL_ATTR_GROUP_ID,
-  DOUANE_NL_ATTR_PROCESS_STR,
-  DOUANE_NL_ATTR_DEVICE_STR,
+  ENL_ATTR_PROCESS_ID,
+  ENL_ATTR_PROTOCOL_ID,
+  ENL_ATTR_USER_ID,
+  ENL_ATTR_GROUP_ID,
+  ENL_ATTR_PROCESS_STR,
+  ENL_ATTR_DEVICE_STR,
   // <action>
-  DOUANE_NL_ATTR_ALLOW,
-  DOUANE_NL_ATTR_BLOCK,
-  DOUANE_NL_ATTR_LOG,
-  DOUANE_NL_ATTR_NOLOG,
+  ENL_ATTR_ALLOW,
+  ENL_ATTR_BLOCK,
+  ENL_ATTR_LOG,
+  ENL_ATTR_NOLOG,
   // misc
-  DOUANE_NL_ATTR_REMOVE,
-  DOUANE_NL_ATTR_QUERY,
-  DOUANE_NL_ATTR_CLEAR,
-  DOUANE_NL_ATTR_HELLO,
-  DOUANE_NL_ATTR_BYE,
+  ENL_ATTR_REMOVE,
+  ENL_ATTR_QUERY,
+  ENL_ATTR_CLEAR,
+  ENL_ATTR_HELLO,
+  ENL_ATTR_BYE,
   //
-  __DOUANE_NL_ATTR_MAX,
+  __ENL_ATTR_MAX,
 };
-#define DOUANE_NL_ATTR_MAX (__DOUANE_NL_ATTR_MAX-1)
+#define ENL_ATTR_MAX (__ENL_ATTR_MAX-1)
 
 // attribute policies and types
 static struct nla_policy enl_policy[] = {
-  /*DOUANE_NL_ATTR_UNSUPP*/ {},
-  /*DOUANE_NL_ATTR_ECHOBODY*/ { .type = NLA_NUL_STRING }, // removeme: old demo code
-  /*DOUANE_NL_ATTR_ECHONESTED*/ { .type = NLA_NESTED }, // removeme: old demo code
-  /*DOUANE_NL_ATTR_RULENESTED*/ { .type = NLA_NESTED },
+  /*UNSUPP*/ {},
+  /*ECHOBODY*/ { .type = NLA_NUL_STRING }, // removeme: old demo code
+  /*ECHONESTED*/ { .type = NLA_NESTED }, // removeme: old demo code
+  /*RULENESTED*/ { .type = NLA_NESTED },
   //
   /*ENABLE*/ { .type = NLA_FLAG },
   /*DISABLE*/ { .type = NLA_FLAG },
@@ -214,8 +214,8 @@ int enl_send_bye(const uint32_t stack_id)
   spin_lock(&nl_lock);
 
   if (nl_net == NULL || nl_port == 0) goto prefail;
-  if(0>_enl_prep(&ms, DOUANE_NL_COMM_MODE)) goto fail;
-  if(0>nla_put_flag(ms.msg, DOUANE_NL_ATTR_BYE)) goto fail;
+  if(0>_enl_prep(&ms, ENL_COMM_MODE)) goto fail;
+  if(0>nla_put_flag(ms.msg, ENL_ATTR_BYE)) goto fail;
   if(0>_enl_send(&ms)) goto fail;
 
   spin_unlock(&nl_lock);
@@ -243,9 +243,9 @@ int enl_send_event(const char * process, const char * device, const uint32_t sta
   spin_lock(&nl_lock);
 
   if (nl_net == NULL || nl_port == 0) goto prefail;
-  if(0>_enl_prep(&ms, DOUANE_NL_COMM_EVENT)) goto fail;
-  if(0>nla_put_string(ms.msg, DOUANE_NL_ATTR_PROCESS_STR, process)) goto fail;
-  if(0>nla_put_string(ms.msg, DOUANE_NL_ATTR_DEVICE_STR, device)) goto fail;
+  if(0>_enl_prep(&ms, ENL_COMM_EVENT)) goto fail;
+  if(0>nla_put_string(ms.msg, ENL_ATTR_PROCESS_STR, process)) goto fail;
+  if(0>nla_put_string(ms.msg, ENL_ATTR_DEVICE_STR, device)) goto fail;
   if(0>_enl_send(&ms)) goto fail;
 
   spin_unlock(&nl_lock);
@@ -273,8 +273,8 @@ int enl_send_echo(const char * message, const uint32_t stack_id)
   spin_lock(&nl_lock);
 
   if (nl_net == NULL || nl_port == 0) goto prefail;
-  if(0>_enl_prep(&ms, DOUANE_NL_COMM_EVENT)) goto fail;
-  if(0>nla_put_string(ms.msg, DOUANE_NL_ATTR_ECHOBODY, message)) goto fail;
+  if(0>_enl_prep(&ms, ENL_COMM_EVENT)) goto fail;
+  if(0>nla_put_string(ms.msg, ENL_ATTR_ECHOBODY, message)) goto fail;
   if(0>_enl_send(&ms)) goto fail;
 
   spin_unlock(&nl_lock);
@@ -304,7 +304,7 @@ int enl_send_rules(int count, const struct douane_rule * rules, const uint32_t s
   spin_unlock(&nl_lock);
 
   if (nl_net == NULL || nl_port == 0) goto prefail;
-  if(0>_enl_prep(&ms, DOUANE_NL_COMM_RULES)) goto fail;
+  if(0>_enl_prep(&ms, ENL_COMM_RULES)) goto fail;
 
   attrptr_stack = kzalloc(sizeof(struct nlattrptr_stack_rcu) + sizeof(struct nlattr *) * count, GFP_ATOMIC );
   if(attrptr_stack == NULL) goto fail;
@@ -315,10 +315,10 @@ int enl_send_rules(int count, const struct douane_rule * rules, const uint32_t s
   std::string inner;
   for(int z=0;z<3;z++)
   {
-    // there appears to be overhead for each entry, but it seems to be around DOUANE_NL_ATTR_MAX bytes. hmmm.
+    // there appears to be overhead for each entry, but it seems to be around ENL_ATTR_MAX bytes. hmmm.
     inner = inner + "INNER ";
-    attrptr_stack.push_front( nla_nest_start(ms.msg, DOUANE_NL_ATTR_ECHONESTED | NLA_F_NESTED) ); // | NESTED required with ubuntu libnl 3.2.29
-    enl_printrc( "nla_put_string", nla_put_string(ms.msg, DOUANE_NL_ATTR_ECHOBODY, inner.c_str()) );
+    attrptr_stack.push_front( nla_nest_start(ms.msg, ENL_ATTR_ECHONESTED | NLA_F_NESTED) ); // | NESTED required with ubuntu libnl 3.2.29
+    enl_printrc( "nla_put_string", nla_put_string(ms.msg, ENL_ATTR_ECHOBODY, inner.c_str()) );
   }
   while(!attrptr_stack.empty())
   {
@@ -331,12 +331,12 @@ int enl_send_rules(int count, const struct douane_rule * rules, const uint32_t s
   // a list built with recursive enumeration...
   for(i = 0; i < count; i++)
   {
-    attrptr_stack->a[i] = nla_nest_start(ms.msg, DOUANE_NL_ATTR_RULENESTED | NLA_F_NESTED); // | NESTED required with ubuntu libnl 3.2.29
+    attrptr_stack->a[i] = nla_nest_start(ms.msg, ENL_ATTR_RULENESTED | NLA_F_NESTED); // | NESTED required with ubuntu libnl 3.2.29
 
-    if(0>nla_put_string(ms.msg, DOUANE_NL_ATTR_PROCESS_STR, (const char*) &rules[i].process_path)) goto fail;
-    if(0>nla_put_flag(ms.msg, rules[i].allowed ? DOUANE_NL_ATTR_ALLOW : DOUANE_NL_ATTR_BLOCK)) goto fail;
-    //if(0>nla_put_flag(ms.msg, rules[i].enabled ? DOUANE_NL_ATTR_ENABLE : DOUANE_NL_ATTR_DISABLE)) goto fail;
-    //if(0>nla_put_flag(ms.msg, rules[i].log ? DOUANE_NL_ATTR_LOG : DOUANE_NL_ATTR_NOLOG)) goto fail;
+    if(0>nla_put_string(ms.msg, ENL_ATTR_PROCESS_STR, (const char*) &rules[i].process_path)) goto fail;
+    if(0>nla_put_flag(ms.msg, rules[i].allowed ? ENL_ATTR_ALLOW : ENL_ATTR_BLOCK)) goto fail;
+    //if(0>nla_put_flag(ms.msg, rules[i].enabled ? ENL_ATTR_ENABLE : ENL_ATTR_DISABLE)) goto fail;
+    //if(0>nla_put_flag(ms.msg, rules[i].log ? ENL_ATTR_LOG : ENL_ATTR_NOLOG)) goto fail;
   }
   for(j = 0; j < count; j++)
   {
@@ -378,7 +378,7 @@ static int _enl_comm_echo(struct sk_buff *skb_in, struct genl_info *info)
 
   LOG_DEBUG(stack_id, "start");
 
-  tmp_attr = info->attrs[DOUANE_NL_ATTR_ECHOBODY];
+  tmp_attr = info->attrs[ENL_ATTR_ECHOBODY];
   if(tmp_attr)
   {
     mydata = (char*)nla_data(tmp_attr);
@@ -391,9 +391,9 @@ static int _enl_comm_echo(struct sk_buff *skb_in, struct genl_info *info)
   }
 
   // a list built with recursive enumeration...
-  if(info->attrs[DOUANE_NL_ATTR_ECHONESTED])
+  if(info->attrs[ENL_ATTR_ECHONESTED])
   {
-    struct nlattr * curr_attrs[DOUANE_NL_ATTR_MAX +1]; // +1 because attrib 0 is nl_skipped
+    struct nlattr * curr_attrs[ENL_ATTR_MAX +1]; // +1 because attrib 0 is nl_skipped
 
     memcpy(curr_attrs, info->attrs, sizeof(curr_attrs));
 
@@ -402,15 +402,15 @@ static int _enl_comm_echo(struct sk_buff *skb_in, struct genl_info *info)
     do {
       int rc = 0;
 
-      tmp_attr = curr_attrs[DOUANE_NL_ATTR_ECHONESTED];
+      tmp_attr = curr_attrs[ENL_ATTR_ECHONESTED];
       if(!tmp_attr) { LOG_DEBUG(stack_id, "end of list"); break; }
 
       memset(curr_attrs, 0, sizeof(curr_attrs));
-      rc = nla_parse_nested(curr_attrs, DOUANE_NL_ATTR_MAX, tmp_attr, enl_policy, NULL);
+      rc = nla_parse_nested(curr_attrs, ENL_ATTR_MAX, tmp_attr, enl_policy, NULL);
       if(rc!=0) { LOG_ERR(stack_id, "!nla_parse_nested"); break; }
 
-      tmp_attr = curr_attrs[DOUANE_NL_ATTR_ECHOBODY];
-      if(!tmp_attr) { LOG_ERR(stack_id, "!DOUANE_NL_ATTR_ECHOBODY"); break; }
+      tmp_attr = curr_attrs[ENL_ATTR_ECHOBODY];
+      if(!tmp_attr) { LOG_ERR(stack_id, "!ENL_ATTR_ECHOBODY"); break; }
 
       mydata = (char*)nla_data(tmp_attr);
       if(!mydata) { LOG_ERR(stack_id, "!nla_data"); break; }
@@ -447,30 +447,30 @@ static int _enl_comm_log(struct sk_buff *skb_in, struct genl_info *info)
     return 0;
   }
 
-  if (info->attrs[DOUANE_NL_ATTR_ENABLE] && nl_rfns)
+  if (info->attrs[ENL_ATTR_ENABLE] && nl_rfns)
   {
     nl_rfns->logging_set(true, stack_id);
     LOG_DEBUG(stack_id, "logging enabled");
   }
-  if (info->attrs[DOUANE_NL_ATTR_DISABLE] && nl_rfns)
+  if (info->attrs[ENL_ATTR_DISABLE] && nl_rfns)
   {
     nl_rfns->logging_set(false, stack_id);
     LOG_DEBUG(stack_id, "logging disabled");
   }
 
-  if (info->attrs[DOUANE_NL_ATTR_QUERY])
+  if (info->attrs[ENL_ATTR_QUERY])
   {
     struct MSGSTATE ms = { 0, 0 };
     bool logging = false;
     nl_rfns->logging_get(&logging, stack_id);
 
-    LOG_DEBUG(stack_id, "DOUANE_NL_ATTR_QUERY");
+    LOG_DEBUG(stack_id, "ENL_ATTR_QUERY");
 
     spin_lock(&nl_lock);
 
     if (nl_net == NULL || nl_port == 0) goto prefailquery;
-    if(0>_enl_prep(&ms, DOUANE_NL_COMM_LOG)) goto failquery;
-    if(0>nla_put_flag(ms.msg, logging ? DOUANE_NL_ATTR_ENABLE : DOUANE_NL_ATTR_DISABLE)) goto failquery;
+    if(0>_enl_prep(&ms, ENL_COMM_LOG)) goto failquery;
+    if(0>nla_put_flag(ms.msg, logging ? ENL_ATTR_ENABLE : ENL_ATTR_DISABLE)) goto failquery;
     if(0>_enl_send(&ms)) goto failquery;
 
     spin_unlock(&nl_lock);
@@ -482,7 +482,7 @@ prefailquery:
 
 failquery:
     spin_unlock(&nl_lock);
-    LOG_ERR(stack_id, "DOUANE_NL_ATTR_QUERY error");
+    LOG_ERR(stack_id, "ENL_ATTR_QUERY error");
     _enl_clean(&ms);
   }
 
@@ -495,7 +495,7 @@ static int _enl_comm_mode(struct sk_buff *skb_in, struct genl_info *info)
 
   LOG_DEBUG(stack_id, "start");
 
-  if (info->attrs[DOUANE_NL_ATTR_HELLO])
+  if (info->attrs[ENL_ATTR_HELLO])
   {
     spin_lock(&nl_lock);
     nl_port = info->snd_portid;
@@ -503,29 +503,29 @@ static int _enl_comm_mode(struct sk_buff *skb_in, struct genl_info *info)
     spin_unlock(&nl_lock);
     LOG_DEBUG(stack_id, "daemon connection accepted %d %p\n", nl_port, nl_net);
   }
-  if (info->attrs[DOUANE_NL_ATTR_ENABLE] && nl_rfns)
+  if (info->attrs[ENL_ATTR_ENABLE] && nl_rfns)
   {
     nl_rfns->enable_set(true, stack_id);
     LOG_DEBUG(stack_id, "filtering enabled");
   }
-  if (info->attrs[DOUANE_NL_ATTR_DISABLE] && nl_rfns)
+  if (info->attrs[ENL_ATTR_DISABLE] && nl_rfns)
   {
     nl_rfns->enable_set(false, stack_id);
     LOG_DEBUG(stack_id, "filtering disabled");
   }
-  if (info->attrs[DOUANE_NL_ATTR_QUERY] && nl_rfns)
+  if (info->attrs[ENL_ATTR_QUERY] && nl_rfns)
   {
     struct MSGSTATE ms = { 0, 0 };
     bool enable = false;
     nl_rfns->enable_get(&enable, stack_id);
 
-    LOG_DEBUG(stack_id, "DOUANE_NL_ATTR_QUERY");
+    LOG_DEBUG(stack_id, "ENL_ATTR_QUERY");
 
     spin_lock(&nl_lock);
 
     if (nl_net == NULL || nl_port == 0) goto prefailquery;
-    if(0>_enl_prep(&ms, DOUANE_NL_COMM_MODE)) goto failquery;
-    if(0>nla_put_flag(ms.msg, enable ? DOUANE_NL_ATTR_ENABLE : DOUANE_NL_ATTR_DISABLE)) goto failquery;
+    if(0>_enl_prep(&ms, ENL_COMM_MODE)) goto failquery;
+    if(0>nla_put_flag(ms.msg, enable ? ENL_ATTR_ENABLE : ENL_ATTR_DISABLE)) goto failquery;
     if(0>_enl_send(&ms)) goto failquery;
 
     spin_unlock(&nl_lock);
@@ -537,10 +537,10 @@ prefailquery:
 
 failquery:
     spin_unlock(&nl_lock);
-    LOG_ERR(stack_id, "DOUANE_NL_ATTR_QUERY error");
+    LOG_ERR(stack_id, "ENL_ATTR_QUERY error");
     _enl_clean(&ms);
   }
-  if (info->attrs[DOUANE_NL_ATTR_BYE])
+  if (info->attrs[ENL_ATTR_BYE])
   {
     spin_lock(&nl_lock);
     nl_port = 0;
@@ -574,22 +574,22 @@ static int _enl_comm_rule(struct sk_buff *skb_in, struct genl_info *info)
 
     memset(&rule, 0, sizeof(struct douane_rule));
 
-    if ((na=info->attrs[DOUANE_NL_ATTR_PROCESS_ID])) u32proc=nla_get_u32(na);
-    if ((na=info->attrs[DOUANE_NL_ATTR_PROTOCOL_ID])) u32prot=nla_get_u32(na);
-    if ((na=info->attrs[DOUANE_NL_ATTR_USER_ID])) u32user=nla_get_u32(na);
-    if ((na=info->attrs[DOUANE_NL_ATTR_GROUP_ID])) u32group=nla_get_u32(na);
-    if ((na=info->attrs[DOUANE_NL_ATTR_PROCESS_STR])) strncpy(rule.process_path, nla_data(na), PATH_LENGTH);
-    if ((na=info->attrs[DOUANE_NL_ATTR_DEVICE_STR])) szdev=nla_data(na); // not a copy
+    if ((na=info->attrs[ENL_ATTR_PROCESS_ID])) u32proc=nla_get_u32(na);
+    if ((na=info->attrs[ENL_ATTR_PROTOCOL_ID])) u32prot=nla_get_u32(na);
+    if ((na=info->attrs[ENL_ATTR_USER_ID])) u32user=nla_get_u32(na);
+    if ((na=info->attrs[ENL_ATTR_GROUP_ID])) u32group=nla_get_u32(na);
+    if ((na=info->attrs[ENL_ATTR_PROCESS_STR])) strncpy(rule.process_path, nla_data(na), PATH_LENGTH);
+    if ((na=info->attrs[ENL_ATTR_DEVICE_STR])) szdev=nla_data(na); // not a copy
 
-    rule.allowed = info->attrs[DOUANE_NL_ATTR_ALLOW] ? true : false;
-    rule.allowed = info->attrs[DOUANE_NL_ATTR_BLOCK] ? false : true;
-    //rule.enabled = info->attrs[DOUANE_NL_ATTR_ENABLE] ? true : false;
-    //rule.enabled = info->attrs[DOUANE_NL_ATTR_DISABLE] ? false : true;
-    //rule.log = info->attrs[DOUANE_NL_ATTR_LOG] ? true : false;
-    //rule.log = info->attrs[DOUANE_NL_ATTR_NOLOG] ? false : true;
+    rule.allowed = info->attrs[ENL_ATTR_ALLOW] ? true : false;
+    rule.allowed = info->attrs[ENL_ATTR_BLOCK] ? false : true;
+    //rule.enabled = info->attrs[ENL_ATTR_ENABLE] ? true : false;
+    //rule.enabled = info->attrs[ENL_ATTR_DISABLE] ? false : true;
+    //rule.log = info->attrs[ENL_ATTR_LOG] ? true : false;
+    //rule.log = info->attrs[ENL_ATTR_NOLOG] ? false : true;
 
   /*
-      if (info->attrs[DOUANE_NL_ATTR_REMOVE])
+      if (info->attrs[ENL_ATTR_REMOVE])
       {
       }
   */
@@ -611,12 +611,12 @@ static int _enl_comm_rules(struct sk_buff *skb_in, struct genl_info *info)
     return 0;
   }
 
-  if (info->attrs[DOUANE_NL_ATTR_CLEAR] && nl_rfns)
+  if (info->attrs[ENL_ATTR_CLEAR] && nl_rfns)
   {
     nl_rfns->rules_clear(stack_id);
   }
 
-  if (info->attrs[DOUANE_NL_ATTR_QUERY] && nl_rfns)
+  if (info->attrs[ENL_ATTR_QUERY] && nl_rfns)
   {
     nl_rfns->rules_query(stack_id);
   }
@@ -628,23 +628,23 @@ static int _enl_comm_rules(struct sk_buff *skb_in, struct genl_info *info)
 
 // command/handler mapping
 struct genl_ops enl_ops[] = {
-  { .cmd = DOUANE_NL_COMM_ECHO, .doit = _enl_comm_echo, },
-  { .cmd = DOUANE_NL_COMM_LOG, .doit = _enl_comm_log, },
-  { .cmd = DOUANE_NL_COMM_MODE, .doit = _enl_comm_mode, .flags = GENL_ADMIN_PERM, },
-  { .cmd = DOUANE_NL_COMM_RULE, .doit = _enl_comm_rule, },
-  { .cmd = DOUANE_NL_COMM_RULES, .doit = _enl_comm_rules, },
-  { .cmd = DOUANE_NL_COMM_EVENT, .doit = _enl_comm_event, },
+  { .cmd = ENL_COMM_ECHO, .doit = _enl_comm_echo, },
+  { .cmd = ENL_COMM_LOG, .doit = _enl_comm_log, },
+  { .cmd = ENL_COMM_MODE, .doit = _enl_comm_mode, .flags = GENL_ADMIN_PERM, },
+  { .cmd = ENL_COMM_RULE, .doit = _enl_comm_rule, },
+  { .cmd = ENL_COMM_RULES, .doit = _enl_comm_rules, },
+  { .cmd = ENL_COMM_EVENT, .doit = _enl_comm_event, },
 };
 
 //family definition
 static struct genl_family enl_family __ro_after_init = {
-  .name = DOUANE_NL_NAME,
-  .version = DOUANE_NL_VERSION,
+  .name = ENL_NAME,
+  .version = ENL_VERSION,
   .hdrsize = 0,
-  .maxattr = DOUANE_NL_ATTR_MAX,
+  .maxattr = ENL_ATTR_MAX,
   .policy = enl_policy,
   .ops = enl_ops,
-  .n_ops = DOUANE_NL_COMM_MAX,
+  .n_ops = ENL_COMM_MAX,
 };
 
 int enl_init(struct enl_recvfns * rfns)
