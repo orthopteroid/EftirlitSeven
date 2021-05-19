@@ -197,7 +197,7 @@ static int nl_familyid = 0;
 
 struct MSGSTATE
 {
-  struct nl_msg *	msg;
+  struct nl_msg * msg;
   void * hdr;
 };
 
@@ -265,17 +265,17 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
 
     do {
       int rc = 0;
-      
+
       tmp_attr = curr_attrs[DOUANE_NL_ATTR_ECHONESTED];
       if(!tmp_attr) { LOG_DEBUG(stack_id, "end of list"); break; }
-      
+
       memset(curr_attrs, 0, sizeof(curr_attrs));
       rc = nla_parse_nested(curr_attrs, DOUANE_NL_ATTR_MAX, tmp_attr, e7_policy, NULL);
       if(rc!=0) { LOG_ERR(stack_id, "!nla_parse_nested"); break; }
-      
+
       tmp_attr = curr_attrs[DOUANE_NL_ATTR_ECHOBODY];
       if(!tmp_attr) { LOG_ERR(stack_id, "!DOUANE_NL_ATTR_ECHOBODY"); break; }
-      
+
       mydata = (char*)nla_data(tmp_attr);
       if(!mydata) { LOG_ERR(stack_id, "!nla_data"); break; }
 
@@ -467,7 +467,11 @@ int main(void)
       }
     }
   }
+
   printf("Shutting down...\n");
+  e7_printrc( "e7_prep", e7_prep(&ms, DOUANE_NL_COMM_MODE) );
+  e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, DOUANE_NL_ATTR_BYE) );
+  e7_printrc( "e7_send", e7_send(&ms) );
 
   return 0;
 }
