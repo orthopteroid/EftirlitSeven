@@ -124,6 +124,8 @@ static struct nla_policy dnl_policy[] = {
   /*BYE*/ { .type = NLA_FLAG },
 };
 
+DEFINE_SPINLOCK(nl_lock); // protects np_port and nl_net
+
 static int nl_port = 0;
 static struct net * nl_net = NULL;
 struct dnl_recvfns * nl_rfns = NULL;
@@ -209,19 +211,25 @@ int dnl_send_bye(const uint32_t stack_id)
 
   LOG_DEBUG(stack_id, "start");
 
+  spin_lock(&nl_lock);
+
   if (nl_net == NULL || nl_port == 0) goto prefail;
   if(0>_dnl_prep(&ms, DOUANE_NL_COMM_MODE)) goto fail;
   if(0>nla_put_flag(ms.msg, DOUANE_NL_ATTR_BYE)) goto fail;
   if(0>_dnl_send(&ms)) goto fail;
 
+  spin_unlock(&nl_lock);
+
   LOG_DEBUG(stack_id, "complete");
   return 0;
 
 prefail:
+  spin_unlock(&nl_lock);
   LOG_ERR(stack_id, "prefail");
   return -1;
 
 fail:
+  spin_unlock(&nl_lock);
   LOG_ERR(stack_id, "error");
   return _dnl_clean(&ms);
 }
@@ -232,20 +240,26 @@ int dnl_send_event(const char * process, const char * device, const uint32_t sta
 
   LOG_DEBUG(stack_id, "start");
 
+  spin_lock(&nl_lock);
+
   if (nl_net == NULL || nl_port == 0) goto prefail;
   if(0>_dnl_prep(&ms, DOUANE_NL_COMM_EVENT)) goto fail;
   if(0>nla_put_string(ms.msg, DOUANE_NL_ATTR_PROCESS_STR, process)) goto fail;
   if(0>nla_put_string(ms.msg, DOUANE_NL_ATTR_DEVICE_STR, device)) goto fail;
   if(0>_dnl_send(&ms)) goto fail;
 
+  spin_unlock(&nl_lock);
+
   LOG_DEBUG(stack_id, "complete");
   return 0;
 
 prefail:
+  spin_unlock(&nl_lock);
   LOG_ERR(stack_id, "prefail");
   return -1;
 
 fail:
+  spin_unlock(&nl_lock);
   LOG_ERR(stack_id, "error");
   return _dnl_clean(&ms);
 }
@@ -256,19 +270,25 @@ int dnl_send_echo(const char * message, const uint32_t stack_id)
 
   LOG_DEBUG(stack_id, "start");
 
+  spin_lock(&nl_lock);
+
   if (nl_net == NULL || nl_port == 0) goto prefail;
   if(0>_dnl_prep(&ms, DOUANE_NL_COMM_EVENT)) goto fail;
   if(0>nla_put_string(ms.msg, DOUANE_NL_ATTR_ECHOBODY, message)) goto fail;
   if(0>_dnl_send(&ms)) goto fail;
 
+  spin_unlock(&nl_lock);
+
   LOG_DEBUG(stack_id, "complete");
   return 0;
 
 prefail:
+  spin_unlock(&nl_lock);
   LOG_ERR(stack_id, "prefail");
   return -1;
 
 fail:
+  spin_unlock(&nl_lock);
   LOG_ERR(stack_id, "error");
   return _dnl_clean(&ms);
 }
@@ -280,6 +300,8 @@ int dnl_send_rules(int count, const struct douane_rule * rules, const uint32_t s
   int i, j;
 
   LOG_DEBUG(stack_id, "start");
+
+  spin_unlock(&nl_lock);
 
   if (nl_net == NULL || nl_port == 0) goto prefail;
   if(0>_dnl_prep(&ms, DOUANE_NL_COMM_RULES)) goto fail;
@@ -326,14 +348,18 @@ int dnl_send_rules(int count, const struct douane_rule * rules, const uint32_t s
 
   kfree_rcu(attrptr_stack, rcu);
 
+  spin_unlock(&nl_lock);
+
   LOG_DEBUG(stack_id, "complete");
   return 0;
 
 prefail:
+  spin_unlock(&nl_lock);
   LOG_ERR(stack_id, "prefail");
   return -1;
 
 fail:
+  spin_unlock(&nl_lock);
   if(attrptr_stack) kfree_rcu(attrptr_stack, rcu);
 
   LOG_ERR(stack_id, "error");
@@ -437,12 +463,25 @@ static int _dnl_comm_log(struct sk_buff *skb_in, struct genl_info *info)
     struct MSGSTATE ms = { 0, 0 };
     bool logging = false;
     nl_rfns->logging_get(&logging, stack_id);
+
+    LOG_DEBUG(stack_id, "DOUANE_NL_ATTR_QUERY");
+
+    spin_lock(&nl_lock);
+
+    if (nl_net == NULL || nl_port == 0) goto prefailquery;
     if(0>_dnl_prep(&ms, DOUANE_NL_COMM_LOG)) goto failquery;
     if(0>nla_put_flag(ms.msg, logging ? DOUANE_NL_ATTR_ENABLE : DOUANE_NL_ATTR_DISABLE)) goto failquery;
     if(0>_dnl_send(&ms)) goto failquery;
+
+    spin_unlock(&nl_lock);
     return 0;
 
+prefailquery:
+    spin_unlock(&nl_lock);
+    return -1;
+
 failquery:
+    spin_unlock(&nl_lock);
     LOG_ERR(stack_id, "DOUANE_NL_ATTR_QUERY error");
     _dnl_clean(&ms);
   }
@@ -458,8 +497,10 @@ static int _dnl_comm_mode(struct sk_buff *skb_in, struct genl_info *info)
 
   if (info->attrs[DOUANE_NL_ATTR_HELLO])
   {
+    spin_lock(&nl_lock);
     nl_port = info->snd_portid;
     nl_net = genl_info_net(info);
+    spin_unlock(&nl_lock);
     LOG_DEBUG(stack_id, "daemon connection accepted %d %p\n", nl_port, nl_net);
   }
   if (info->attrs[DOUANE_NL_ATTR_ENABLE] && nl_rfns)
@@ -476,21 +517,35 @@ static int _dnl_comm_mode(struct sk_buff *skb_in, struct genl_info *info)
   {
     struct MSGSTATE ms = { 0, 0 };
     bool enable = false;
-    LOG_DEBUG(stack_id, "DOUANE_NL_ATTR_QUERY");
     nl_rfns->enable_get(&enable, stack_id);
+
+    LOG_DEBUG(stack_id, "DOUANE_NL_ATTR_QUERY");
+
+    spin_lock(&nl_lock);
+
+    if (nl_net == NULL || nl_port == 0) goto prefailquery;
     if(0>_dnl_prep(&ms, DOUANE_NL_COMM_MODE)) goto failquery;
     if(0>nla_put_flag(ms.msg, enable ? DOUANE_NL_ATTR_ENABLE : DOUANE_NL_ATTR_DISABLE)) goto failquery;
     if(0>_dnl_send(&ms)) goto failquery;
+
+    spin_unlock(&nl_lock);
     return 0;
 
+prefailquery:
+    spin_unlock(&nl_lock);
+    return -1;
+
 failquery:
+    spin_unlock(&nl_lock);
     LOG_ERR(stack_id, "DOUANE_NL_ATTR_QUERY error");
     _dnl_clean(&ms);
   }
   if (info->attrs[DOUANE_NL_ATTR_BYE])
   {
+    spin_lock(&nl_lock);
     nl_port = 0;
     nl_net = 0;
+    spin_unlock(&nl_lock);
     LOG_DEBUG(stack_id, "daemon disconnected");
   }
 
