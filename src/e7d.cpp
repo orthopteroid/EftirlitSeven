@@ -395,10 +395,9 @@ int main(void)
 
   printf("begin console\n");
 
+  MSGSTATE ms;
+  CMDBUF buf;
   while(!stop) {
-    MSGSTATE ms;
-    CMDBUF buf;
-
     int nfds = epoll.pwait();
     assert(nfds>=0);
 
