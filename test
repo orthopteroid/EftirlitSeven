@@ -4,4 +4,4 @@ make dkms
 #echo 'file kernel/douane +p' > /sys/kernel/debug/dynamic_debug/control
 tail -f /var/log/kern.log
 make cleandkms
-
+lsmod | grep eftirlit
