@@ -96,7 +96,7 @@ enum {
 #define DOUANE_NL_ATTR_MAX (__DOUANE_NL_ATTR_MAX-1)
 
 // attribute policies and types
-static struct nla_policy dnl_policy[] = {
+static struct nla_policy enl_policy[] = {
   /*DOUANE_NL_ATTR_UNSUPP*/ {},
   /*DOUANE_NL_ATTR_ECHOBODY*/ { .type = NLA_NUL_STRING }, // removeme: old demo code
   /*DOUANE_NL_ATTR_ECHONESTED*/ { .type = NLA_NESTED }, // removeme: old demo code
@@ -128,9 +128,9 @@ DEFINE_SPINLOCK(nl_lock); // protects np_port and nl_net
 
 static int nl_port = 0;
 static struct net * nl_net = NULL;
-struct dnl_recvfns * nl_rfns = NULL;
+struct enl_recvfns * nl_rfns = NULL;
 
-static struct genl_family dnl_family; // fwd decl
+static struct genl_family enl_family; // fwd decl
 
 // rcu-friendly variable size array of netlink attrib pointers
 struct nlattrptr_stack_rcu
@@ -142,7 +142,7 @@ struct nlattrptr_stack_rcu
 
 /////////
 
-static uint32_t _dnl_stackid(void)
+static uint32_t _enl_stackid(void)
 {
   uint32_t id;
   get_random_bytes(&id, sizeof(id));
@@ -157,14 +157,14 @@ struct MSGSTATE
   void * hdr;
 };
 
-static int _dnl_prep(struct MSGSTATE * ms, int comm)
+static int _enl_prep(struct MSGSTATE * ms, int comm)
 {
   ms->msg = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL); // todo: GFP_ATOMIC ?
   if (!ms->msg) return -1;
 
   // oddly, genlmsg_put(...) is different in kernel space
   // seq num irrelevant as userspace is using nl_socket_disable_seq_check
-  ms->hdr = genlmsg_put(ms->msg, 0, 0 /* seq num */, &dnl_family, 0, comm);
+  ms->hdr = genlmsg_put(ms->msg, 0, 0 /* seq num */, &enl_family, 0, comm);
   if (ms->hdr) return 0;
 
   if (ms->msg) nlmsg_free(ms->msg);
@@ -172,7 +172,7 @@ static int _dnl_prep(struct MSGSTATE * ms, int comm)
   return -1;
 }
 
-static int _dnl_send(struct MSGSTATE * ms)
+static int _enl_send(struct MSGSTATE * ms)
 {
   if (!ms->msg || !ms->hdr) return -1;
 
@@ -191,7 +191,7 @@ static int _dnl_send(struct MSGSTATE * ms)
   return 0;
 }
 
-static int _dnl_clean(struct MSGSTATE * ms)
+static int _enl_clean(struct MSGSTATE * ms)
 {
   // clean after an error
   if (ms->msg /* && ms->hdr */) genlmsg_cancel(ms->msg, ms->hdr);
@@ -205,7 +205,7 @@ static int _dnl_clean(struct MSGSTATE * ms)
 
 /////////////////
 
-int dnl_send_bye(const uint32_t stack_id)
+int enl_send_bye(const uint32_t stack_id)
 {
   struct MSGSTATE ms = { 0, 0 };
 
@@ -214,9 +214,9 @@ int dnl_send_bye(const uint32_t stack_id)
   spin_lock(&nl_lock);
 
   if (nl_net == NULL || nl_port == 0) goto prefail;
-  if(0>_dnl_prep(&ms, DOUANE_NL_COMM_MODE)) goto fail;
+  if(0>_enl_prep(&ms, DOUANE_NL_COMM_MODE)) goto fail;
   if(0>nla_put_flag(ms.msg, DOUANE_NL_ATTR_BYE)) goto fail;
-  if(0>_dnl_send(&ms)) goto fail;
+  if(0>_enl_send(&ms)) goto fail;
 
   spin_unlock(&nl_lock);
 
@@ -231,10 +231,10 @@ prefail:
 fail:
   spin_unlock(&nl_lock);
   LOG_ERR(stack_id, "error");
-  return _dnl_clean(&ms);
+  return _enl_clean(&ms);
 }
 
-int dnl_send_event(const char * process, const char * device, const uint32_t stack_id)
+int enl_send_event(const char * process, const char * device, const uint32_t stack_id)
 {
   struct MSGSTATE ms = { 0, 0 };
 
@@ -243,10 +243,10 @@ int dnl_send_event(const char * process, const char * device, const uint32_t sta
   spin_lock(&nl_lock);
 
   if (nl_net == NULL || nl_port == 0) goto prefail;
-  if(0>_dnl_prep(&ms, DOUANE_NL_COMM_EVENT)) goto fail;
+  if(0>_enl_prep(&ms, DOUANE_NL_COMM_EVENT)) goto fail;
   if(0>nla_put_string(ms.msg, DOUANE_NL_ATTR_PROCESS_STR, process)) goto fail;
   if(0>nla_put_string(ms.msg, DOUANE_NL_ATTR_DEVICE_STR, device)) goto fail;
-  if(0>_dnl_send(&ms)) goto fail;
+  if(0>_enl_send(&ms)) goto fail;
 
   spin_unlock(&nl_lock);
 
@@ -261,10 +261,10 @@ prefail:
 fail:
   spin_unlock(&nl_lock);
   LOG_ERR(stack_id, "error");
-  return _dnl_clean(&ms);
+  return _enl_clean(&ms);
 }
 
-int dnl_send_echo(const char * message, const uint32_t stack_id)
+int enl_send_echo(const char * message, const uint32_t stack_id)
 {
   struct MSGSTATE ms = { 0, 0 };
 
@@ -273,9 +273,9 @@ int dnl_send_echo(const char * message, const uint32_t stack_id)
   spin_lock(&nl_lock);
 
   if (nl_net == NULL || nl_port == 0) goto prefail;
-  if(0>_dnl_prep(&ms, DOUANE_NL_COMM_EVENT)) goto fail;
+  if(0>_enl_prep(&ms, DOUANE_NL_COMM_EVENT)) goto fail;
   if(0>nla_put_string(ms.msg, DOUANE_NL_ATTR_ECHOBODY, message)) goto fail;
-  if(0>_dnl_send(&ms)) goto fail;
+  if(0>_enl_send(&ms)) goto fail;
 
   spin_unlock(&nl_lock);
 
@@ -290,10 +290,10 @@ prefail:
 fail:
   spin_unlock(&nl_lock);
   LOG_ERR(stack_id, "error");
-  return _dnl_clean(&ms);
+  return _enl_clean(&ms);
 }
 
-int dnl_send_rules(int count, const struct douane_rule * rules, const uint32_t stack_id)
+int enl_send_rules(int count, const struct douane_rule * rules, const uint32_t stack_id)
 {
   struct MSGSTATE ms = { 0, 0 };
   struct nlattrptr_stack_rcu * attrptr_stack = 0;
@@ -304,7 +304,7 @@ int dnl_send_rules(int count, const struct douane_rule * rules, const uint32_t s
   spin_unlock(&nl_lock);
 
   if (nl_net == NULL || nl_port == 0) goto prefail;
-  if(0>_dnl_prep(&ms, DOUANE_NL_COMM_RULES)) goto fail;
+  if(0>_enl_prep(&ms, DOUANE_NL_COMM_RULES)) goto fail;
 
   attrptr_stack = kzalloc(sizeof(struct nlattrptr_stack_rcu) + sizeof(struct nlattr *) * count, GFP_ATOMIC );
   if(attrptr_stack == NULL) goto fail;
@@ -318,14 +318,14 @@ int dnl_send_rules(int count, const struct douane_rule * rules, const uint32_t s
     // there appears to be overhead for each entry, but it seems to be around DOUANE_NL_ATTR_MAX bytes. hmmm.
     inner = inner + "INNER ";
     attrptr_stack.push_front( nla_nest_start(ms.msg, DOUANE_NL_ATTR_ECHONESTED | NLA_F_NESTED) ); // | NESTED required with ubuntu libnl 3.2.29
-    dnl_printrc( "nla_put_string", nla_put_string(ms.msg, DOUANE_NL_ATTR_ECHOBODY, inner.c_str()) );
+    enl_printrc( "nla_put_string", nla_put_string(ms.msg, DOUANE_NL_ATTR_ECHOBODY, inner.c_str()) );
   }
   while(!attrptr_stack.empty())
   {
     nla_nest_end(ms.msg, attrptr_stack.front());
     attrptr_stack.pop_front();
   }
-  dnl_printrc( "dnl_send", dnl_send(&ms) );
+  enl_printrc( "enl_send", enl_send(&ms) );
 */
 
   // a list built with recursive enumeration...
@@ -344,7 +344,7 @@ int dnl_send_rules(int count, const struct douane_rule * rules, const uint32_t s
     nla_nest_end(ms.msg, attrptr_stack->a[i]);
   }
 
-  if(0>_dnl_send(&ms)) goto fail;
+  if(0>_enl_send(&ms)) goto fail;
 
   kfree_rcu(attrptr_stack, rcu);
 
@@ -363,18 +363,18 @@ fail:
   if(attrptr_stack) kfree_rcu(attrptr_stack, rcu);
 
   LOG_ERR(stack_id, "error");
-  return _dnl_clean(&ms);
+  return _enl_clean(&ms);
 }
 
 ////////////////////
 
 // An echo command, receives a message, prints it and sends another message back
-static int _dnl_comm_echo(struct sk_buff *skb_in, struct genl_info *info)
+static int _enl_comm_echo(struct sk_buff *skb_in, struct genl_info *info)
 {
   struct MSGSTATE ms = { 0, 0 };
   struct nlattr * tmp_attr;
   char * mydata = 0;
-  uint32_t stack_id = _dnl_stackid();
+  uint32_t stack_id = _enl_stackid();
 
   LOG_DEBUG(stack_id, "start");
 
@@ -406,7 +406,7 @@ static int _dnl_comm_echo(struct sk_buff *skb_in, struct genl_info *info)
       if(!tmp_attr) { LOG_DEBUG(stack_id, "end of list"); break; }
 
       memset(curr_attrs, 0, sizeof(curr_attrs));
-      rc = nla_parse_nested(curr_attrs, DOUANE_NL_ATTR_MAX, tmp_attr, dnl_policy, NULL);
+      rc = nla_parse_nested(curr_attrs, DOUANE_NL_ATTR_MAX, tmp_attr, enl_policy, NULL);
       if(rc!=0) { LOG_ERR(stack_id, "!nla_parse_nested"); break; }
 
       tmp_attr = curr_attrs[DOUANE_NL_ATTR_ECHOBODY];
@@ -425,19 +425,19 @@ static int _dnl_comm_echo(struct sk_buff *skb_in, struct genl_info *info)
 
 fail:
   LOG_ERR(stack_id, "error");
-  return _dnl_clean(&ms);
+  return _enl_clean(&ms);
 }
 
-static int _dnl_comm_event(struct sk_buff *skb_in, struct genl_info *info)
+static int _enl_comm_event(struct sk_buff *skb_in, struct genl_info *info)
 {
-  uint32_t stack_id = _dnl_stackid();
+  uint32_t stack_id = _enl_stackid();
   LOG_DEBUG(stack_id, "called");
   return 0;
 }
 
-static int _dnl_comm_log(struct sk_buff *skb_in, struct genl_info *info)
+static int _enl_comm_log(struct sk_buff *skb_in, struct genl_info *info)
 {
-  uint32_t stack_id = _dnl_stackid();
+  uint32_t stack_id = _enl_stackid();
 
   LOG_DEBUG(stack_id, "start");
 
@@ -469,9 +469,9 @@ static int _dnl_comm_log(struct sk_buff *skb_in, struct genl_info *info)
     spin_lock(&nl_lock);
 
     if (nl_net == NULL || nl_port == 0) goto prefailquery;
-    if(0>_dnl_prep(&ms, DOUANE_NL_COMM_LOG)) goto failquery;
+    if(0>_enl_prep(&ms, DOUANE_NL_COMM_LOG)) goto failquery;
     if(0>nla_put_flag(ms.msg, logging ? DOUANE_NL_ATTR_ENABLE : DOUANE_NL_ATTR_DISABLE)) goto failquery;
-    if(0>_dnl_send(&ms)) goto failquery;
+    if(0>_enl_send(&ms)) goto failquery;
 
     spin_unlock(&nl_lock);
     return 0;
@@ -483,15 +483,15 @@ prefailquery:
 failquery:
     spin_unlock(&nl_lock);
     LOG_ERR(stack_id, "DOUANE_NL_ATTR_QUERY error");
-    _dnl_clean(&ms);
+    _enl_clean(&ms);
   }
 
   return 0;
 }
 
-static int _dnl_comm_mode(struct sk_buff *skb_in, struct genl_info *info)
+static int _enl_comm_mode(struct sk_buff *skb_in, struct genl_info *info)
 {
-  uint32_t stack_id = _dnl_stackid();
+  uint32_t stack_id = _enl_stackid();
 
   LOG_DEBUG(stack_id, "start");
 
@@ -524,9 +524,9 @@ static int _dnl_comm_mode(struct sk_buff *skb_in, struct genl_info *info)
     spin_lock(&nl_lock);
 
     if (nl_net == NULL || nl_port == 0) goto prefailquery;
-    if(0>_dnl_prep(&ms, DOUANE_NL_COMM_MODE)) goto failquery;
+    if(0>_enl_prep(&ms, DOUANE_NL_COMM_MODE)) goto failquery;
     if(0>nla_put_flag(ms.msg, enable ? DOUANE_NL_ATTR_ENABLE : DOUANE_NL_ATTR_DISABLE)) goto failquery;
-    if(0>_dnl_send(&ms)) goto failquery;
+    if(0>_enl_send(&ms)) goto failquery;
 
     spin_unlock(&nl_lock);
     return 0;
@@ -538,7 +538,7 @@ prefailquery:
 failquery:
     spin_unlock(&nl_lock);
     LOG_ERR(stack_id, "DOUANE_NL_ATTR_QUERY error");
-    _dnl_clean(&ms);
+    _enl_clean(&ms);
   }
   if (info->attrs[DOUANE_NL_ATTR_BYE])
   {
@@ -552,9 +552,9 @@ failquery:
   return 0;
 }
 
-static int _dnl_comm_rule(struct sk_buff *skb_in, struct genl_info *info)
+static int _enl_comm_rule(struct sk_buff *skb_in, struct genl_info *info)
 {
-  uint32_t stack_id = _dnl_stackid();
+  uint32_t stack_id = _enl_stackid();
 
   LOG_DEBUG(stack_id, "start");
 
@@ -564,7 +564,7 @@ static int _dnl_comm_rule(struct sk_buff *skb_in, struct genl_info *info)
     return 0;
   }
 
-  // model after _dnl_comm_echo ?
+  // model after _enl_comm_echo ?
 
   {
     uint32_t u32proc = 0, u32prot = 0, u32user = 0, u32group = 0;
@@ -599,9 +599,9 @@ static int _dnl_comm_rule(struct sk_buff *skb_in, struct genl_info *info)
   return 0;
 }
 
-static int _dnl_comm_rules(struct sk_buff *skb_in, struct genl_info *info)
+static int _enl_comm_rules(struct sk_buff *skb_in, struct genl_info *info)
 {
-  uint32_t stack_id = _dnl_stackid();
+  uint32_t stack_id = _enl_stackid();
 
   LOG_DEBUG(stack_id, "start");
 
@@ -627,31 +627,31 @@ static int _dnl_comm_rules(struct sk_buff *skb_in, struct genl_info *info)
 ///////
 
 // command/handler mapping
-struct genl_ops dnl_ops[] = {
-  { .cmd = DOUANE_NL_COMM_ECHO, .doit = _dnl_comm_echo, },
-  { .cmd = DOUANE_NL_COMM_LOG, .doit = _dnl_comm_log, },
-  { .cmd = DOUANE_NL_COMM_MODE, .doit = _dnl_comm_mode, .flags = GENL_ADMIN_PERM, },
-  { .cmd = DOUANE_NL_COMM_RULE, .doit = _dnl_comm_rule, },
-  { .cmd = DOUANE_NL_COMM_RULES, .doit = _dnl_comm_rules, },
-  { .cmd = DOUANE_NL_COMM_EVENT, .doit = _dnl_comm_event, },
+struct genl_ops enl_ops[] = {
+  { .cmd = DOUANE_NL_COMM_ECHO, .doit = _enl_comm_echo, },
+  { .cmd = DOUANE_NL_COMM_LOG, .doit = _enl_comm_log, },
+  { .cmd = DOUANE_NL_COMM_MODE, .doit = _enl_comm_mode, .flags = GENL_ADMIN_PERM, },
+  { .cmd = DOUANE_NL_COMM_RULE, .doit = _enl_comm_rule, },
+  { .cmd = DOUANE_NL_COMM_RULES, .doit = _enl_comm_rules, },
+  { .cmd = DOUANE_NL_COMM_EVENT, .doit = _enl_comm_event, },
 };
 
 //family definition
-static struct genl_family dnl_family __ro_after_init = {
+static struct genl_family enl_family __ro_after_init = {
   .name = DOUANE_NL_NAME,
   .version = DOUANE_NL_VERSION,
   .hdrsize = 0,
   .maxattr = DOUANE_NL_ATTR_MAX,
-  .policy = dnl_policy,
-  .ops = dnl_ops,
+  .policy = enl_policy,
+  .ops = enl_ops,
   .n_ops = DOUANE_NL_COMM_MAX,
 };
 
-int dnl_init(struct dnl_recvfns * rfns)
+int enl_init(struct enl_recvfns * rfns)
 {
   int rc;
 
-  if ((rc = genl_register_family(&dnl_family)) != 0)
+  if ((rc = genl_register_family(&enl_family)) != 0)
   {
     LOG_ERR(0, "genl_register_family failed %d", rc);
     return -1;
@@ -662,13 +662,13 @@ int dnl_init(struct dnl_recvfns * rfns)
   return 0;
 }
 
-void dnl_exit(void)
+void enl_exit(void)
 {
-  dnl_send_bye(0);
+  enl_send_bye(0);
 
   nl_rfns = NULL;
 
-  if (genl_unregister_family(&dnl_family) != 0)
+  if (genl_unregister_family(&enl_family) != 0)
   {
     LOG_ERR(0, "genl_unregister_family failed");
   }

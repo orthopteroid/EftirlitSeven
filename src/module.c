@@ -61,21 +61,21 @@ void mod_rules_query(const uint32_t stack_id)
     return;
   }
 
-  dnl_send_rules(ruleset->count, ruleset->rules, stack_id);
+  enl_send_rules(ruleset->count, ruleset->rules, stack_id);
 
   kfree_rcu(ruleset, rcu);
 }
 
 void mod_send_echo(const char * message, const uint32_t stack_id)
 {
-  if(0>dnl_send_echo(message, stack_id))
+  if(0>enl_send_echo(message, stack_id))
   {
-    LOG_ERR(stack_id, "dnl_send_echo failure");
+    LOG_ERR(stack_id, "enl_send_echo failure");
     return;
   }
 }
 
-struct dnl_recvfns mod_recvfns =
+struct enl_recvfns mod_recvfns =
 {
   .recv_echo = mod_send_echo,
   .enable_set = douane_enable_set,
@@ -110,9 +110,9 @@ static int __init mod_init(void)
     return -1;
   }
 
-  if (dnl_init(&mod_recvfns) < 0)
+  if (enl_init(&mod_recvfns) < 0)
   {
-    LOG_ERR(0, "dnl_init failed");
+    LOG_ERR(0, "enl_init failed");
     return -1;
   }
 
@@ -136,7 +136,7 @@ static void __exit mod_exit(void)
   rcu_barrier();
 
   douane_exit();
-  dnl_exit();
+  enl_exit();
   psi_clear(0);
   rules_clear(0);
   psi_exit();

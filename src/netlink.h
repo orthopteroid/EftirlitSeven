@@ -4,7 +4,7 @@
 // eftirlit7 (gpl3) - orthopteroid@gmail.com
 // forked from douane-lkms (gpl3) - zedtux@zedroot.org
 
-struct dnl_recvfns
+struct enl_recvfns
 {
   void(*recv_echo)(const char * message, const uint32_t stack_id);
 
@@ -18,13 +18,13 @@ struct dnl_recvfns
   void(*rules_query)(const uint32_t stack_id);
 };
 
-int dnl_send_echo(const char * message, const uint32_t stack_id);
+int enl_send_echo(const char * message, const uint32_t stack_id);
 
-int dnl_send_bye(const uint32_t stack_id);
-int dnl_send_event(const char * process, const char * device, const uint32_t stack_id);
-int dnl_send_rules(int count, const struct douane_rule * rules, const uint32_t stack_id);
+int enl_send_bye(const uint32_t stack_id);
+int enl_send_event(const char * process, const char * device, const uint32_t stack_id);
+int enl_send_rules(int count, const struct douane_rule * rules, const uint32_t stack_id);
 
-int dnl_init(struct dnl_recvfns * rfns);
-void dnl_exit(void);
+int enl_init(struct enl_recvfns * rfns);
+void enl_exit(void);
 
 #endif // _NETLINK_H_
