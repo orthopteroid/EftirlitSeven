@@ -37,17 +37,8 @@ enum nf_ip_hook_priorities {
 #include "rules.h"
 #include "module.h"
 
-// queueable wrapper for kfree_rcu
-struct douane_nlpacket_rcu
-{
-  struct douane_nlpacket activity;
-  //
-  struct rcu_head rcu;
-};
-
 // fwd decls
 static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
-static void douane_nlhandler(struct sk_buff *skb);
 
 static struct nf_hook_ops netfilter_config = {
   .hook     = douane_nfhandler,
@@ -55,15 +46,6 @@ static struct nf_hook_ops netfilter_config = {
   .pf       = NFPROTO_IPV4,
   .priority = NF_IP_PRI_LAST,
 };
-
-static struct netlink_kernel_cfg netlink_config =
-{
-  .input = douane_nlhandler,
-};
-
-DEFINE_SPINLOCK(netlink_lock);
-struct sock * daemon_socket = NULL;
-pid_t daemon_pid = 0;
 
 static bool enabled = true;
 static bool logging = true;
@@ -96,18 +78,6 @@ void douane_logging_get(bool * value_out, const uint32_t packet_id)
   LOG_DEBUG(packet_id, "get logging value of %s", logging ? "enable" : "disable");
 
   *value_out = logging;
-}
-
-void douane_renew_daemon_socket(const uint32_t packet_id)
-{
-  LOG_DEBUG(packet_id, "renewing netlink socket");
-
-  spin_lock(&netlink_lock);
-  if (daemon_socket)
-    netlink_kernel_release(daemon_socket);
-  daemon_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &netlink_config);
-  daemon_pid = 0;
-  spin_unlock(&netlink_lock);
 }
 
 char * douane_lookup_protname(const int protocol)
@@ -143,51 +113,6 @@ char * douane_lookup_protname(const int protocol)
 }
 
 ///////////////
-
-void douane_nlhandler(struct sk_buff *skb)
-{
-  struct nlmsghdr * nlh = nlmsg_hdr(skb);
-  struct douane_nlpacket * activity = NLMSG_DATA(nlh);
-  struct douane_rule existing_rule;
-  uint32_t packet_id;
-
-  get_random_bytes(&packet_id, sizeof(packet_id));
-
-  if (activity == NULL)
-  {
-    LOG_ERR(packet_id, "NLMSG_DATA failed");
-    return;
-  }
-
-  switch(activity->kind)
-  {
-    case KIND_HAND_SHAKE:
-      daemon_pid = nlh->nlmsg_pid;
-      LOG_DEBUG(packet_id, "process %d registered.", daemon_pid);
-      break;
-
-    case KIND_SENDING_RULE:
-      if (rules_search(&existing_rule, activity->process_path, packet_id) < 0)
-      {
-        rules_append(activity->process_path, (activity->allowed == 1), packet_id);
-      }
-      break;
-
-    case KIND_DELETE_RULE:
-      rules_remove(activity->process_path, packet_id);
-      break;
-
-    case KIND_GOODBYE:
-      douane_renew_daemon_socket(packet_id);
-      break;
-
-    default:
-      LOG_ERR(packet_id, "invalid message");
-      douane_renew_daemon_socket(packet_id);
-      psi_clear(packet_id);
-      rules_clear(packet_id);
-  }
-}
 
 static bool douane_match_ino_to_pid(unsigned long socket_ino, pid_t pid, const uint32_t packet_id)
 {
@@ -409,83 +334,6 @@ static bool douane_lookup_skbuffer(const struct sk_buff * skb, const struct tcph
   return true;
 }
 
-static int douane_send_nlpacket(const struct douane_nlpacket * activity, const uint32_t packet_id)
-{
-  struct nlmsghdr * nlh;
-  struct sk_buff *  skb = NULL;
-  int               ret = 0;
-
-  if (daemon_socket == NULL)
-  {
-    LOG_ERR(packet_id, "BLOCKED PUSH: Socket not connected!!");
-    return -1;
-  }
-
-  if (activity->process_path == NULL || strcmp(activity->process_path, "") == 0)
-  {
-    LOG_ERR(packet_id, "BLOCKED PUSH: process_path is blank");
-    return 0;
-  }
-
-  if (strlen(activity->process_path) > PATH_LENGTH)
-  {
-    LOG_ERR(packet_id, "BLOCKED PUSH: process_path is too long");
-  }
-
-  // Create a new netlink message
-  skb = nlmsg_new(NLMSG_ALIGN(sizeof(struct douane_nlpacket)) + nla_total_size(1), GFP_KERNEL);
-  if (skb == NULL)
-  {
-    LOG_ERR(packet_id, "BLOCKED PUSH: Failed to allocate new socket buffer");
-    return -1;
-  }
-
-  // Add a netlink message to an skb
-  nlh = nlmsg_put(skb, 0, 0, NLMSG_DONE, sizeof(struct douane_nlpacket), 0);
-  if (nlh == NULL)
-  {
-    if (skb)
-    {
-      kfree_skb(skb);
-    }
-    LOG_ERR(packet_id, "BLOCKED PUSH: nlmsg_put failed");
-    return -1;
-  }
-
-  NETLINK_CB(skb).portid = 0; /* from kernel */
-  memcpy(NLMSG_DATA(nlh), activity, sizeof(struct douane_nlpacket));
-
-  nlh->nlmsg_flags = NLM_F_REQUEST; // Must be set on all request messages.
-
-  // Unicast a message to a single socket
-  // netlink_unicast() takes ownership of the skb and frees it itself.
-  spin_lock(&netlink_lock);
-  if(daemon_socket)
-  {
-    ret = netlink_unicast(daemon_socket, skb, daemon_pid, MSG_DONTWAIT);
-  }
-  spin_unlock(&netlink_lock);
-
-  if (ret < 0)
-  {
-    if (ret == -11)
-    {
-      LOG_ERR(packet_id, "Message ignored as Netfiler socket is busy");
-    }
-    else
-    {
-      LOG_ERR(packet_id, "Failed to send message (errno: %d)", ret);
-      // No more try to push rules to the daemon
-      daemon_pid = 0;
-    }
-    return ret;
-  }
-  else
-  {
-    return 0;
-  }
-}
-
 static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
   struct iphdr *                ip_header = NULL;
@@ -573,6 +421,28 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
     return NF_ACCEPT;
   }
 
+/*
+
+#define KIND_HAND_SHAKE   1
+#define KIND_SENDING_RULE 2
+#define KIND_GOODBYE      3
+#define KIND_DELETE_RULE  4
+
+// raw netlink-io packet to douane-daemon
+// nb: this revision has smaller process_path so-as to allow kfree_rcu usage
+struct douane_nlpacket {
+  int   kind;                         // Deamon -> LKM  | Define which kind of message it is
+  char  process_path[PATH_LENGTH +1]; // Bidirectional  | Related process path, +1 for \0
+  int   allowed;                      // Deamon -> LKM  | Define if the process is allowed to outgoing network traffic or not
+  char  device_name[16];              // Bidirectional  | Device name where the packet has been detected (IFNAMSIZ = 16)
+  int   protocol;                     // LKM -> Deamon  | Protocol id of the detected outgoing network activity
+  char  ip_source[16];                // LKM -> Deamon  | Outgoing network traffic ip source
+  int   port_source;                  // LKM -> Deamon  | Outgoing network traffic port source
+  char  ip_destination[16];           // LKM -> Deamon  | Outgoing network traffic ip destination
+  int   port_destination;             // LKM -> Deamon  | Outgoing network traffic port destination
+  int   size;                         // LKM -> Deamon  | Size of the packet
+};
+
   if (daemon_socket == NULL || daemon_pid == 0)
   {
     LOG_DEBUG(packet_id, "NF_ACCEPT (no daemon)");
@@ -616,7 +486,7 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
 
     kfree_rcu(activity_rcu, rcu);
   }
-
+*/
   if (filterable)
   {
     LOG_DEBUG(packet_id, "searching rule for %s", psi.process_path);
@@ -651,30 +521,11 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
 
 int douane_init(void)
 {
-  spin_lock(&netlink_lock);
-  daemon_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &netlink_config);
-  daemon_pid = 0;
-  spin_unlock(&netlink_lock);
-
-  if (daemon_socket == NULL)
-  {
-    LOG_ERR(0, "netlink_kernel_create failed");
-    return -1;
-  }
-
   nf_register_net_hook(&init_net, &netfilter_config);
-
   return 0;
 }
 
 void douane_exit(void)
 {
   nf_unregister_net_hook(&init_net, &netfilter_config);
-
-  spin_lock(&netlink_lock);
-  if (daemon_socket)
-    netlink_kernel_release(daemon_socket);
-  daemon_socket = NULL;
-  daemon_pid = 0;
-  spin_unlock(&netlink_lock);
 }
