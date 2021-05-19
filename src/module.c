@@ -5,7 +5,7 @@
 #include <linux/kernel.h>         // Needed for KERN_INFO
 #include <linux/version.h>        // Needed for LINUX_VERSION_CODE >= KERNEL_VERSION
 
-#include <linux/netdevice.h>	    // net_device
+#include <linux/netdevice.h>       // net_device
 #include <linux/netfilter.h>      // nf_register_hook(), nf_unregister_hook(), nf_register_net_hook(), nf_unregister_net_hook()
 #include <linux/netlink.h>        // NLMSG_SPACE(), nlmsg_put(), NETLINK_CB(), NLMSG_DATA(), NLM_F_REQUEST, netlink_unicast(), netlink_kernel_release(), nlmsg_hdr(), NETLINK_USERSOCK, netlink_kernel_create()
 
@@ -26,6 +26,7 @@
 #include "module.h"
 #include "psi.h"
 #include "rules.h"
+#include "netlink.h"
 
 #ifndef MOD_VERSION
 #define MOD_VERSION "UNKNOWN"
@@ -43,6 +44,51 @@ bool mod_isstopping(void)
   return atomic_read(&stopping);
 }
 
+//////////
+
+void mod_rule_add(const struct douane_rule * rule, const uint32_t stack_id)
+{
+  rules_append(rule->process_path, rule->allowed, stack_id);
+}
+
+void mod_rules_query(const uint32_t stack_id)
+{
+  struct douane_ruleset_rcu * ruleset = 0;
+
+  if(0>rules_get(&ruleset, stack_id))
+  {
+    LOG_ERR(stack_id, "rules_get failure");
+    return;
+  }
+
+  enl_send_rules(ruleset->count, ruleset->rules, stack_id);
+
+  kfree_rcu(ruleset, rcu);
+}
+
+void mod_send_echo(const char * message, const uint32_t stack_id)
+{
+  if(0>enl_send_echo(message, stack_id))
+  {
+    LOG_ERR(stack_id, "enl_send_echo failure");
+    return;
+  }
+}
+
+struct enl_recvfns mod_recvfns =
+{
+  .recv_echo = mod_send_echo,
+  .enable_set = douane_enable_set,
+  .enable_get = douane_enable_get,
+  .logging_set = douane_logging_set,
+  .logging_get = douane_logging_get,
+  .rule_add = mod_rule_add,
+  .rules_clear = rules_clear,
+  .rules_query = mod_rules_query,
+};
+
+//////////
+
 static int __init mod_init(void)
 {
   LOG_DEBUG(0, "initializing module");
@@ -52,7 +98,7 @@ static int __init mod_init(void)
     struct net_device *dev = first_net_device(&init_net);
     while(dev)
     {
-      LOG_DBG(0, "net_device found: name: %s - ifindex: %d", dev->name, dev->ifindex);
+      LOG_DEBUG(0, "net_device found: name: %s - ifindex: %d", dev->name, dev->ifindex);
       dev = next_net_device(dev);
     }
   }
@@ -61,6 +107,12 @@ static int __init mod_init(void)
   if (psi_init() < 0)
   {
     LOG_ERR(0, "psi_init failed");
+    return -1;
+  }
+
+  if (enl_init(&mod_recvfns) < 0)
+  {
+    LOG_ERR(0, "enl_init failed");
     return -1;
   }
 
@@ -84,6 +136,7 @@ static void __exit mod_exit(void)
   rcu_barrier();
 
   douane_exit();
+  enl_exit();
   psi_clear(0);
   rules_clear(0);
   psi_exit();

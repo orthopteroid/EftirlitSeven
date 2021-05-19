@@ -7,15 +7,15 @@ MODULE_AUTHOR=orthopteroid@gmail.com
 
 MOD_DEFINES=-DMOD_NAME=\"$(MODULE_NAME)\" -DMOD_VERSION=\"$(MODULE_VERSION)\" -DMOD_AUTHOR=\"$(MODULE_AUTHOR)\"
 
-EXTRA_CFLAGS=-g $(MOD_DEFINES)
-#EXTRA_CFLAGS=-g $(MOD_DEFINES) -DDEBUG
+#EXTRA_CFLAGS=-g $(MOD_DEFINES)
+EXTRA_CFLAGS=-g $(MOD_DEFINES) -DDEBUG
 
 # obj-m, <something>-y and <something>-objs inform the make and kbuild module
 # machinery what is being built. multifile modules appear to need to be located
 # in a subfolder otherwise module initializers are clobbered.
 # related - https://stackoverflow.com/a/13642063
 obj-m += $(MODULE_NAME).o
-$(MODULE_NAME)-objs += src/module.o src/douane.o src/psi.o src/rules.o
+$(MODULE_NAME)-objs += src/module.o src/douane.o src/psi.o src/rules.o src/netlink.o
 
 PRJ_ROOT=$(shell pwd)
 DKMS_ROOT=/usr/src/$(MODULE_NAME)-$(MODULE_VERSION)
