@@ -115,6 +115,7 @@ static struct nla_policy dnl_policy[] = {
   /*ALLOW*/ { .type = NLA_FLAG },
   /*BLOCK*/ { .type = NLA_FLAG },
   /*LOG*/ { .type = NLA_FLAG },
+  /*NOLOG*/ { .type = NLA_FLAG },
   //
   /*REMOVE*/ { .type = NLA_FLAG },
   /*QUERY*/ { .type = NLA_FLAG },
