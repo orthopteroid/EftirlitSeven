@@ -30,14 +30,15 @@
 // debug with: genl-ctrl-list -d
 
 #include "module.h"
-#include "douane_types.h"
+#include "rules.h"
 #include "netlink.h"
 
 ////////////////////
 
-#define ENL_NAME "douane"
+#define ENL_NAME "eftirlit"
 #define ENL_VERSION 1
 
+// <created> = auto | manual
 // <state> = enable | disable
 // <criteria> = [process] [protocol] [device] [user] [group]
 // <action> = (allow | block) [log | nolog]
@@ -45,10 +46,10 @@
 // LOG u<-m = <state>
 // MODE u->m = <state> | query | hello | bye
 // MODE u<-m = <state> | bye
-// RULE u->m = <criteria> <action> [<state> | remove]
+// RULE u->m = ( <criteria> | <cxtid> ) <action> [<state> | remove]
 // RULES u->m = query | clear
-// RULES u<-m = <criteria> <action> <state>
-// EVENT u<-m = <criteria>
+// RULES u<-m = <criteria> <cxtid> <created> <action> <state>
+// EVENT u<-m = <criteria> <cxtid>
 
 // command enumeration
 enum {
@@ -72,7 +73,10 @@ enum {
   // <state>
   ENL_ATTR_ENABLE,
   ENL_ATTR_DISABLE,
+  ENL_ATTR_AUTO,
+  ENL_ATTR_MANUAL,
   // <criteria>
+  ENL_ATTR_CONTEXT_ID,
   ENL_ATTR_PROCESS_ID,
   ENL_ATTR_PROTOCOL_ID,
   ENL_ATTR_USER_ID,
@@ -104,7 +108,10 @@ static struct nla_policy enl_policy[] = {
   //
   /*ENABLE*/ { .type = NLA_FLAG },
   /*DISABLE*/ { .type = NLA_FLAG },
+  /*AUTO*/ { .type = NLA_FLAG },
+  /*MANUAL*/ { .type = NLA_FLAG },
   //
+  /*CONTEXT_ID*/ { .type = NLA_U32 },
   /*PROCESS_ID*/ { .type = NLA_U32 },
   /*PROTOCOL_ID*/ { .type = NLA_U32 },
   /*USER_ID*/ { .type = NLA_U32 },
@@ -337,6 +344,8 @@ int enl_send_rules(int count, const struct rule_struct * rules, const uint32_t s
     if(0>nla_put_flag(ms.msg, rules[i].allowed ? ENL_ATTR_ALLOW : ENL_ATTR_BLOCK)) goto fail;
     //if(0>nla_put_flag(ms.msg, rules[i].enabled ? ENL_ATTR_ENABLE : ENL_ATTR_DISABLE)) goto fail;
     //if(0>nla_put_flag(ms.msg, rules[i].log ? ENL_ATTR_LOG : ENL_ATTR_NOLOG)) goto fail;
+    //uint32_t cxtid;
+    //bool manual;
   }
   for(j = 0; j < count; j++)
   {

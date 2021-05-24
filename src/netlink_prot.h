@@ -6,6 +6,7 @@
 
 /*
 
+**********************************************************************
 **DRAFT** 5Mar2021
 
 The Application Fire Wall (AFW) kernel module is controlled via a netlink
@@ -112,6 +113,41 @@ root privs:
 'change' change things in the AFW state
 'query' send me full AFW state
 'reset' reset lkm state
+
+**********************************************************************
+**ADDENDUM** 23May2021
+
+A1 The AFW should have a default mode, either Allow or Disallow in addition to Enable or
+Disabled. Packets that arrive should be accepted based upon these default settings. This
+should result in full AFW state being stored in the LKM so that such state and any pending
+network access can be logged and reviewed upon startup, without the need of a running
+daemon.
+
+A1.1 Auto Rules
+
+In the case where access is pending a rule shall be added, as specified from the default
+operating mode. This rule shall be flagged as 'auto' so that it can be seen as such
+when the rules are enumerated. This change results in change to #6 such that:
+
+<aopt> = auto | manual
+<qlist> = rule <clist> <eopt> [ <lopt> ] [ <aopt> ] [ <qlist> ]
+
+A1.2 Context identifier
+
+To help in the identification of enumerated rules a uint32 context identifier <cxtid>
+shall be added to all rules added to the rule list. This identifier can be used to perform
+a complete match on specified rules when applying a 'remove' operation.
+
+<cxtid> = uint32
+
+A1.3 Recursive enumeration changes
+
+For clarity, the following enumerations are changed:
+
+<clist> = DELETE
+<rlist> = remove ( <cxt> | <cxtid> ) [ <rlist> ]
+<alist> = add <cxt> [ <eopt> ] [ <lopt> ] [ <alist> ]
+<qlist> = rule <cxtid> <cxt> <eopt> [ <lopt> ] [ <qlist> ]
 
 */
 

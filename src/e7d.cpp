@@ -54,7 +54,7 @@
 // userspace
 // https://stackoverflow.com/questions/21601521/how-to-use-the-libnl-library-to-trigger-nl80211-commands
 
-#define ENL_NAME "douane"
+#define ENL_NAME "eftirlit"
 #define ENL_VERSION 1
 
 // <state> = enable | disable
@@ -91,7 +91,10 @@ enum {
   // <state>
   ENL_ATTR_ENABLE,
   ENL_ATTR_DISABLE,
+  ENL_ATTR_AUTO,
+  ENL_ATTR_MANUAL,
   // <criteria>
+  ENL_ATTR_CONTEXT_ID,
   ENL_ATTR_PROCESS_ID,
   ENL_ATTR_PROTOCOL_ID,
   ENL_ATTR_USER_ID,
