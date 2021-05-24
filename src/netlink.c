@@ -293,7 +293,7 @@ fail:
   return _enl_clean(&ms);
 }
 
-int enl_send_rules(int count, const struct douane_rule * rules, const uint32_t stack_id)
+int enl_send_rules(int count, const struct rule_struct * rules, const uint32_t stack_id)
 {
   struct MSGSTATE ms = { 0, 0 };
   struct nlattrptr_stack_rcu * attrptr_stack = 0;
@@ -570,9 +570,9 @@ static int _enl_comm_rule(struct sk_buff *skb_in, struct genl_info *info)
     uint32_t u32proc = 0, u32prot = 0, u32user = 0, u32group = 0;
     char *szdev = "";
     struct nlattr *na = 0;
-    struct douane_rule rule;
+    struct rule_struct rule;
 
-    memset(&rule, 0, sizeof(struct douane_rule));
+    memset(&rule, 0, sizeof(struct rule_struct));
 
     if ((na=info->attrs[ENL_ATTR_PROCESS_ID])) u32proc=nla_get_u32(na);
     if ((na=info->attrs[ENL_ATTR_PROTOCOL_ID])) u32prot=nla_get_u32(na);

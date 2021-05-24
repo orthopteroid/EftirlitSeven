@@ -21,9 +21,8 @@
 #include <linux/pid_namespace.h>  // task_active_pid_ns()
 #include <linux/rculist.h>        // hlist_for_each_entry_rcu
 
-#include "douane_types.h"
-#include "douane.h"
 #include "module.h"
+#include "douane.h"
 #include "psi.h"
 #include "rules.h"
 #include "netlink.h"
@@ -46,14 +45,14 @@ bool mod_isstopping(void)
 
 //////////
 
-void mod_rule_add(const struct douane_rule * rule, const uint32_t stack_id)
+void mod_rule_add(const struct rule_struct * rule, const uint32_t stack_id)
 {
   rules_append(rule->process_path, rule->allowed, stack_id);
 }
 
 void mod_rules_query(const uint32_t stack_id)
 {
-  struct douane_ruleset_rcu * ruleset = 0;
+  struct ruleset_struct_rcu * ruleset = 0;
 
   if(0>rules_get(&ruleset, stack_id))
   {

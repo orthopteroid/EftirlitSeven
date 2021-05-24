@@ -32,10 +32,9 @@ enum nf_ip_hook_priorities {
 #include <linux/pid_namespace.h>  // task_active_pid_ns()
 #include <linux/rculist.h>        // hlist_for_each_entry_rcu
 
-#include "douane_types.h"
+#include "module.h"
 #include "psi.h"
 #include "rules.h"
-#include "module.h"
 
 // fwd decls
 static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
@@ -170,7 +169,7 @@ out_found:
   return true;
 }
 
-static bool douane_lookup_skfile(struct douane_psi * psi_out, struct file * socket_file, const uint32_t packet_id)
+static bool douane_lookup_skfile(struct psi_struct * psi_out, struct file * socket_file, const uint32_t packet_id)
 {
   struct file * file;
   int fd_i, fd_null, fd_null_max;
@@ -271,7 +270,7 @@ out_found:
 }
 
 
-static bool douane_lookup_skbuffer(const struct sk_buff * skb, const struct tcphdr * tcp_header, struct douane_psi *psi_out, bool * filterable, const uint32_t packet_id)
+static bool douane_lookup_skbuffer(const struct sk_buff * skb, const struct tcphdr * tcp_header, struct psi_struct *psi_out, bool * filterable, const uint32_t packet_id)
 {
   struct file * socket_file = (skb->sk && skb->sk->sk_socket) ? skb->sk->sk_socket->file : NULL;
   unsigned long socket_ino = socket_file ? file_inode(socket_file)->i_ino : 0;
@@ -336,17 +335,17 @@ static bool douane_lookup_skbuffer(const struct sk_buff * skb, const struct tcph
 
 static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
-  struct iphdr *                ip_header = NULL;
-  struct udphdr *               udp_header = NULL;
-  struct tcphdr *               tcp_header = NULL;
-  struct douane_rule existing_rule;
-  int                           sport = 0;
-  int                           dport = 0;
-  bool                          filterable = false;
-  struct douane_psi psi;
-  uint32_t                      packet_id;
+  struct iphdr * ip_header = NULL;
+  struct udphdr * udp_header = NULL;
+  struct tcphdr * tcp_header = NULL;
+  struct rule_struct existing_rule;
+  int sport = 0;
+  int dport = 0;
+  bool filterable = false;
+  struct psi_struct psi;
+  uint32_t packet_id;
 
-  memset(&psi, 0, sizeof(struct douane_psi));
+  memset(&psi, 0, sizeof(struct psi_struct));
 
   get_random_bytes(&packet_id, sizeof(packet_id));
 

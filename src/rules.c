@@ -24,14 +24,13 @@
 #include <linux/pid_namespace.h>  // task_active_pid_ns()
 #include <linux/rculist.h>        // hlist_for_each_entry_rcu
 
-#include "douane_types.h"
-#include "rules.h"
 #include "module.h"
+#include "rules.h"
 
 // queueable wrapper for kfree_rcu
-struct douane_rule_rcu
+struct rule_struct_rcu
 {
-  struct douane_rule r;
+  struct rule_struct r;
   //
   struct list_head  list;
   struct rcu_head   rcu;
@@ -42,7 +41,7 @@ LIST_HEAD(rules_list);
 
 void rules_print(const uint32_t packet_id)
 {
-  struct douane_rule_rcu * rule;
+  struct rule_struct_rcu * rule;
 
   rcu_read_lock();
   list_for_each_entry_rcu(rule, &rules_list, list)
@@ -52,9 +51,9 @@ void rules_print(const uint32_t packet_id)
   rcu_read_unlock();
 }
 
-int rules_get(struct douane_ruleset_rcu ** ruleset_out_rcufree, const uint32_t packet_id)
+int rules_get(struct ruleset_struct_rcu ** ruleset_out_rcufree, const uint32_t packet_id)
 {
-  struct douane_rule_rcu * rule;
+  struct rule_struct_rcu * rule;
   size_t allocsize = 0;
   int i = 0;
 
@@ -74,7 +73,7 @@ int rules_get(struct douane_ruleset_rcu ** ruleset_out_rcufree, const uint32_t p
   // NB: large allocations can't be freed by rcu when the tag offset is too large.
   // luckily, we need the tag at the front of the struct to have an internal variable length array.
   // see __is_kvfree_rcu_offset
-  allocsize = sizeof(struct douane_ruleset_rcu) + sizeof(struct douane_rule) * i;
+  allocsize = sizeof(struct ruleset_struct_rcu) + sizeof(struct rule_struct) * i;
 
   *ruleset_out_rcufree = kzalloc(allocsize, GFP_ATOMIC );
   if(*ruleset_out_rcufree == NULL)
@@ -89,7 +88,7 @@ int rules_get(struct douane_ruleset_rcu ** ruleset_out_rcufree, const uint32_t p
   rcu_read_lock();
   list_for_each_entry_rcu(rule, &rules_list, list)
   {
-    memcpy( &((*ruleset_out_rcufree)->rules[i]), &(rule->r), sizeof(struct douane_rule) );
+    memcpy( &((*ruleset_out_rcufree)->rules[i]), &(rule->r), sizeof(struct rule_struct) );
   }
   rcu_read_unlock();
 
@@ -98,7 +97,7 @@ int rules_get(struct douane_ruleset_rcu ** ruleset_out_rcufree, const uint32_t p
 
 void rules_append(const char * process_path, const bool is_allowed, const uint32_t packet_id)
 {
-  struct douane_rule_rcu * rule;
+  struct rule_struct_rcu * rule;
 
   if (process_path == NULL)
   {
@@ -112,7 +111,7 @@ void rules_append(const char * process_path, const bool is_allowed, const uint32
     return;
   }
 
-  rule = (struct douane_rule_rcu *)kzalloc(sizeof(struct douane_rule_rcu), GFP_ATOMIC);
+  rule = (struct rule_struct_rcu *)kzalloc(sizeof(struct rule_struct_rcu), GFP_ATOMIC);
   if(rule == NULL)
   {
     LOG_ERR(packet_id, "kzmalloc failed");
@@ -133,7 +132,7 @@ void rules_append(const char * process_path, const bool is_allowed, const uint32
 
 void rules_clear(const uint32_t packet_id)
 {
-  struct douane_rule_rcu * rule;
+  struct rule_struct_rcu * rule;
   int rule_cleaned_records = 0;
 
   if (list_empty(&rules_list))
@@ -159,7 +158,7 @@ void rules_clear(const uint32_t packet_id)
 
 void rules_remove(const unsigned char * process_path, const uint32_t packet_id)
 {
-  struct douane_rule_rcu * rule;
+  struct rule_struct_rcu * rule;
 
   if (process_path == NULL)
   {
@@ -195,9 +194,9 @@ void rules_remove(const unsigned char * process_path, const uint32_t packet_id)
   LOG_DEBUG(packet_id, "no rule to delete for %s", process_path);
 }
 
-int rules_search(struct douane_rule * rule_out, const unsigned char * process_path, const uint32_t packet_id)
+int rules_search(struct rule_struct * rule_out, const unsigned char * process_path, const uint32_t packet_id)
 {
-  struct douane_rule_rcu * rule;
+  struct rule_struct_rcu * rule;
 
   if (process_path == NULL)
   {
@@ -217,7 +216,7 @@ int rules_search(struct douane_rule * rule_out, const unsigned char * process_pa
     if (strncmp(rule->r.process_path, process_path, PATH_LENGTH) == 0)
     {
       LOG_DEBUG(packet_id, "found %s %s", (rule->r.allowed ? "allowed" : "blocked"), rule->r.process_path);
-      memcpy(rule_out, &rule->r, sizeof(struct douane_rule));
+      memcpy(rule_out, &rule->r, sizeof(struct rule_struct));
 
       rcu_read_unlock();
       return 0;

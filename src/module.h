@@ -4,6 +4,8 @@
 // eftirlit7 (gpl3) - orthopteroid@gmail.com
 // forked from douane-lkms (gpl3) - zedtux@zedroot.org
 
+#define PATH_LENGTH 129
+
 #if 0
 
 #define LOG_INFO(id, fmt, ...) \

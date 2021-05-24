@@ -5,7 +5,7 @@
 #include <linux/kernel.h>         // Needed for KERN_INFO
 #include <linux/version.h>        // Needed for LINUX_VERSION_CODE >= KERNEL_VERSION
 
-#include <linux/netdevice.h>	    // net_device
+#include <linux/netdevice.h>      // net_device
 #include <linux/netfilter.h>      // nf_register_hook(), nf_unregister_hook(), nf_register_net_hook(), nf_unregister_net_hook()
 #include <linux/netlink.h>        // NLMSG_SPACE(), nlmsg_put(), NETLINK_CB(), NLMSG_DATA(), NLM_F_REQUEST, netlink_unicast(), netlink_kernel_release(), nlmsg_hdr(), NETLINK_USERSOCK, netlink_kernel_create()
 
@@ -21,9 +21,8 @@
 #include <linux/pid_namespace.h>  // task_active_pid_ns()
 #include <linux/rculist.h>        // hlist_for_each_entry_rcu
 
-#include "douane_types.h"
-#include "psi.h"
 #include "module.h"
+#include "psi.h"
 
 #define ALIGNED __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
 
@@ -127,7 +126,7 @@ static uint32_t crc32(const char* sz)
 
 static void psi_async_remember(struct work_struct *work)
 {
-	struct change_work * change = container_of(work, struct change_work, worker);
+  struct change_work * change = container_of(work, struct change_work, worker);
   int rnd = change->packet_id & (CACHE_SIZE -1);
   uint8_t era = psi_cache_data->era;
   uint16_t era0, era1;
@@ -185,7 +184,7 @@ out:
 
 static void psi_async_forget(struct work_struct *work)
 {
-	struct change_work * change = container_of(work, struct change_work, worker);
+  struct change_work * change = container_of(work, struct change_work, worker);
   int i, k;
 
   for(i=0, k = psi_cache_data->key_ino[ KEY_CUTTER(change->i_ino) & (CACHE_SIZE -1) ]; i<CACHE_SIZE; i++, k++)
@@ -204,7 +203,7 @@ static void psi_async_forget(struct work_struct *work)
 
 static void psi_async_update_all(struct work_struct *work)
 {
-	struct change_work * change = container_of(work, struct change_work, worker);
+  struct change_work * change = container_of(work, struct change_work, worker);
   int i, k;
 
   for(i=0, k = psi_cache_data->key_ino[ KEY_CUTTER(change->i_ino) & (CACHE_SIZE -1) ]; i<CACHE_SIZE; i++, k++)
@@ -234,7 +233,7 @@ static void psi_async_update_all(struct work_struct *work)
 
 static void psi_async_update_seq(struct work_struct *work)
 {
-	struct change_work * change = container_of(work, struct change_work, worker);
+  struct change_work * change = container_of(work, struct change_work, worker);
   int i, k;
 
   for(i=0, k = psi_cache_data->key_ino[ KEY_CUTTER(change->i_ino) & (CACHE_SIZE -1) ]; i<CACHE_SIZE; i++, k++)
@@ -256,7 +255,7 @@ static void psi_async_update_seq(struct work_struct *work)
 
 static void psi_async_update_age(struct work_struct *work)
 {
-	struct change_work * change = container_of(work, struct change_work, worker);
+  struct change_work * change = container_of(work, struct change_work, worker);
   int i, k;
 
   for(i=0, k = psi_cache_data->key_ino[ KEY_CUTTER(change->i_ino) & (CACHE_SIZE -1) ]; i<CACHE_SIZE; i++, k++)
@@ -276,7 +275,7 @@ static void psi_async_update_age(struct work_struct *work)
 
 static void psi_async_clearcache(struct work_struct *work)
 {
-	struct change_work * change = container_of(work, struct change_work, worker);
+  struct change_work * change = container_of(work, struct change_work, worker);
 
   memset(psi_cache_data, 0, sizeof(struct data_cache));
 
@@ -287,7 +286,7 @@ static void psi_async_clearcache(struct work_struct *work)
 
 ////////////////////////
 
-bool psi_from_inode(struct douane_psi * psi_out, const unsigned long i_ino, const uint32_t packet_id)
+bool psi_from_inode(struct psi_struct * psi_out, const unsigned long i_ino, const uint32_t packet_id)
 {
   int i, k;
 
@@ -318,7 +317,7 @@ bool psi_from_inode(struct douane_psi * psi_out, const unsigned long i_ino, cons
   return false;
 }
 
-bool psi_from_sequence(struct douane_psi * psi_out, const uint32_t sequence, const uint32_t packet_id)
+bool psi_from_sequence(struct psi_struct * psi_out, const uint32_t sequence, const uint32_t packet_id)
 {
   int i, k;
 
