@@ -46,7 +46,7 @@ static struct nf_hook_ops netfilter_config = {
   .priority = NF_IP_PRI_LAST,
 };
 
-static bool enabled = true;
+static bool enabled = false;
 static bool logging = true;
 
 ///////////////
@@ -357,12 +357,6 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
     return NF_ACCEPT;
   }
 
-  if (enabled == false)
-  {
-    LOG_DEBUG(packet_id, "NF_ACCEPT (all filtering is disabled)");
-    return NF_ACCEPT;
-  }
-
   if (skb == NULL)
   {
     LOG_ERR(packet_id, "NF_ACCEPT (socket buffer is null)");
@@ -486,6 +480,13 @@ struct douane_nlpacket {
     kfree_rcu(activity_rcu, rcu);
   }
 */
+
+  if (!enabled)
+  {
+    LOG_DEBUG(packet_id, "NF_ACCEPT (filtering disabled. process %s)", psi.process_path);
+    return NF_ACCEPT;
+  }
+
   if (filterable)
   {
     LOG_DEBUG(packet_id, "searching rule for %s", psi.process_path);
