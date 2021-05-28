@@ -270,69 +270,6 @@ out_found:
 }
 
 
-static bool douane_lookup_skbuffer(const struct sk_buff * skb, const struct tcphdr * tcp_header, struct psi_struct *psi_out, bool * filterable, const uint32_t packet_id)
-{
-  struct file * socket_file = (skb->sk && skb->sk->sk_socket) ? skb->sk->sk_socket->file : NULL;
-  unsigned long socket_ino = socket_file ? file_inode(socket_file)->i_ino : 0;
-  uint32_t tcp_seq = tcp_header ? ntohl(tcp_header->seq) : 0;
-
-  // ? use sock_hold/_put on skb->sk ?
-  // https://github.com/torvalds/linux/blob/v5.8/drivers/crypto/chelsio/chtls/chtls_cm.c#L1488
-
-  if (!socket_file)
-  {
-    bool found_using_tcpseq = tcp_header ? psi_from_sequence(psi_out, tcp_seq, packet_id) : false;
-    if (!found_using_tcpseq)
-    {
-      LOG_ERR(packet_id, "missing header or bad seq. unable to identify socket");
-      return false;
-    }
-
-    LOG_DEBUG(packet_id, "process '%s' identified from tcp_seq", psi_out->process_path);
-    return true;
-  }
-
-  *filterable = true;
-
-  {
-    bool cache_hit = socket_ino ? psi_from_inode(psi_out, socket_ino, packet_id) : false;
-    if (!cache_hit)
-    {
-      if (!douane_lookup_skfile(psi_out, socket_file, packet_id))
-      {
-        LOG_ERR(packet_id, "unable to identify process for FILE %p INODE %ld", socket_file, socket_ino);
-        return false;
-      }
-
-      psi_remember(socket_ino, tcp_seq, psi_out->pid, psi_out->process_path, packet_id);
-
-      LOG_DEBUG(packet_id, "caching new socket INODE %ld SEQ %u for PID %d. returning '%s'", socket_ino, tcp_seq, psi_out->pid, psi_out->process_path);
-      return true;
-    }
-  }
-
-  if (!douane_match_ino_to_pid(socket_ino, psi_out->pid, packet_id))
-  {
-    psi_update_all(socket_ino, tcp_seq, psi_out->pid, psi_out->process_path, packet_id);
-
-    LOG_DEBUG(packet_id, "all updated for INODE %ld. returning '%s'", socket_ino, psi_out->process_path);
-    return true;
-  }
-
-  if (tcp_header)
-  {
-    psi_update_seq(socket_ino, tcp_seq, packet_id);
-
-    LOG_DEBUG(packet_id, "seq update for INODE %ld to SEQ %u. returning '%s'", socket_ino, tcp_seq, psi_out->process_path);
-    return true;
-  }
-
-  psi_update_age(socket_ino, packet_id);
-
-  LOG_DEBUG(packet_id, "age update for INODE %ld. returning '%s'", socket_ino, psi_out->process_path);
-  return true;
-}
-
 static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
   struct iphdr * ip_header = NULL;
@@ -399,18 +336,81 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
       break;
 
     default:
+      LOG_ERR(packet_id, "NF_ACCEPT (ip_header->protocol fallthrough)");
       return NF_ACCEPT;
   }
 
-  if (!douane_lookup_skbuffer(skb, tcp_header, &psi, &filterable, packet_id))
-  {
-    LOG_DEBUG(packet_id, "douane_lookup_skbuffer failed");
-  }
+  // from packet header and socket buffer try to identify process
+  do {
+    struct file * socket_file = (skb->sk && skb->sk->sk_socket) ? skb->sk->sk_socket->file : NULL;
+    unsigned long socket_ino = socket_file ? file_inode(socket_file)->i_ino : 0;
+    uint32_t tcp_seq = tcp_header ? ntohl(tcp_header->seq) : 0;
 
-  if (filterable && (psi.process_path[0] == 0))
+    // ? use sock_hold/_put on skb->sk ?
+    // https://github.com/torvalds/linux/blob/v5.8/drivers/crypto/chelsio/chtls/chtls_cm.c#L1488
+
+    if (!socket_file)
+    {
+      bool found_using_tcpseq = tcp_header ? psi_from_sequence(&psi, tcp_seq, packet_id) : false;
+      if (!found_using_tcpseq)
+      {
+        LOG_ERR(packet_id, "NF_ACCEPT (missing header or bad seq. unable to identify socket for process '%s')", psi.process_path);
+        return NF_ACCEPT;
+      }
+    }
+
+    filterable = true;
+
+    {
+      bool psi_cache_hit = socket_ino ? psi_from_inode(&psi, socket_ino, packet_id) : false;
+      bool ino_pid_match = psi_cache_hit ? douane_match_ino_to_pid(socket_ino, psi.pid, packet_id) : false;
+
+      if (!psi_cache_hit || !ino_pid_match)
+      {
+        if (!douane_lookup_skfile(&psi, socket_file, packet_id))
+        {
+          LOG_ERR(packet_id, "NF_ACCEPT (unable to identify process for FILE %p INODE %ld)", socket_file, socket_ino);
+          return NF_ACCEPT;
+        }
+
+        if (!psi_cache_hit)
+        {
+          psi_remember(socket_ino, tcp_seq, psi.pid, psi.process_path, packet_id);
+
+          LOG_DEBUG(packet_id, "caching new socket INODE %ld SEQ %u for PID %d. returning '%s'", socket_ino, tcp_seq, psi.pid, psi.process_path);
+          break;
+        }
+
+        if (!ino_pid_match)
+        {
+          psi_update_all(socket_ino, tcp_seq, psi.pid, psi.process_path, packet_id);
+
+          LOG_DEBUG(packet_id, "all updated for INODE %ld. returning '%s'", socket_ino, psi.process_path);
+          break;
+        }
+
+        LOG_ERR(packet_id, "logic error");
+        break;
+      }
+    }
+
+    if (tcp_seq)
+    {
+      psi_update_seq(socket_ino, tcp_seq, packet_id);
+
+      LOG_DEBUG(packet_id, "seq update for INODE %ld to SEQ %u. returning '%s'", socket_ino, tcp_seq, psi.process_path);
+      break;
+    }
+
+    // fallback to update only age field
+    psi_update_age(socket_ino, packet_id);
+
+    LOG_DEBUG(packet_id, "age update for INODE %ld. returning '%s'", socket_ino, psi.process_path);
+  } while(false);
+
+  if (psi.process_path[0] == 0)
   {
-    LOG_ERR(packet_id, "psi.process_path is blank but was filterable");
-    LOG_DEBUG(packet_id, "NF_ACCEPT (no process path)");
+    LOG_ERR(packet_id, "NF_ACCEPT (no process path)");
     return NF_ACCEPT;
   }
 
