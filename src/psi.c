@@ -296,7 +296,8 @@ bool psi_from_inode(struct psi_struct * psi_out, const unsigned long i_ino, cons
     return false;
   }
 
-  LOG_DEBUG(packet_id, "searching for INO %lu", i_ino);
+  // log-squash
+  //LOG_DEBUG(packet_id, "searching for INO %lu", i_ino);
 
   for(i=0, k = psi_cache_data->key_ino[ KEY_CUTTER(i_ino) & (CACHE_SIZE -1) ]; i<CACHE_SIZE; i++, k++)
   {
@@ -309,11 +310,11 @@ bool psi_from_inode(struct psi_struct * psi_out, const unsigned long i_ino, cons
     psi_out->sequence = psi_cache_data->sequence[k];
     strncpy(psi_out->process_path, psi_cache_data->path[k], PATH_LENGTH);
 
-    LOG_DEBUG(packet_id, "found in slot %d", k);
+    LOG_DEBUG(packet_id, "found INO %lu in slot %d", i_ino, k);
     return true;
   }
 
-  LOG_DEBUG(packet_id, "not found");
+  LOG_DEBUG(packet_id, "searching for INO %lu - not found", i_ino);
   return false;
 }
 
@@ -327,7 +328,8 @@ bool psi_from_sequence(struct psi_struct * psi_out, const uint32_t sequence, con
     return false;
   }
 
-  LOG_DEBUG(packet_id, "searching for SEQ %u", sequence);
+  // log-squash
+  //LOG_DEBUG(packet_id, "searching for SEQ %u", sequence);
 
   for(i=0, k = psi_cache_data->key_seq[ KEY_CUTTER(sequence) & (CACHE_SIZE -1) ]; i<CACHE_SIZE; i++, k++)
   {
@@ -341,11 +343,11 @@ bool psi_from_sequence(struct psi_struct * psi_out, const uint32_t sequence, con
     psi_out->sequence = psi_cache_data->sequence[k];
     strncpy(psi_out->process_path, psi_cache_data->path[k], PATH_LENGTH);
 
-    LOG_DEBUG(packet_id, "found in slot %d", k);
+    LOG_DEBUG(packet_id, "found SEQ %u in slot %d", sequence, k);
     return true;
   }
 
-  LOG_DEBUG(packet_id, "not found");
+  LOG_DEBUG(packet_id, "searching for SEQ %u - not found", sequence);
   return false;
 }
 
