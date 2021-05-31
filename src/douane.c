@@ -115,25 +115,6 @@ char * douane_lookup_protname(const int protocol)
 
 static bool douane_match_ino_to_pid(unsigned long socket_ino, pid_t pid, const uint32_t packet_id)
 {
-  struct file * file;
-  int fd_i, fd_null, fd_null_max;
-  const int MAX_FD_NULL = 9;
-
-  /*
-  ** In order to avoid going through all the fds of a process
-  *  the fd_null variable is used to define a limit.
-  *  This allows Douane to ignore processes which aren't owning the fd
-  *  and switch to the next process, so Douane is faster.
-  *
-  *  But this limit can make Douane blind and will never find the process.
-  *  In order to highligh this, the fd_null_max variable, which is printed
-  *  in the logs in debug mode, shows the correct number for the current
-  *  process.
-  *
-  *  For example, with Ubuntu <= 13.10, the correct value for fd_null is 3,
-  *  while now with Ubuntu 14.04, the correct value for fd_null is around 8.
-  */
-
   rcu_read_lock();
 
   {
@@ -142,15 +123,12 @@ static bool douane_match_ino_to_pid(unsigned long socket_ino, pid_t pid, const u
 
     if (task && task->files)
     {
-      fd_i = -1;
-      fd_null = 0;
-      fd_null_max = 0;
-
-      while (fd_null < MAX_FD_NULL)
+      unsigned int fd_i = 0;
+      unsigned int fd_max = files_fdtable(task->files)->max_fds;
+      for(fd_i = 0; fd_i < fd_max; fd_i++)
       {
-        fd_i++;
-        file = fcheck_files(task->files, fd_i);
-        if (!file) { if (++fd_null > fd_null_max) fd_null_max = fd_null; continue; } // no file for this handle, inc heuristic count
+        struct file * file = fcheck_files(task->files, fd_i);
+        if (!file) continue;
         if (!S_ISSOCK(file_inode(file)->i_mode)) continue; // not a socket file
         if (file_inode(file)->i_ino != socket_ino) continue;
 
@@ -160,20 +138,17 @@ static bool douane_match_ino_to_pid(unsigned long socket_ino, pid_t pid, const u
   }
 
   rcu_read_unlock();
-  LOG_ERR(packet_id, "task not found for INO %ld", socket_ino);
+  LOG_ERR(packet_id, "no match for INO %ld and PID %d", socket_ino, pid);
   return false;
 
 out_found:
   rcu_read_unlock();
-  LOG_DEBUG(packet_id, "task found for INO %ld", socket_ino);
+  LOG_DEBUG(packet_id, "match found");
   return true;
 }
 
 static bool douane_lookup_skfile(struct psi_struct * psi_out, struct file * socket_file, const uint32_t packet_id)
 {
-  struct file * file;
-  int fd_i, fd_null, fd_null_max;
-  const int MAX_FD_NULL = 9;
   struct task_struct * task;
   int name_str_len;
   char * p;
@@ -181,74 +156,63 @@ static bool douane_lookup_skfile(struct psi_struct * psi_out, struct file * sock
   char * deleted_str = " (deleted)";
   int deleted_str_len = 10;
 
-  /*
-  ** In order to avoid going through all the fds of a process
-  *  the fd_null variable is used to define a limit.
-  *  This allows Douane to ignore processes which aren't owning the fd
-  *  and switch to the next process, so Douane is faster.
-  *
-  *  But this limit can make Douane blind and will never find the process.
-  *  In order to highligh this, the fd_null_max variable, which is printed
-  *  in the logs in debug mode, shows the correct number for the current
-  *  process.
-  *
-  *  For example, with Ubuntu <= 13.10, the correct value for fd_null is 3,
-  *  while now with Ubuntu 14.04, the correct value for fd_null is around 8.
-  */
+  if(!socket_file)
+  {
+    LOG_ERR(packet_id, "searching for FILE %p - invalid", socket_file);
+    return false;
+  }
 
   rcu_read_lock();
 
   for_each_process(task)
   {
-    if (task->files == NULL) continue; // this task has no files open
-
-    fd_i = -1;
-    fd_null = 0;
-    fd_null_max = 0;
-
-    while (fd_null < MAX_FD_NULL)
+    if (task->files)
     {
-      fd_i++;
-      file = fcheck_files(task->files, fd_i);
-      if (!file) { if (++fd_null > fd_null_max) fd_null_max = fd_null; continue; } // no file for this handle, inc heuristic count
-      if (!S_ISSOCK(file_inode(file)->i_mode)) continue; // not a socket file
-      if (file != socket_file) continue; // not MY socket_file!
+      unsigned int fd_i = 0;
+      unsigned int fd_max = files_fdtable(task->files)->max_fds;
 
-      if (!likely(task->mm) || !task->mm->exe_file)
+      for(fd_i = 0; fd_i < fd_max; fd_i++)
       {
-        LOG_ERR(packet_id, "invalid task info");
-        goto out_fail;
-      }
+        struct file * file = fcheck_files(task->files, fd_i);
+        if (!file) continue;
+        if (!S_ISSOCK(file_inode(file)->i_mode)) continue; // not a socket file
+        if (file != socket_file) continue; // not MY socket_file!
 
-      // notes:
-      // - d_path might return string with " (deleted)" suffix
-      // - d_path might return string with garbage prefix
-      p = d_path(&task->mm->exe_file->f_path, psi_out->process_path, PATH_LENGTH);
-      if (IS_ERR(p))
-      {
-        LOG_ERR(packet_id, "d_path returned ERROR");
-        goto out_fail;
-      }
+        if (!likely(task->mm) || !task->mm->exe_file)
+        {
+          LOG_ERR(packet_id, "invalid task info");
+          goto out_fail;
+        }
 
-      LOG_DEBUG(packet_id, "fd_null_max: %d | MAX_FD_NULL: %d", fd_null_max, MAX_FD_NULL);
-      goto out_found;
+        // notes:
+        // - d_path might return string with " (deleted)" suffix
+        // - d_path might return string with garbage prefix
+        p = d_path(&task->mm->exe_file->f_path, psi_out->process_path, PATH_LENGTH);
+        if (IS_ERR(p))
+        {
+          LOG_ERR(packet_id, "d_path returned ERROR");
+          goto out_fail;
+        }
+
+        goto out_found;
+      }
     }
-
   }
-  LOG_ERR(packet_id, "fd_null_max: %d | MAX_FD_NULL: %d", fd_null_max, MAX_FD_NULL);
 
 out_fail:
+  LOG_DEBUG(packet_id, "searching for FILE %p - not found", socket_file);
+
   rcu_read_unlock();
   return false;
 
 out_found:
+  LOG_DEBUG(packet_id, "searching for FILE %p - found PID %d", socket_file, task->pid);
+
   psi_out->pid = task->pid;
   if(psi_out->process_path != p)
   {
     // start of string is not start of buffer, so strip prefix
     strncpy(psi_out->process_path, p, PATH_LENGTH - (p - psi_out->process_path) +1); // +1 includes \0
-
-    LOG_DEBUG(packet_id, "stripped prefix: %s", psi_out->process_path);
   }
 
   rcu_read_unlock();
@@ -262,8 +226,6 @@ out_found:
     if (0 == strncmp(psi_out->process_path + suffix_position, deleted_str, deleted_str_len))
     {
       memset(psi_out->process_path + suffix_position, 0, deleted_str_len);
-
-      LOG_DEBUG(packet_id, "stripped suffix: %s", psi_out->process_path);
     }
   }
   return true;
