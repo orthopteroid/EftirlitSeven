@@ -113,7 +113,7 @@ char * douane_lookup_protname(const int protocol)
 
 ///////////////
 
-static bool douane_match_ino_to_pid(unsigned long socket_ino, pid_t pid, const uint32_t packet_id)
+static bool douane_pid_owns_ino(unsigned long socket_ino, pid_t pid, const uint32_t packet_id)
 {
   rcu_read_lock();
 
@@ -147,7 +147,7 @@ out_found:
   return true;
 }
 
-static bool douane_lookup_skfile(struct psi_struct * psi_out, struct file * socket_file, const uint32_t packet_id)
+static bool douane_psi_from_skfile(struct psi_struct * psi_out, struct file * socket_file, const uint32_t packet_id)
 {
   struct task_struct * task;
   int name_str_len;
@@ -325,35 +325,52 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
 
     {
       bool psi_cache_hit = socket_ino ? psi_from_inode(&psi, socket_ino, packet_id) : false;
-      bool ino_pid_match = psi_cache_hit ? douane_match_ino_to_pid(socket_ino, psi.pid, packet_id) : false;
+      bool ino_pid_match = psi_cache_hit ? douane_pid_owns_ino(socket_ino, psi.pid, packet_id) : false;
 
-      if (!psi_cache_hit || !ino_pid_match)
+      if (psi_cache_hit && ino_pid_match)
       {
-        if (!douane_lookup_skfile(&psi, socket_file, packet_id))
-        {
-          LOG_ERR(packet_id, "NF_ACCEPT (unable to identify process for FILE %p INODE %ld)", socket_file, socket_ino);
-          return NF_ACCEPT;
-        }
+        psi_update_age(socket_ino, packet_id);
 
-        if (!psi_cache_hit)
-        {
-          psi_remember(socket_ino, tcp_seq, psi.pid, psi.process_path, packet_id);
-
-          LOG_DEBUG(packet_id, "caching new socket INODE %ld SEQ %u for PID %d. returning '%s'", socket_ino, tcp_seq, psi.pid, psi.process_path);
-          break;
-        }
-
-        if (!ino_pid_match)
-        {
-          psi_update_all(socket_ino, tcp_seq, psi.pid, psi.process_path, packet_id);
-
-          LOG_DEBUG(packet_id, "all updated for INODE %ld. returning '%s'", socket_ino, psi.process_path);
-          break;
-        }
-
-        LOG_ERR(packet_id, "logic error");
+        LOG_DEBUG(packet_id, "hit for INODE %ld SEQ %u for PID %d and process '%s'", socket_ino, tcp_seq, psi.pid, psi.process_path);
         break;
       }
+
+      if (!douane_psi_from_skfile(&psi, socket_file, packet_id))
+      {
+        unsigned int tcp_state = (skb->sk && skb->sk) ? skb->sk->sk_state : 0; // 0 invalid
+        do {
+          if(tcp_state == TCP_FIN_WAIT1) break;
+          if(tcp_state == TCP_FIN_WAIT2) break;
+          if(tcp_state == TCP_CLOSE) break;
+          if(tcp_state == TCP_CLOSE_WAIT) break;
+          if(tcp_state == TCP_CLOSING) break;
+
+          LOG_ERR(packet_id, "NF_ACCEPT (unable to identify process for FILE %p INODE %ld)", socket_file, socket_ino);
+          return NF_ACCEPT;
+        } while(false);
+
+        LOG_DEBUG(packet_id, "NF_ACCEPT (tcp socket shutting down for FILE %p INODE %ld process '%s')", socket_file, socket_ino, psi.process_path);
+        return NF_ACCEPT;
+      }
+
+      if (!psi_cache_hit)
+      {
+        psi_remember(socket_ino, tcp_seq, psi.pid, psi.process_path, packet_id);
+
+        LOG_DEBUG(packet_id, "caching new socket INODE %ld SEQ %u for PID %d and process '%s'", socket_ino, tcp_seq, psi.pid, psi.process_path);
+        break;
+      }
+
+      if (!ino_pid_match)
+      {
+        psi_update_all(socket_ino, tcp_seq, psi.pid, psi.process_path, packet_id);
+
+        LOG_DEBUG(packet_id, "all updated for INODE %ld. returning '%s'", socket_ino, psi.process_path);
+        break;
+      }
+
+      LOG_ERR(packet_id, "logic error");
+      break;
     }
 
     if (tcp_seq)
