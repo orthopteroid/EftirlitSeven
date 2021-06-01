@@ -24,6 +24,7 @@
 #include "module.h"
 #include "douane.h"
 #include "psi.h"
+#include "pi.h"
 #include "rules.h"
 #include "netlink.h"
 
@@ -109,6 +110,12 @@ static int __init mod_init(void)
     return -1;
   }
 
+  if (pi_init() < 0)
+  {
+    LOG_ERR(0, "pi_init failed");
+    return -1;
+  }
+
   if (enl_init(&mod_recvfns) < 0)
   {
     LOG_ERR(0, "enl_init failed");
@@ -139,6 +146,7 @@ static void __exit mod_exit(void)
   psi_clear(0);
   rules_clear(0);
   psi_exit();
+  pi_exit();
 
   LOG_INFO(0, "module unloaded");
 }
