@@ -156,12 +156,6 @@ static bool douane_psi_from_skfile(struct psi_struct * psi_out, struct file * so
   char * deleted_str = " (deleted)";
   int deleted_str_len = 10;
 
-  if(!socket_file)
-  {
-    LOG_ERR(packet_id, "searching for FILE %p - invalid", socket_file);
-    return false;
-  }
-
   rcu_read_lock();
 
   for_each_process(task)
@@ -335,7 +329,7 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
         break;
       }
 
-      if (!douane_psi_from_skfile(&psi, socket_file, packet_id))
+      if (!socket_file || !douane_psi_from_skfile(&psi, socket_file, packet_id))
       {
         unsigned int tcp_state = (skb->sk && skb->sk) ? skb->sk->sk_state : 0; // 0 invalid
         do {
