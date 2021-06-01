@@ -24,7 +24,7 @@
 #include "module.h"
 #include "psi.h"
 
-#define ALIGNED __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
+#define ALIGNED ____cacheline_aligned
 
 // cache size is paired with the key cutter size
 #define CACHE_SIZE 128
