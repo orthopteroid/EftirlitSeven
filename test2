@@ -1,0 +1,8 @@
+trap "make uninstall; tail /var/log/kern.log" EXIT
+make
+> /var/log/kern.log
+make install
+#echo 'file kernel/douane +p' > /sys/kernel/debug/dynamic_debug/control
+tail -f /var/log/kern.log
+make uninstall
+lsmod | grep eftirlit
