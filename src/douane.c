@@ -313,6 +313,9 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
         LOG_ERR(packet_id, "NF_ACCEPT (missing header or bad seq. unable to identify socket for process '%s')", psi.process_path);
         return NF_ACCEPT;
       }
+
+      // set ino, if it can be found from seq number
+      socket_ino = psi.i_ino;
     }
 
     filterable = true;
