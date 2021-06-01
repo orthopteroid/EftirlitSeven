@@ -34,6 +34,7 @@ enum nf_ip_hook_priorities {
 
 #include "module.h"
 #include "psi.h"
+#include "pi.h"
 #include "rules.h"
 
 // fwd decls
@@ -147,91 +148,6 @@ out_found:
   return true;
 }
 
-static bool douane_psi_from_skfile(struct psi_struct * psi_out, struct file * socket_file, const uint32_t packet_id)
-{
-  struct task_struct * task;
-  int name_str_len;
-  char * p;
-  //
-  char * deleted_str = " (deleted)";
-  int deleted_str_len = 10;
-
-  if(!socket_file)
-  {
-    LOG_ERR(packet_id, "searching for FILE %p - invalid", socket_file);
-    return false;
-  }
-
-  rcu_read_lock();
-
-  for_each_process(task)
-  {
-    if (task->files)
-    {
-      unsigned int fd_i = 0;
-      unsigned int fd_max = files_fdtable(task->files)->max_fds;
-
-      for(fd_i = 0; fd_i < fd_max; fd_i++)
-      {
-        struct file * file = fcheck_files(task->files, fd_i);
-        if (!file) continue;
-        if (!S_ISSOCK(file_inode(file)->i_mode)) continue; // not a socket file
-        if (file != socket_file) continue; // not MY socket_file!
-
-        if (!likely(task->mm) || !task->mm->exe_file)
-        {
-          LOG_ERR(packet_id, "invalid task info");
-          goto out_fail;
-        }
-
-        // notes:
-        // - d_path might return string with " (deleted)" suffix
-        // - d_path might return string with garbage prefix
-        p = d_path(&task->mm->exe_file->f_path, psi_out->process_path, PATH_LENGTH);
-        if (IS_ERR(p))
-        {
-          LOG_ERR(packet_id, "d_path returned ERROR");
-          goto out_fail;
-        }
-
-        goto out_found;
-      }
-    }
-  }
-
-out_fail:
-  LOG_DEBUG(packet_id, "searching for FILE %p - not found", socket_file);
-
-  rcu_read_unlock();
-  return false;
-
-out_found:
-  LOG_DEBUG(packet_id, "searching for FILE %p - found PID %d", socket_file, task->pid);
-
-  psi_out->pid = task->pid;
-  if(psi_out->process_path != p)
-  {
-    // start of string is not start of buffer, so strip prefix
-    strncpy(psi_out->process_path, p, PATH_LENGTH - (p - psi_out->process_path) +1); // +1 includes \0
-  }
-
-  rcu_read_unlock();
-
-  // check for " (deleted)" suffix and strip it
-  name_str_len = strnlen(psi_out->process_path, PATH_LENGTH);
-  if (name_str_len > deleted_str_len)
-  {
-    // long enough for a suffix
-    int suffix_position = name_str_len - deleted_str_len;
-    if (0 == strncmp(psi_out->process_path + suffix_position, deleted_str, deleted_str_len))
-    {
-      memset(psi_out->process_path + suffix_position, 0, deleted_str_len);
-    }
-  }
-  return true;
-}
-
-
 static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
   struct iphdr * ip_header = NULL;
@@ -319,6 +235,9 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
         LOG_ERR(packet_id, "NF_ACCEPT (missing header or bad seq. unable to identify socket for process '%s')", psi.process_path);
         return NF_ACCEPT;
       }
+
+      // set ino, if it can be found from seq number
+      socket_ino = psi.i_ino;
     }
 
     filterable = true;
@@ -335,7 +254,7 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
         break;
       }
 
-      if (!douane_psi_from_skfile(&psi, socket_file, packet_id))
+      if (!socket_ino || !pi_psi_from_ino(&psi, socket_ino, packet_id))
       {
         unsigned int tcp_state = (skb->sk && skb->sk) ? skb->sk->sk_state : 0; // 0 invalid
         do {
@@ -345,11 +264,11 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
           if(tcp_state == TCP_CLOSE_WAIT) break;
           if(tcp_state == TCP_CLOSING) break;
 
-          LOG_ERR(packet_id, "NF_ACCEPT (unable to identify process for FILE %p INODE %ld)", socket_file, socket_ino);
+          LOG_ERR(packet_id, "NF_ACCEPT (unidentified tcp socket state. possibly for FILE %p INODE %ld process '%s')", socket_file, socket_ino, psi.process_path);
           return NF_ACCEPT;
         } while(false);
 
-        LOG_DEBUG(packet_id, "NF_ACCEPT (tcp socket shutting down for FILE %p INODE %ld process '%s')", socket_file, socket_ino, psi.process_path);
+        LOG_DEBUG(packet_id, "NF_ACCEPT (closed/closing tcp socket. possibly for FILE %p INODE %ld process '%s')", socket_file, socket_ino, psi.process_path);
         return NF_ACCEPT;
       }
 
