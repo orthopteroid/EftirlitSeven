@@ -1,0 +1,200 @@
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.272271] D eftirlit7(00000000):mod_init:94: initializing module
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.272282] D eftirlit7(00000000):mod_init:101: net_device found: name: lo - ifindex: 1
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.272289] D eftirlit7(00000000):mod_init:101: net_device found: name: enp0s10 - ifindex: 2
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.272295] I eftirlit7(00000000):psi_init:560: process_socket cache 128 entries 19 kb
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.272361] I eftirlit7(00000000):pi_init:197: pi_cache 8192 entries 96 kb
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.272567] I eftirlit7(00000000):mod_init:131: module loaded
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.703753] D eftirlit7(DDA9BDDC):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.703762] D eftirlit7(DDA9BDDC):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.703768] D eftirlit7(DDA9BDDC):psi_from_inode:317: searching for INO 34631 - not found
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.703834] D eftirlit7(DDA9BDDC):pi_psi_from_ino:95: refreshing cache
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.704648] D eftirlit7(DDA9BDDC):pi_psi_from_ino:123: found INO 34631 PID 4083 in process table
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.704666] D eftirlit7(DDA9BDDC):psi_remember:437: queueing async call to remember entry INO 34631 PID 4083 SEQ 0 PATH /usr/bin/transmission-gtk
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.704686] D eftirlit7(DDA9BDDC):douane_nfhandler:279: caching new socket INODE 34631 SEQ 0 for PID 4083 and process '/usr/bin/transmission-gtk'
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.704690] D eftirlit7(DDA9BDDC):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /usr/bin/transmission-gtk)
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.704716] D eftirlit7(DDA9BDDC):psi_async_remember:156: free cache slot selected
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.704724] D eftirlit7(DDA9BDDC):psi_async_remember:164: writing to slot 92
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.704732] D eftirlit7(DDA9BDDC):psi_async_remember:182: async work complete
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.818984] D eftirlit7(A8CF57E7):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.818993] D eftirlit7(A8CF57E7):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.819000] D eftirlit7(A8CF57E7):psi_from_inode:313: found INO 34631 in slot 92
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.819014] D eftirlit7(A8CF57E7):douane_pid_owns_ino:147: match found
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.819020] D eftirlit7(A8CF57E7):psi_update_age:545: queueing async call to update_age INO 34631
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.819045] D eftirlit7(A8CF57E7):douane_nfhandler:253: hit for INODE 34631 SEQ 0 for PID 4083 and process '/usr/bin/transmission-gtk'
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.819050] D eftirlit7(A8CF57E7):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /usr/bin/transmission-gtk)
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.819059] D eftirlit7(A8CF57E7):psi_async_update_age:273: async work complete
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.872077] D eftirlit7(5B2B4B00):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.872087] D eftirlit7(5B2B4B00):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.872095] D eftirlit7(5B2B4B00):psi_from_inode:313: found INO 34631 in slot 92
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.872110] D eftirlit7(5B2B4B00):douane_pid_owns_ino:147: match found
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.872117] D eftirlit7(5B2B4B00):psi_update_age:545: queueing async call to update_age INO 34631
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.872135] D eftirlit7(5B2B4B00):douane_nfhandler:253: hit for INODE 34631 SEQ 0 for PID 4083 and process '/usr/bin/transmission-gtk'
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.872140] D eftirlit7(5B2B4B00):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /usr/bin/transmission-gtk)
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.872162] D eftirlit7(5B2B4B00):psi_async_update_age:273: async work complete
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.986459] D eftirlit7(61B5D6DD):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.986471] D eftirlit7(61B5D6DD):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.986481] D eftirlit7(61B5D6DD):psi_from_inode:313: found INO 34631 in slot 92
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.986501] D eftirlit7(61B5D6DD):douane_pid_owns_ino:147: match found
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.986509] D eftirlit7(61B5D6DD):psi_update_age:545: queueing async call to update_age INO 34631
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.986532] D eftirlit7(61B5D6DD):douane_nfhandler:253: hit for INODE 34631 SEQ 0 for PID 4083 and process '/usr/bin/transmission-gtk'
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.986538] D eftirlit7(61B5D6DD):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /usr/bin/transmission-gtk)
+Jun  1 15:41:24 AspireR3610 kernel: [ 1457.986570] D eftirlit7(61B5D6DD):psi_async_update_age:273: async work complete
+Jun  1 15:41:26 AspireR3610 kernel: [ 1459.598638] D eftirlit7(9C2BA6CB):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:26 AspireR3610 kernel: [ 1459.598647] D eftirlit7(9C2BA6CB):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:26 AspireR3610 kernel: [ 1459.598654] D eftirlit7(9C2BA6CB):psi_from_inode:313: found INO 34631 in slot 92
+Jun  1 15:41:26 AspireR3610 kernel: [ 1459.598667] D eftirlit7(9C2BA6CB):douane_pid_owns_ino:147: match found
+Jun  1 15:41:26 AspireR3610 kernel: [ 1459.598673] D eftirlit7(9C2BA6CB):psi_update_age:545: queueing async call to update_age INO 34631
+Jun  1 15:41:26 AspireR3610 kernel: [ 1459.598695] D eftirlit7(9C2BA6CB):douane_nfhandler:253: hit for INODE 34631 SEQ 0 for PID 4083 and process '/usr/bin/transmission-gtk'
+Jun  1 15:41:26 AspireR3610 kernel: [ 1459.598701] D eftirlit7(9C2BA6CB):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /usr/bin/transmission-gtk)
+Jun  1 15:41:26 AspireR3610 kernel: [ 1459.598710] D eftirlit7(9C2BA6CB):psi_async_update_age:273: async work complete
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.005130] D eftirlit7(4CCAD4EF):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.005141] D eftirlit7(4CCAD4EF):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.005150] D eftirlit7(4CCAD4EF):psi_from_inode:317: searching for INO 32735 - not found
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.005223] D eftirlit7(4CCAD4EF):pi_psi_from_ino:95: refreshing cache
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.006322] D eftirlit7(4CCAD4EF):pi_psi_from_ino:123: found INO 32735 PID 4191 in process table
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.006347] D eftirlit7(4CCAD4EF):psi_remember:437: queueing async call to remember entry INO 32735 PID 4191 SEQ 0 PATH /usr/lib/gvfs/gvfsd-smb-browse
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.006385] D eftirlit7(4CCAD4EF):douane_nfhandler:279: caching new socket INODE 32735 SEQ 0 for PID 4191 and process '/usr/lib/gvfs/gvfsd-smb-browse'
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.006391] D eftirlit7(4CCAD4EF):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /usr/lib/gvfs/gvfsd-smb-browse)
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.006630] D eftirlit7(4CCAD4EF):psi_async_remember:156: free cache slot selected
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.006639] D eftirlit7(4CCAD4EF):psi_async_remember:164: writing to slot 111
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.006651] D eftirlit7(4CCAD4EF):psi_async_remember:182: async work complete
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.007178] D eftirlit7(04ACAD88):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.007187] D eftirlit7(04ACAD88):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.007194] D eftirlit7(04ACAD88):psi_from_inode:313: found INO 32735 in slot 111
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.007204] D eftirlit7(04ACAD88):douane_pid_owns_ino:147: match found
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.007210] D eftirlit7(04ACAD88):psi_update_age:545: queueing async call to update_age INO 32735
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.007235] D eftirlit7(04ACAD88):douane_nfhandler:253: hit for INODE 32735 SEQ 0 for PID 4191 and process '/usr/lib/gvfs/gvfsd-smb-browse'
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.007238] D eftirlit7(04ACAD88):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /usr/lib/gvfs/gvfsd-smb-browse)
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.007298] D eftirlit7(04ACAD88):psi_async_update_age:273: async work complete
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008021] D eftirlit7(2D93C1F1):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008028] D eftirlit7(2D93C1F1):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008034] D eftirlit7(2D93C1F1):psi_from_inode:317: searching for INO 17485 - not found
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008042] D eftirlit7(2D93C1F1):pi_psi_from_ino:90: found INO 17485 PID 393 in cache
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008053] D eftirlit7(2D93C1F1):psi_remember:437: queueing async call to remember entry INO 17485 PID 393 SEQ 0 PATH /lib/systemd/systemd-resolved
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008084] D eftirlit7(2D93C1F1):douane_nfhandler:279: caching new socket INODE 17485 SEQ 0 for PID 393 and process '/lib/systemd/systemd-resolved'
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008089] D eftirlit7(2D93C1F1):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /lib/systemd/systemd-resolved)
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008099] D eftirlit7(2D93C1F1):psi_async_remember:156: free cache slot selected
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008104] D eftirlit7(2D93C1F1):psi_async_remember:164: writing to slot 113
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008110] D eftirlit7(2D93C1F1):psi_async_remember:182: async work complete
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008613] D eftirlit7(31B9433A):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008623] D eftirlit7(31B9433A):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008630] D eftirlit7(31B9433A):psi_from_inode:313: found INO 17485 in slot 113
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008642] D eftirlit7(31B9433A):douane_pid_owns_ino:147: match found
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008653] D eftirlit7(31B9433A):psi_update_age:545: queueing async call to update_age INO 17485
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008702] D eftirlit7(31B9433A):douane_nfhandler:253: hit for INODE 17485 SEQ 0 for PID 393 and process '/lib/systemd/systemd-resolved'
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008707] D eftirlit7(31B9433A):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /lib/systemd/systemd-resolved)
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008718] D eftirlit7(31B9433A):psi_async_update_age:273: async work complete
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008903] D eftirlit7(473E1D21):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008912] D eftirlit7(473E1D21):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008921] D eftirlit7(473E1D21):psi_from_inode:313: found INO 32735 in slot 111
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008931] D eftirlit7(473E1D21):douane_pid_owns_ino:147: match found
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008937] D eftirlit7(473E1D21):psi_update_age:545: queueing async call to update_age INO 32735
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008957] D eftirlit7(473E1D21):douane_nfhandler:253: hit for INODE 32735 SEQ 0 for PID 4191 and process '/usr/lib/gvfs/gvfsd-smb-browse'
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008962] D eftirlit7(473E1D21):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /usr/lib/gvfs/gvfsd-smb-browse)
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.008970] D eftirlit7(473E1D21):psi_async_update_age:273: async work complete
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.009148] D eftirlit7(05C12621):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.009158] D eftirlit7(05C12621):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.009165] D eftirlit7(05C12621):psi_from_inode:313: found INO 32735 in slot 111
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.009173] D eftirlit7(05C12621):douane_pid_owns_ino:147: match found
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.009180] D eftirlit7(05C12621):psi_update_age:545: queueing async call to update_age INO 32735
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.009205] D eftirlit7(05C12621):douane_nfhandler:253: hit for INODE 32735 SEQ 0 for PID 4191 and process '/usr/lib/gvfs/gvfsd-smb-browse'
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.009210] D eftirlit7(05C12621):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /usr/lib/gvfs/gvfsd-smb-browse)
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.009235] D eftirlit7(05C12621):psi_async_update_age:273: async work complete
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.009672] D eftirlit7(DE598F18):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.009683] D eftirlit7(DE598F18):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.009701] D eftirlit7(DE598F18):psi_from_inode:313: found INO 17485 in slot 113
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.009716] D eftirlit7(DE598F18):douane_pid_owns_ino:147: match found
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.009724] D eftirlit7(DE598F18):psi_update_age:545: queueing async call to update_age INO 17485
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.009770] D eftirlit7(DE598F18):douane_nfhandler:253: hit for INODE 17485 SEQ 0 for PID 393 and process '/lib/systemd/systemd-resolved'
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.009775] D eftirlit7(DE598F18):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /lib/systemd/systemd-resolved)
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.009790] D eftirlit7(DE598F18):psi_async_update_age:273: async work complete
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.010365] D eftirlit7(ED1A6C81):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.010376] D eftirlit7(ED1A6C81):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.010387] D eftirlit7(ED1A6C81):psi_from_inode:313: found INO 17485 in slot 113
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.010406] D eftirlit7(ED1A6C81):douane_pid_owns_ino:147: match found
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.010431] D eftirlit7(ED1A6C81):psi_update_age:545: queueing async call to update_age INO 17485
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.010466] D eftirlit7(ED1A6C81):douane_nfhandler:253: hit for INODE 17485 SEQ 0 for PID 393 and process '/lib/systemd/systemd-resolved'
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.010471] D eftirlit7(ED1A6C81):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /lib/systemd/systemd-resolved)
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.010486] D eftirlit7(ED1A6C81):psi_async_update_age:273: async work complete
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.016651] D eftirlit7(A7ABD3AE):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.016663] D eftirlit7(A7ABD3AE):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.016673] D eftirlit7(A7ABD3AE):psi_from_inode:317: searching for INO 34680 - not found
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.016749] D eftirlit7(A7ABD3AE):pi_psi_from_ino:95: refreshing cache
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.017935] D eftirlit7(A7ABD3AE):pi_psi_from_ino:123: found INO 34680 PID 4191 in process table
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.018010] D eftirlit7(A7ABD3AE):psi_remember:437: queueing async call to remember entry INO 34680 PID 4191 SEQ 0 PATH /usr/lib/gvfs/gvfsd-smb-browse
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.018053] D eftirlit7(A7ABD3AE):douane_nfhandler:279: caching new socket INODE 34680 SEQ 0 for PID 4191 and process '/usr/lib/gvfs/gvfsd-smb-browse'
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.018058] D eftirlit7(A7ABD3AE):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /usr/lib/gvfs/gvfsd-smb-browse)
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.018067] D eftirlit7(A7ABD3AE):psi_async_remember:156: free cache slot selected
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.018072] D eftirlit7(A7ABD3AE):psi_async_remember:164: writing to slot 46
+Jun  1 15:41:28 AspireR3610 kernel: [ 1462.018079] D eftirlit7(A7ABD3AE):psi_async_remember:182: async work complete
+Jun  1 15:41:29 AspireR3610 kernel: [ 1462.446320] D eftirlit7(3ED52C7B):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:29 AspireR3610 kernel: [ 1462.446328] D eftirlit7(3ED52C7B):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:29 AspireR3610 kernel: [ 1462.446335] D eftirlit7(3ED52C7B):psi_from_inode:313: found INO 34631 in slot 92
+Jun  1 15:41:29 AspireR3610 kernel: [ 1462.446347] D eftirlit7(3ED52C7B):douane_pid_owns_ino:147: match found
+Jun  1 15:41:29 AspireR3610 kernel: [ 1462.446353] D eftirlit7(3ED52C7B):psi_update_age:545: queueing async call to update_age INO 34631
+Jun  1 15:41:29 AspireR3610 kernel: [ 1462.446366] D eftirlit7(3ED52C7B):douane_nfhandler:253: hit for INODE 34631 SEQ 0 for PID 4083 and process '/usr/bin/transmission-gtk'
+Jun  1 15:41:29 AspireR3610 kernel: [ 1462.446369] D eftirlit7(3ED52C7B):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /usr/bin/transmission-gtk)
+Jun  1 15:41:29 AspireR3610 kernel: [ 1462.446400] D eftirlit7(3ED52C7B):psi_async_update_age:273: async work complete
+Jun  1 15:41:29 AspireR3610 kernel: [ 1463.018839] D eftirlit7(F11F6D3A):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:29 AspireR3610 kernel: [ 1463.018848] D eftirlit7(F11F6D3A):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:29 AspireR3610 kernel: [ 1463.018854] D eftirlit7(F11F6D3A):psi_from_inode:317: searching for INO 34682 - not found
+Jun  1 15:41:29 AspireR3610 kernel: [ 1463.018919] D eftirlit7(F11F6D3A):pi_psi_from_ino:95: refreshing cache
+Jun  1 15:41:29 AspireR3610 kernel: [ 1463.019761] D eftirlit7(F11F6D3A):pi_psi_from_ino:123: found INO 34682 PID 4191 in process table
+Jun  1 15:41:29 AspireR3610 kernel: [ 1463.019775] D eftirlit7(F11F6D3A):psi_remember:437: queueing async call to remember entry INO 34682 PID 4191 SEQ 0 PATH /usr/lib/gvfs/gvfsd-smb-browse
+Jun  1 15:41:29 AspireR3610 kernel: [ 1463.019810] D eftirlit7(F11F6D3A):douane_nfhandler:279: caching new socket INODE 34682 SEQ 0 for PID 4191 and process '/usr/lib/gvfs/gvfsd-smb-browse'
+Jun  1 15:41:29 AspireR3610 kernel: [ 1463.019815] D eftirlit7(F11F6D3A):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /usr/lib/gvfs/gvfsd-smb-browse)
+Jun  1 15:41:29 AspireR3610 kernel: [ 1463.019850] D eftirlit7(F11F6D3A):psi_async_remember:156: free cache slot selected
+Jun  1 15:41:29 AspireR3610 kernel: [ 1463.019856] D eftirlit7(F11F6D3A):psi_async_remember:164: writing to slot 58
+Jun  1 15:41:29 AspireR3610 kernel: [ 1463.019862] D eftirlit7(F11F6D3A):psi_async_remember:182: async work complete
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.020927] D eftirlit7(8032B0CF):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.020935] D eftirlit7(8032B0CF):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.020941] D eftirlit7(8032B0CF):psi_from_inode:317: searching for INO 34685 - not found
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.021007] D eftirlit7(8032B0CF):pi_psi_from_ino:95: refreshing cache
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.022106] D eftirlit7(8032B0CF):pi_psi_from_ino:123: found INO 34685 PID 4191 in process table
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.022183] D eftirlit7(8032B0CF):psi_remember:437: queueing async call to remember entry INO 34685 PID 4191 SEQ 0 PATH /usr/lib/gvfs/gvfsd-smb-browse
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.022218] D eftirlit7(8032B0CF):douane_nfhandler:279: caching new socket INODE 34685 SEQ 0 for PID 4191 and process '/usr/lib/gvfs/gvfsd-smb-browse'
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.022224] D eftirlit7(8032B0CF):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /usr/lib/gvfs/gvfsd-smb-browse)
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.022243] D eftirlit7(8032B0CF):psi_async_remember:156: free cache slot selected
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.022249] D eftirlit7(8032B0CF):psi_async_remember:164: writing to slot 79
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.022255] D eftirlit7(8032B0CF):psi_async_remember:182: async work complete
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023091] D eftirlit7(7CA2A114):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023101] D eftirlit7(7CA2A114):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023109] D eftirlit7(7CA2A114):psi_from_inode:313: found INO 17485 in slot 113
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023124] D eftirlit7(7CA2A114):douane_pid_owns_ino:147: match found
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023132] D eftirlit7(7CA2A114):psi_update_age:545: queueing async call to update_age INO 17485
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023148] D eftirlit7(19AF3D71):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023160] D eftirlit7(19AF3D71):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023171] D eftirlit7(19AF3D71):psi_from_inode:313: found INO 34685 in slot 79
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023180] D eftirlit7(7CA2A114):douane_nfhandler:253: hit for INODE 17485 SEQ 0 for PID 393 and process '/lib/systemd/systemd-resolved'
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023185] D eftirlit7(19AF3D71):douane_pid_owns_ino:147: match found
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023193] D eftirlit7(7CA2A114):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /lib/systemd/systemd-resolved)
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023199] D eftirlit7(19AF3D71):psi_update_age:545: queueing async call to update_age INO 34685
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023214] D eftirlit7(19AF3D71):douane_nfhandler:253: hit for INODE 34685 SEQ 0 for PID 4191 and process '/usr/lib/gvfs/gvfsd-smb-browse'
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023220] D eftirlit7(19AF3D71):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /usr/lib/gvfs/gvfsd-smb-browse)
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023290] D eftirlit7(7CA2A114):psi_async_update_age:273: async work complete
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023301] D eftirlit7(19AF3D71):psi_async_update_age:273: async work complete
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023839] D eftirlit7(E37A1F9A):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023848] D eftirlit7(E37A1F9A):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023856] D eftirlit7(E37A1F9A):psi_from_inode:313: found INO 17485 in slot 113
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023868] D eftirlit7(E37A1F9A):douane_pid_owns_ino:147: match found
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023875] D eftirlit7(E37A1F9A):psi_update_age:545: queueing async call to update_age INO 17485
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023914] D eftirlit7(E37A1F9A):douane_nfhandler:253: hit for INODE 17485 SEQ 0 for PID 393 and process '/lib/systemd/systemd-resolved'
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.023919] D eftirlit7(E37A1F9A):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /lib/systemd/systemd-resolved)
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024012] D eftirlit7(E37A1F9A):psi_async_update_age:273: async work complete
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024192] D eftirlit7(D20AD4CA):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024203] D eftirlit7(D20AD4CA):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024212] D eftirlit7(D20AD4CA):psi_from_inode:313: found INO 34685 in slot 79
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024224] D eftirlit7(D20AD4CA):douane_pid_owns_ino:147: match found
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024231] D eftirlit7(D20AD4CA):psi_update_age:545: queueing async call to update_age INO 34685
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024260] D eftirlit7(D20AD4CA):douane_nfhandler:253: hit for INODE 34685 SEQ 0 for PID 4191 and process '/usr/lib/gvfs/gvfsd-smb-browse'
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024264] D eftirlit7(D20AD4CA):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /usr/lib/gvfs/gvfsd-smb-browse)
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024295] D eftirlit7(D20AD4CA):psi_async_update_age:273: async work complete
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024350] D eftirlit7(2C1E1FFF):douane_nfhandler:167: ~~~ new packet
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024355] D eftirlit7(2C1E1FFF):douane_nfhandler:190: packet UDP, !in_softirq()
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024361] D eftirlit7(2C1E1FFF):psi_from_inode:313: found INO 34685 in slot 79
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024366] D eftirlit7(2C1E1FFF):douane_pid_owns_ino:147: match found
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024371] D eftirlit7(2C1E1FFF):psi_update_age:545: queueing async call to update_age INO 34685
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024387] D eftirlit7(2C1E1FFF):douane_nfhandler:253: hit for INODE 34685 SEQ 0 for PID 4191 and process '/usr/lib/gvfs/gvfsd-smb-browse'
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024391] D eftirlit7(2C1E1FFF):douane_nfhandler:384: NF_ACCEPT (filtering disabled. process /usr/lib/gvfs/gvfsd-smb-browse)
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024408] D eftirlit7(2C1E1FFF):psi_async_update_age:273: async work complete
+Jun  1 15:41:30 AspireR3610 kernel: [ 1464.024899] D eftirlit7(20F3DB66):douane_nfhandler:167: ~~~ new packet

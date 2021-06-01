@@ -30,6 +30,10 @@ A simple daemon
 
 Process, protocol, user, destination stats
 
+## Typical log output
+
+For typical log output on a low-end machine, see the file typical-log-output.txt
+
 # Provenance
 
 E7 is a fork of the linux internet application firewall douane from https://gitlab.com/douaneapp (where I've been volunteering during early 2021). Douane contains lots of great logic and infrastructure that can be leveraged to learn and experiment, as I have at https://gitlab.com/Orthopteroid/douane-dkms/ where I was testing smp-friendly cache-experiments. I've relocated those experiments to have most of my work under one roof here at github.
