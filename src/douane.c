@@ -342,11 +342,11 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
           if(tcp_state == TCP_CLOSE_WAIT) break;
           if(tcp_state == TCP_CLOSING) break;
 
-          LOG_ERR(packet_id, "NF_ACCEPT (unable to identify process for FILE %p INODE %ld)", socket_file, socket_ino);
+          LOG_ERR(packet_id, "NF_ACCEPT (unidentified tcp socket state. possibly for FILE %p INODE %ld process '%s')", socket_file, socket_ino, psi.process_path);
           return NF_ACCEPT;
         } while(false);
 
-        LOG_DEBUG(packet_id, "NF_ACCEPT (tcp socket shutting down for FILE %p INODE %ld process '%s')", socket_file, socket_ino, psi.process_path);
+        LOG_DEBUG(packet_id, "NF_ACCEPT (closed/closing tcp socket. possibly for FILE %p INODE %ld process '%s')", socket_file, socket_ino, psi.process_path);
         return NF_ACCEPT;
       }
 
