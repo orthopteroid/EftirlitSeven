@@ -116,6 +116,8 @@ char * douane_lookup_protname(const int protocol)
 
 static bool douane_pid_owns_ino(unsigned long socket_ino, pid_t pid, const uint32_t packet_id)
 {
+  struct file * file = NULL;
+
   rcu_read_lock();
 
   {
@@ -128,8 +130,7 @@ static bool douane_pid_owns_ino(unsigned long socket_ino, pid_t pid, const uint3
       unsigned int fd_max = files_fdtable(task->files)->max_fds;
       for(fd_i = 0; fd_i < fd_max; fd_i++)
       {
-        struct file * file = fcheck_files(task->files, fd_i);
-        if (!file) continue;
+        if (!(file = fcheck_files(task->files, fd_i))) continue;
         if (!S_ISSOCK(file_inode(file)->i_mode)) continue; // not a socket file
         if (file_inode(file)->i_ino != socket_ino) continue;
 
