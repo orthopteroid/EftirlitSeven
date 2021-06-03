@@ -38,9 +38,9 @@ enum nf_ip_hook_priorities {
 
 #define ALIGNED ____cacheline_aligned
 
-// cache size is paired with the key cutter size
-#define CACHE_KEYS 4096 // 12 bits
-#define KEY_CUTTER(v) (v ^ (v >> 12) ^ (v >> 24))
+// cache keys is paired with the key cutter size
+#define CACHE_KEYS 256 // 8 bits
+#define KEY_CUTTER(v) (v ^ (v >> 8) ^ (v >> 16) ^ (v >> 24))
 
 #define CACHE_FACTOR 2
 #define CACHE_SLOTS (CACHE_FACTOR * CACHE_KEYS)
@@ -58,11 +58,15 @@ DEFINE_SPINLOCK(pi_lock);
 
 bool pi_psi_from_ino(struct psi_struct * psi_out, unsigned long socket_ino, const uint32_t packet_id)
 {
-  struct task_struct * task;
-  struct task_struct * found_task = 0;
+  struct file * file = NULL;
+  struct inode * inode = NULL;
+  struct socket * socket_ = NULL;
+  struct sock * sock_ = NULL;
+  struct task_struct * task = NULL;
+  struct task_struct * found_task = NULL;
   pid_t found_pid = 0;
   int name_str_len;
-  int i = 0, j = 0;
+  int i = 0, j = 0, k = 0;
   //
   char * deleted_str = " (deleted)";
   int deleted_str_len = 10;
@@ -109,12 +113,13 @@ refresh_cache:
 
       for(fd_i = 0; fd_i < fd_max; fd_i++)
       {
-        struct file * file = fcheck_files(task->files, fd_i);
-        struct inode * inode = 0;
+        if(!(file = fcheck_files(task->files, fd_i))) continue;
+        if(!(inode = file_inode(file))) continue;
+        if(!S_ISSOCK(inode->i_mode)) continue; // not a socket file
+        if(!(socket_= SOCKET_I(inode))) continue;
+        if(!(sock_ = socket_->sk)) continue;
+        if(sock_->sk_family != PF_INET) continue; // not inet socket
 
-        if (!file) continue;
-        inode = file_inode(file);
-        if (!S_ISSOCK(inode->i_mode)) continue; // not a socket file
         if (!found_task && !found_pid && (inode->i_ino == socket_ino))
         {
           found_task = task;
@@ -131,6 +136,7 @@ refresh_cache:
           {
             pi_cache->ino[j] = inode->i_ino;
             pi_cache->pid[j] = task->pid;
+            k++;
             break;
           }
         }
@@ -141,6 +147,7 @@ refresh_cache:
       }
     }
   }
+  LOG_DEBUG(packet_id, "cached %d entries", k);
 
 out_found:
   do {
