@@ -38,9 +38,9 @@ enum nf_ip_hook_priorities {
 
 #define ALIGNED ____cacheline_aligned
 
-// cache size is paired with the key cutter size
-#define CACHE_KEYS 4096 // 12 bits
-#define KEY_CUTTER(v) (v ^ (v >> 12) ^ (v >> 24))
+// cache keys is paired with the key cutter size
+#define CACHE_KEYS 256 // 8 bits
+#define KEY_CUTTER(v) (v ^ (v >> 8) ^ (v >> 16) ^ (v >> 24))
 
 #define CACHE_FACTOR 2
 #define CACHE_SLOTS (CACHE_FACTOR * CACHE_KEYS)
@@ -58,11 +58,15 @@ DEFINE_SPINLOCK(pi_lock);
 
 bool pi_psi_from_ino(struct psi_struct * psi_out, unsigned long socket_ino, const uint32_t packet_id)
 {
-  struct task_struct * task;
-  struct task_struct * found_task = 0;
+  struct file * file = NULL;
+  struct inode * inode = NULL;
+  struct socket * socket_ = NULL;
+  struct sock * sock_ = NULL;
+  struct task_struct * task = NULL;
+  struct task_struct * found_task = NULL; // refcounted when found
   pid_t found_pid = 0;
   int name_str_len;
-  int i = 0, j = 0;
+  int i = 0, j = 0, k = 0;
   //
   char * deleted_str = " (deleted)";
   int deleted_str_len = 10;
@@ -84,10 +88,10 @@ bool pi_psi_from_ino(struct psi_struct * psi_out, unsigned long socket_ino, cons
         goto refresh_cache;
       }
 
-      found_task = task;
+      found_task = get_task_struct(task);
       found_pid = pi_cache->pid[j];
 
-      LOG_DEBUG(packet_id, "found INO %ld PID %d in cache", socket_ino, found_pid);
+      LOG_DEBUG(packet_id, "searching for INO %ld - found in cache with PID %d", socket_ino, found_pid);
       goto out_found;
     }
   }
@@ -102,6 +106,7 @@ refresh_cache:
   // refresh
   for_each_process(task)
   {
+    task = get_task_struct(task);
     if (task->files)
     {
       unsigned int fd_i = 0;
@@ -109,18 +114,19 @@ refresh_cache:
 
       for(fd_i = 0; fd_i < fd_max; fd_i++)
       {
-        struct file * file = fcheck_files(task->files, fd_i);
-        struct inode * inode = 0;
+        if(!(file = fcheck_files(task->files, fd_i))) continue;
+        if(!(inode = file_inode(file))) continue;
+        if(!S_ISSOCK(inode->i_mode)) continue; // not a socket file
+        if(!(socket_= SOCKET_I(inode))) continue;
+        if(!(sock_ = socket_->sk)) continue;
+        if(sock_->sk_family != PF_INET) continue; // not inet socket
 
-        if (!file) continue;
-        inode = file_inode(file);
-        if (!S_ISSOCK(inode->i_mode)) continue; // not a socket file
         if (!found_task && !found_pid && (inode->i_ino == socket_ino))
         {
-          found_task = task;
+          found_task = get_task_struct(task); // nb: inc ref to 2
           found_pid = task->pid;
 
-          LOG_DEBUG(packet_id, "found INO %ld PID %d in process table", socket_ino, found_pid);
+          LOG_DEBUG(packet_id, "searching for INO %ld - found in process table with PID %d", socket_ino, found_pid);
         }
 
         j = KEY_TO_SLOT(inode->i_ino);
@@ -131,6 +137,7 @@ refresh_cache:
           {
             pi_cache->ino[j] = inode->i_ino;
             pi_cache->pid[j] = task->pid;
+            k++;
             break;
           }
         }
@@ -140,21 +147,32 @@ refresh_cache:
         }
       }
     }
+    put_task_struct(task);
   }
+  LOG_DEBUG(packet_id, "cached %d entries", k);
 
 out_found:
-  do {
-    char * p = 0;
-    if(!found_task || !(found_task->mm) || !(found_task->mm->exe_file)) break;
+  if(!found_task)
+  {
+    LOG_DEBUG(packet_id, "searching for INO %ld - not found", socket_ino);
+    goto out_fail;
+  }
 
+  if(!(found_task->mm) || !(found_task->mm->exe_file))
+  {
+    LOG_ERR(packet_id, "mm ERROR");
+    goto out_fail;
+  }
+
+  {
     // notes:
     // - d_path might return string with " (deleted)" suffix
     // - d_path might return string with garbage prefix
-    p = d_path(&found_task->mm->exe_file->f_path, psi_out->process_path, PATH_LENGTH);
+    char * p = d_path(&found_task->mm->exe_file->f_path, psi_out->process_path, PATH_LENGTH);
     if (IS_ERR(p))
     {
       LOG_ERR(packet_id, "d_path returned ERROR");
-      break;
+      goto out_fail;
     }
 
     psi_out->pid = found_pid;
@@ -163,12 +181,107 @@ out_found:
       // start of string is not start of buffer, so strip prefix
       strncpy(psi_out->process_path, p, PATH_LENGTH - (p - psi_out->process_path) +1); // +1 includes \0
     }
+  }
 
+  put_task_struct(found_task);
+  rcu_read_unlock();
+  spin_unlock_bh(&pi_lock);
+
+  // check for " (deleted)" suffix and strip it
+  name_str_len = strnlen(psi_out->process_path, PATH_LENGTH);
+  if (name_str_len > deleted_str_len)
+  {
+    // long enough for a suffix
+    int suffix_position = name_str_len - deleted_str_len;
+    if (0 == strncmp(psi_out->process_path + suffix_position, deleted_str, deleted_str_len))
+    {
+      memset(psi_out->process_path + suffix_position, 0, deleted_str_len);
+    }
+  }
+
+  return true;
+
+out_fail:
+
+  rcu_read_unlock();
+  spin_unlock_bh(&pi_lock);
+  return false;
+}
+
+bool pi_psi_from_ino_pid(struct psi_struct * psi_out, unsigned long socket_ino, pid_t pid, const uint32_t packet_id)
+{
+  struct file * file = NULL;
+  struct inode * inode = NULL;
+  struct pid * pid_struct = NULL;
+  struct task_struct * task = NULL;
+  unsigned int fd_i;
+  unsigned int fd_max;
+
+  rcu_read_lock();
+
+  pid_struct = find_get_pid(pid);
+  task = pid_struct ? get_pid_task(pid_struct, PIDTYPE_PID) : NULL;
+  if(!task)
+  {
+    LOG_ERR(packet_id, "invalid task info");
     rcu_read_unlock();
-    spin_unlock_bh(&pi_lock);
+    return false;
+  }
 
+  task = get_task_struct(task);
+  fd_max = files_fdtable(task->files)->max_fds;
+
+  for(fd_i = 0; fd_i < fd_max; fd_i++)
+  {
+    if(!(file = fcheck_files(task->files, fd_i))) continue;
+    if(!(inode = file_inode(file))) continue;
+    if(!S_ISSOCK(inode->i_mode)) continue; // not a socket file
+    if(inode->i_ino != socket_ino) continue;
+
+    goto out_found;
+  }
+
+  LOG_DEBUG(packet_id, "searching for INO %ld in PID %d - not found", socket_ino, pid);
+
+out_fail:
+  if(task) put_task_struct(task);
+  rcu_read_unlock();
+  return false;
+
+out_found:
+  if(!(task->mm) || !(task->mm->exe_file))
+  {
+    LOG_ERR(packet_id, "mm ERROR");
+    goto out_fail;
+  }
+
+  {
+    // notes:
+    // - d_path might return string with " (deleted)" suffix
+    // - d_path might return string with garbage prefix
+    char * p = d_path(&task->mm->exe_file->f_path, psi_out->process_path, PATH_LENGTH);
+    if (IS_ERR(p))
+    {
+      LOG_ERR(packet_id, "d_path returned ERROR");
+      goto out_fail;
+    }
+
+    psi_out->pid = pid;
+    if(psi_out->process_path != p)
+    {
+      // start of string is not start of buffer, so strip prefix
+      strncpy(psi_out->process_path, p, PATH_LENGTH - (p - psi_out->process_path) +1); // +1 includes \0
+    }
+  }
+
+  put_task_struct(task);
+  rcu_read_unlock();
+
+  {
+    char * deleted_str = " (deleted)";
+    int deleted_str_len = 10;
     // check for " (deleted)" suffix and strip it
-    name_str_len = strnlen(psi_out->process_path, PATH_LENGTH);
+    int name_str_len = strnlen(psi_out->process_path, PATH_LENGTH);
     if (name_str_len > deleted_str_len)
     {
       // long enough for a suffix
@@ -178,16 +291,11 @@ out_found:
         memset(psi_out->process_path + suffix_position, 0, deleted_str_len);
       }
     }
+  }
 
-    return true;
+  LOG_DEBUG(packet_id, "searching for INO %ld in PID %d - found", socket_ino, pid);
 
-  } while(false);
-
-  LOG_DEBUG(packet_id, "searching for INO %ld - not found", socket_ino);
-
-  rcu_read_unlock();
-  spin_unlock_bh(&pi_lock);
-  return false;
+  return true;
 }
 
 //////////////////

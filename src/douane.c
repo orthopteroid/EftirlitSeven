@@ -114,37 +114,47 @@ char * douane_lookup_protname(const int protocol)
 
 ///////////////
 
+// move to pi_?
 static bool douane_pid_owns_ino(unsigned long socket_ino, pid_t pid, const uint32_t packet_id)
 {
+  struct pid * pid_struct = NULL;
+  struct task_struct * task = NULL;
+  struct file * file = NULL;
+
   rcu_read_lock();
 
+  pid_struct = find_get_pid(pid);
+  task = pid_struct ? get_pid_task(pid_struct, PIDTYPE_PID) : NULL;
+  if(!task)
   {
-    struct pid * pid_struct = find_get_pid(pid);
-    struct task_struct * task = pid_struct ? get_pid_task(pid_struct, PIDTYPE_PID) : NULL;
+    LOG_ERR(packet_id, "invalid task info");
 
-    if (task && task->files)
-    {
-      unsigned int fd_i = 0;
-      unsigned int fd_max = files_fdtable(task->files)->max_fds;
-      for(fd_i = 0; fd_i < fd_max; fd_i++)
-      {
-        struct file * file = fcheck_files(task->files, fd_i);
-        if (!file) continue;
-        if (!S_ISSOCK(file_inode(file)->i_mode)) continue; // not a socket file
-        if (file_inode(file)->i_ino != socket_ino) continue;
-
-        goto out_found;
-      }
-    }
+    rcu_read_unlock();
+    return false;
   }
 
-  rcu_read_unlock();
-  LOG_ERR(packet_id, "no match for INO %ld and PID %d", socket_ino, pid);
-  return false;
+  task = get_task_struct(task);
+  if(task->files)
+  {
+    unsigned int fd_i = 0;
+    unsigned int fd_max = files_fdtable(task->files)->max_fds;
+    for(fd_i = 0; fd_i < fd_max; fd_i++)
+    {
+      if (!(file = fcheck_files(task->files, fd_i))) continue;
+      if (!S_ISSOCK(file_inode(file)->i_mode)) continue; // not a socket file
+      if (file_inode(file)->i_ino != socket_ino) continue;
+
+      LOG_DEBUG(packet_id, "searching PID %d for INO %ld - found", pid, socket_ino);
+
+      goto out_found;
+    }
+  }
+  put_task_struct(task);
+
+  LOG_DEBUG(packet_id, "searching PID %d for INO %ld - not found", pid, socket_ino);
 
 out_found:
   rcu_read_unlock();
-  LOG_DEBUG(packet_id, "match found");
   return true;
 }
 
@@ -200,6 +210,7 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
       }
       sport = (unsigned int) ntohs(udp_header->source);
       dport = (unsigned int) ntohs(udp_header->dest);
+      return NF_ACCEPT; // different filter needed
       break;
 
     case IPPROTO_TCP:
@@ -242,11 +253,29 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
 
     filterable = true;
 
+    if (!socket_ino)
     {
-      bool psi_cache_hit = socket_ino ? psi_from_inode(&psi, socket_ino, packet_id) : false;
-      bool ino_pid_match = psi_cache_hit ? douane_pid_owns_ino(socket_ino, psi.pid, packet_id) : false;
+      unsigned int tcp_state = (skb->sk && skb->sk) ? skb->sk->sk_state : 0; // 0 invalid
+      do {
+        if(tcp_state == TCP_FIN_WAIT1) break;
+        if(tcp_state == TCP_FIN_WAIT2) break;
+        if(tcp_state == TCP_CLOSE) break;
+        if(tcp_state == TCP_CLOSE_WAIT) break;
+        if(tcp_state == TCP_CLOSING) break;
 
-      if (psi_cache_hit && ino_pid_match)
+        LOG_ERR(packet_id, "NF_ACCEPT (unidentified tcp socket state. possibly for FILE %p INODE %ld process '%s')", socket_file, socket_ino, psi.process_path);
+        return NF_ACCEPT;
+      } while(false);
+
+      LOG_DEBUG(packet_id, "NF_ACCEPT (closed/closing tcp socket. possibly for FILE %p INODE %ld process '%s')", socket_file, socket_ino, psi.process_path);
+      return NF_ACCEPT;
+    }
+    else
+    {
+      bool psi_cache_hit = psi_from_inode(&psi, socket_ino, packet_id);
+      bool psi_cache_uptodate = psi_cache_hit ? douane_pid_owns_ino(socket_ino, psi.pid, packet_id) : false;
+
+      if(psi_cache_uptodate)
       {
         psi_update_age(socket_ino, packet_id);
 
@@ -254,42 +283,24 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
         break;
       }
 
-      if (!socket_ino || !pi_psi_from_ino(&psi, socket_ino, packet_id))
       {
-        unsigned int tcp_state = (skb->sk && skb->sk) ? skb->sk->sk_state : 0; // 0 invalid
-        do {
-          if(tcp_state == TCP_FIN_WAIT1) break;
-          if(tcp_state == TCP_FIN_WAIT2) break;
-          if(tcp_state == TCP_CLOSE) break;
-          if(tcp_state == TCP_CLOSE_WAIT) break;
-          if(tcp_state == TCP_CLOSING) break;
+        bool psi_localsearch = pi_psi_from_ino_pid(&psi, socket_ino, current->pid, packet_id);
+        bool psi_globalsearch = !psi_localsearch ? pi_psi_from_ino(&psi, socket_ino, packet_id) : false;
+        LOG_DEBUG(packet_id, "cache is a bust - localsearch %s globalsearch %s", psi_localsearch ? "ok" : "failed", psi_globalsearch ? "ok" : "failed");
 
-          LOG_ERR(packet_id, "NF_ACCEPT (unidentified tcp socket state. possibly for FILE %p INODE %ld process '%s')", socket_file, socket_ino, psi.process_path);
-          return NF_ACCEPT;
-        } while(false);
+        if (!psi_cache_hit)
+        {
+          psi_remember(socket_ino, tcp_seq, psi.pid, psi.process_path, packet_id);
 
-        LOG_DEBUG(packet_id, "NF_ACCEPT (closed/closing tcp socket. possibly for FILE %p INODE %ld process '%s')", socket_file, socket_ino, psi.process_path);
-        return NF_ACCEPT;
-      }
+          LOG_DEBUG(packet_id, "caching new socket INODE %ld SEQ %u for PID %d and process '%s'", socket_ino, tcp_seq, psi.pid, psi.process_path);
+          break;
+        }
 
-      if (!psi_cache_hit)
-      {
-        psi_remember(socket_ino, tcp_seq, psi.pid, psi.process_path, packet_id);
-
-        LOG_DEBUG(packet_id, "caching new socket INODE %ld SEQ %u for PID %d and process '%s'", socket_ino, tcp_seq, psi.pid, psi.process_path);
-        break;
-      }
-
-      if (!ino_pid_match)
-      {
         psi_update_all(socket_ino, tcp_seq, psi.pid, psi.process_path, packet_id);
 
         LOG_DEBUG(packet_id, "all updated for INODE %ld. returning '%s'", socket_ino, psi.process_path);
         break;
       }
-
-      LOG_ERR(packet_id, "logic error");
-      break;
     }
 
     if (tcp_seq)
