@@ -212,6 +212,7 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
       }
       sport = (unsigned int) ntohs(udp_header->source);
       dport = (unsigned int) ntohs(udp_header->dest);
+      return NF_ACCEPT; // different filter needed
       break;
 
     case IPPROTO_TCP:
