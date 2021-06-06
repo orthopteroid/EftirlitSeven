@@ -128,7 +128,9 @@ static bool douane_pid_owns_ino(unsigned long socket_ino, pid_t pid, const uint3
   if(!task)
   {
     LOG_ERR(packet_id, "invalid task info");
-    goto out_fail;
+
+    rcu_read_unlock();
+    return false;
   }
 
   task = get_task_struct(task);
@@ -147,15 +149,11 @@ static bool douane_pid_owns_ino(unsigned long socket_ino, pid_t pid, const uint3
       goto out_found;
     }
   }
+  put_task_struct(task);
+
   LOG_DEBUG(packet_id, "searching PID %d for INO %ld - not found", pid, socket_ino);
 
-out_fail:
-  put_task_struct(task);
-  rcu_read_unlock();
-  return false;
-
 out_found:
-  put_task_struct(task);
   rcu_read_unlock();
   return true;
 }

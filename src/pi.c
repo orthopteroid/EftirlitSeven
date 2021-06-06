@@ -63,7 +63,7 @@ bool pi_psi_from_ino(struct psi_struct * psi_out, unsigned long socket_ino, cons
   struct socket * socket_ = NULL;
   struct sock * sock_ = NULL;
   struct task_struct * task = NULL;
-  struct task_struct * found_task = NULL;
+  struct task_struct * found_task = NULL; // refcounted when found
   pid_t found_pid = 0;
   int name_str_len;
   int i = 0, j = 0, k = 0;
@@ -88,7 +88,7 @@ bool pi_psi_from_ino(struct psi_struct * psi_out, unsigned long socket_ino, cons
         goto refresh_cache;
       }
 
-      found_task = task;
+      found_task = get_task_struct(task);
       found_pid = pi_cache->pid[j];
 
       LOG_DEBUG(packet_id, "searching for INO %ld - found in cache with PID %d", socket_ino, found_pid);
@@ -123,7 +123,7 @@ refresh_cache:
 
         if (!found_task && !found_pid && (inode->i_ino == socket_ino))
         {
-          found_task = task;
+          found_task = get_task_struct(task); // nb: inc ref to 2
           found_pid = task->pid;
 
           LOG_DEBUG(packet_id, "searching for INO %ld - found in process table with PID %d", socket_ino, found_pid);
@@ -183,6 +183,7 @@ out_found:
     }
   }
 
+  put_task_struct(found_task);
   rcu_read_unlock();
   spin_unlock_bh(&pi_lock);
 
@@ -243,7 +244,7 @@ bool pi_psi_from_ino_pid(struct psi_struct * psi_out, unsigned long socket_ino, 
   LOG_DEBUG(packet_id, "searching for INO %ld in PID %d - not found", socket_ino, pid);
 
 out_fail:
-  put_task_struct(task);
+  if(task) put_task_struct(task);
   rcu_read_unlock();
   return false;
 
