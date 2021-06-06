@@ -7,6 +7,8 @@
 // refresh cache from process table when there is a cache-miss
 bool pi_psi_from_ino(struct psi_struct * psi_out, unsigned long socket_ino, const uint32_t packet_id);
 
+bool pi_psi_from_ino_pid(struct psi_struct * psi_out, unsigned long socket_ino, pid_t pid, const uint32_t packet_id);
+
 int pi_init(void);
 void pi_exit(void);
 

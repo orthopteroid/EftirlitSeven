@@ -207,11 +207,80 @@ out_fail:
   return false;
 }
 
-    rcu_read_unlock();
-    spin_unlock_bh(&pi_lock);
+bool pi_psi_from_ino_pid(struct psi_struct * psi_out, unsigned long socket_ino, pid_t pid, const uint32_t packet_id)
+{
+  struct file * file = NULL;
+  struct inode * inode = NULL;
+  struct pid * pid_struct = NULL;
+  struct task_struct * task = NULL;
+  unsigned int fd_i;
+  unsigned int fd_max;
 
+  rcu_read_lock();
+
+  pid_struct = find_get_pid(pid);
+  task = pid_struct ? get_pid_task(pid_struct, PIDTYPE_PID) : NULL;
+  if(!task)
+  {
+    LOG_ERR(packet_id, "invalid task info");
+    rcu_read_unlock();
+    return false;
+  }
+
+  task = get_task_struct(task);
+  fd_max = files_fdtable(task->files)->max_fds;
+
+  for(fd_i = 0; fd_i < fd_max; fd_i++)
+  {
+    if(!(file = fcheck_files(task->files, fd_i))) continue;
+    if(!(inode = file_inode(file))) continue;
+    if(!S_ISSOCK(inode->i_mode)) continue; // not a socket file
+    if(inode->i_ino != socket_ino) continue;
+
+    goto out_found;
+  }
+
+  LOG_DEBUG(packet_id, "searching for INO %ld in PID %d - not found", socket_ino, pid);
+
+out_fail:
+  put_task_struct(task);
+  rcu_read_unlock();
+  return false;
+
+out_found:
+  if(!(task->mm) || !(task->mm->exe_file))
+  {
+    LOG_ERR(packet_id, "mm ERROR");
+    goto out_fail;
+  }
+
+  {
+    // notes:
+    // - d_path might return string with " (deleted)" suffix
+    // - d_path might return string with garbage prefix
+    char * p = d_path(&task->mm->exe_file->f_path, psi_out->process_path, PATH_LENGTH);
+    if (IS_ERR(p))
+    {
+      LOG_ERR(packet_id, "d_path returned ERROR");
+      goto out_fail;
+    }
+
+    psi_out->pid = pid;
+    if(psi_out->process_path != p)
+    {
+      // start of string is not start of buffer, so strip prefix
+      strncpy(psi_out->process_path, p, PATH_LENGTH - (p - psi_out->process_path) +1); // +1 includes \0
+    }
+  }
+
+  put_task_struct(task);
+  rcu_read_unlock();
+
+  {
+    char * deleted_str = " (deleted)";
+    int deleted_str_len = 10;
     // check for " (deleted)" suffix and strip it
-    name_str_len = strnlen(psi_out->process_path, PATH_LENGTH);
+    int name_str_len = strnlen(psi_out->process_path, PATH_LENGTH);
     if (name_str_len > deleted_str_len)
     {
       // long enough for a suffix
@@ -221,16 +290,11 @@ out_fail:
         memset(psi_out->process_path + suffix_position, 0, deleted_str_len);
       }
     }
+  }
 
-    return true;
+  LOG_DEBUG(packet_id, "searching for INO %ld in PID %d - found", socket_ino, pid);
 
-  } while(false);
-
-  LOG_DEBUG(packet_id, "searching for INO %ld - not found", socket_ino);
-
-  rcu_read_unlock();
-  spin_unlock_bh(&pi_lock);
-  return false;
+  return true;
 }
 
 //////////////////
