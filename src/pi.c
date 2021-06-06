@@ -91,7 +91,7 @@ bool pi_psi_from_ino(struct psi_struct * psi_out, unsigned long socket_ino, cons
       found_task = task;
       found_pid = pi_cache->pid[j];
 
-      LOG_DEBUG(packet_id, "found INO %ld PID %d in cache", socket_ino, found_pid);
+      LOG_DEBUG(packet_id, "searching for INO %ld - found in cache with PID %d", socket_ino, found_pid);
       goto out_found;
     }
   }
@@ -106,6 +106,7 @@ refresh_cache:
   // refresh
   for_each_process(task)
   {
+    task = get_task_struct(task);
     if (task->files)
     {
       unsigned int fd_i = 0;
@@ -125,7 +126,7 @@ refresh_cache:
           found_task = task;
           found_pid = task->pid;
 
-          LOG_DEBUG(packet_id, "found INO %ld PID %d in process table", socket_ino, found_pid);
+          LOG_DEBUG(packet_id, "searching for INO %ld - found in process table with PID %d", socket_ino, found_pid);
         }
 
         j = KEY_TO_SLOT(inode->i_ino);
@@ -146,22 +147,32 @@ refresh_cache:
         }
       }
     }
+    put_task_struct(task);
   }
   LOG_DEBUG(packet_id, "cached %d entries", k);
 
 out_found:
-  do {
-    char * p = 0;
-    if(!found_task || !(found_task->mm) || !(found_task->mm->exe_file)) break;
+  if(!found_task)
+  {
+    LOG_DEBUG(packet_id, "searching for INO %ld - not found", socket_ino);
+    goto out_fail;
+  }
 
+  if(!(found_task->mm) || !(found_task->mm->exe_file))
+  {
+    LOG_ERR(packet_id, "mm ERROR");
+    goto out_fail;
+  }
+
+  {
     // notes:
     // - d_path might return string with " (deleted)" suffix
     // - d_path might return string with garbage prefix
-    p = d_path(&found_task->mm->exe_file->f_path, psi_out->process_path, PATH_LENGTH);
+    char * p = d_path(&found_task->mm->exe_file->f_path, psi_out->process_path, PATH_LENGTH);
     if (IS_ERR(p))
     {
       LOG_ERR(packet_id, "d_path returned ERROR");
-      break;
+      goto out_fail;
     }
 
     psi_out->pid = found_pid;
@@ -170,6 +181,31 @@ out_found:
       // start of string is not start of buffer, so strip prefix
       strncpy(psi_out->process_path, p, PATH_LENGTH - (p - psi_out->process_path) +1); // +1 includes \0
     }
+  }
+
+  rcu_read_unlock();
+  spin_unlock_bh(&pi_lock);
+
+  // check for " (deleted)" suffix and strip it
+  name_str_len = strnlen(psi_out->process_path, PATH_LENGTH);
+  if (name_str_len > deleted_str_len)
+  {
+    // long enough for a suffix
+    int suffix_position = name_str_len - deleted_str_len;
+    if (0 == strncmp(psi_out->process_path + suffix_position, deleted_str, deleted_str_len))
+    {
+      memset(psi_out->process_path + suffix_position, 0, deleted_str_len);
+    }
+  }
+
+  return true;
+
+out_fail:
+
+  rcu_read_unlock();
+  spin_unlock_bh(&pi_lock);
+  return false;
+}
 
     rcu_read_unlock();
     spin_unlock_bh(&pi_lock);
