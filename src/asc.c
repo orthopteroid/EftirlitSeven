@@ -33,8 +33,9 @@ enum nf_ip_hook_priorities {
 #include <linux/rculist.h>        // hlist_for_each_entry_rcu
 
 #include "module.h"
-#include "psi.h"
-#include "pi.h"
+#include "types.h"
+#include "ksc.h"
+#include "asc.h"
 
 #define ALIGNED ____cacheline_aligned
 
@@ -46,17 +47,17 @@ enum nf_ip_hook_priorities {
 #define CACHE_SLOTS (CACHE_FACTOR * CACHE_KEYS)
 #define KEY_TO_SLOT(v) (CACHE_FACTOR * (KEY_CUTTER(v) % CACHE_KEYS))
 
-struct pi_cache
+struct asc_data
 {
   unsigned long  ino[CACHE_SLOTS] ALIGNED;
   pid_t          pid[CACHE_SLOTS] ALIGNED;
 };
 
-struct pi_cache * pi_cache = 0;
+struct asc_data * asc_data = 0;
 
-DEFINE_SPINLOCK(pi_lock);
+DEFINE_SPINLOCK(asc_lock);
 
-bool pi_psi_from_ino(struct psi_struct * psi_out, unsigned long socket_ino, const uint32_t packet_id)
+bool asc_psi_from_ino(struct psi * psi_out, unsigned long socket_ino, const uint32_t packet_id)
 {
   struct file * file = NULL;
   struct inode * inode = NULL;
@@ -71,16 +72,16 @@ bool pi_psi_from_ino(struct psi_struct * psi_out, unsigned long socket_ino, cons
   char * deleted_str = " (deleted)";
   int deleted_str_len = 10;
 
-  spin_lock_bh(&pi_lock);
+  spin_lock_bh(&asc_lock);
   rcu_read_lock();
 
   j = KEY_TO_SLOT(socket_ino);
   for(i=0; i<CACHE_SLOTS; i++, j++)
   {
     if(j == CACHE_SLOTS) j = 0;
-    if(pi_cache->ino[j] == socket_ino)
+    if(asc_data->ino[j] == socket_ino)
     {
-      struct pid * pid_struct = find_get_pid(pi_cache->pid[j]);
+      struct pid * pid_struct = find_get_pid(asc_data->pid[j]);
       task = pid_struct ? get_pid_task(pid_struct, PIDTYPE_PID) : NULL;
       if(!task)
       {
@@ -89,7 +90,7 @@ bool pi_psi_from_ino(struct psi_struct * psi_out, unsigned long socket_ino, cons
       }
 
       found_task = get_task_struct(task);
-      found_pid = pi_cache->pid[j];
+      found_pid = asc_data->pid[j];
 
       LOG_DEBUG(packet_id, "searching for INO %ld - found in cache with PID %d", socket_ino, found_pid);
       goto out_found;
@@ -101,7 +102,7 @@ bool pi_psi_from_ino(struct psi_struct * psi_out, unsigned long socket_ino, cons
 refresh_cache:
 
   // clean cache
-  for(i=0; i<CACHE_SLOTS; i++) pi_cache->ino[i] = 0;
+  for(i=0; i<CACHE_SLOTS; i++) asc_data->ino[i] = 0;
 
   // refresh
   for_each_process(task)
@@ -133,10 +134,10 @@ refresh_cache:
         for(i=0; i<CACHE_SLOTS; i++, j++)
         {
           if(j == CACHE_SLOTS) j = 0;
-          if(pi_cache->ino[j] == 0)
+          if(asc_data->ino[j] == 0)
           {
-            pi_cache->ino[j] = inode->i_ino;
-            pi_cache->pid[j] = task->pid;
+            asc_data->ino[j] = inode->i_ino;
+            asc_data->pid[j] = task->pid;
             k++;
             break;
           }
@@ -185,7 +186,7 @@ out_found:
 
   put_task_struct(found_task);
   rcu_read_unlock();
-  spin_unlock_bh(&pi_lock);
+  spin_unlock_bh(&asc_lock);
 
   // check for " (deleted)" suffix and strip it
   name_str_len = strnlen(psi_out->process_path, PATH_LENGTH);
@@ -204,11 +205,11 @@ out_found:
 out_fail:
 
   rcu_read_unlock();
-  spin_unlock_bh(&pi_lock);
+  spin_unlock_bh(&asc_lock);
   return false;
 }
 
-bool pi_psi_from_ino_pid(struct psi_struct * psi_out, unsigned long socket_ino, pid_t pid, const uint32_t packet_id)
+bool asc_psi_from_ino_pid(struct psi * psi_out, unsigned long socket_ino, pid_t pid, const uint32_t packet_id)
 {
   struct file * file = NULL;
   struct inode * inode = NULL;
@@ -298,13 +299,56 @@ out_found:
   return true;
 }
 
+bool asc_pid_owns_ino(unsigned long socket_ino, pid_t pid, const uint32_t packet_id)
+{
+  struct pid * pid_struct = NULL;
+  struct task_struct * task = NULL;
+  struct file * file = NULL;
+
+  rcu_read_lock();
+
+  pid_struct = find_get_pid(pid);
+  task = pid_struct ? get_pid_task(pid_struct, PIDTYPE_PID) : NULL;
+  if(!task)
+  {
+    LOG_ERR(packet_id, "invalid task info");
+
+    rcu_read_unlock();
+    return false;
+  }
+
+  task = get_task_struct(task);
+  if(task->files)
+  {
+    unsigned int fd_i = 0;
+    unsigned int fd_max = files_fdtable(task->files)->max_fds;
+    for(fd_i = 0; fd_i < fd_max; fd_i++)
+    {
+      if (!(file = fcheck_files(task->files, fd_i))) continue;
+      if (!S_ISSOCK(file_inode(file)->i_mode)) continue; // not a socket file
+      if (file_inode(file)->i_ino != socket_ino) continue;
+
+      LOG_DEBUG(packet_id, "searching PID %d for INO %ld - found", pid, socket_ino);
+
+      goto out_found;
+    }
+  }
+  put_task_struct(task);
+
+  LOG_DEBUG(packet_id, "searching PID %d for INO %ld - not found", pid, socket_ino);
+
+out_found:
+  rcu_read_unlock();
+  return true;
+}
+
 //////////////////
 
-int pi_init(void)
+int asc_init(void)
 {
-  LOG_INFO(0, "pi_cache %u entries %lu kb", CACHE_SLOTS, sizeof(struct pi_cache) / 1024);
-  pi_cache = kzalloc(sizeof(struct pi_cache), GFP_ATOMIC); // fixme
-  if (!pi_cache)
+  LOG_INFO(0, "asc_data %u entries %lu kb", CACHE_SLOTS, sizeof(struct asc_data) / 1024);
+  asc_data = kzalloc(sizeof(struct asc_data), GFP_ATOMIC); // fixme
+  if (!asc_data)
   {
     LOG_ERR(0, "kzalloc failed");
     return -1;
@@ -312,7 +356,7 @@ int pi_init(void)
   return 0;
 }
 
-void pi_exit(void)
+void asc_exit(void)
 {
-  kfree(pi_cache);
+  kfree(asc_data);
 }
