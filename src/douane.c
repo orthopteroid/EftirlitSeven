@@ -241,17 +241,12 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
         break;
       }
 
-      if(current && asc_psi_from_ino_pid(&psi, socket_ino, current->pid, packet_id))
-      {
-        LOG_DEBUG(packet_id, "INODE %ld PID %d - found in local process", socket_ino, psi.pid);
-      }
-      else if(asc_psi_from_ino(&psi, socket_ino, packet_id))
-      {
-        LOG_DEBUG(packet_id, "INODE %ld PID %d - found in process table", socket_ino, psi.pid);
-      }
+      if(asc_psi_from_ino_pid(&psi, socket_ino, current->pid, packet_id)) ; // no need for message
+      else if(asc_psi_from_ino(&psi, socket_ino, packet_id)) ; // no need for message
       else
       {
         LOG_DEBUG(packet_id, "NF_ACCEPT (unable to locate process for FILE %p INODE %ld)", socket_file, socket_ino);
+        return NF_ACCEPT;
       };
 
       if (!cache_hit)
