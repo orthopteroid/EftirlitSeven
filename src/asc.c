@@ -221,7 +221,14 @@ bool asc_psi_from_ino_pid(struct psi * psi_out, unsigned long socket_ino, pid_t 
   rcu_read_lock();
 
   pid_struct = find_get_pid(pid);
-  task = pid_struct ? get_pid_task(pid_struct, PIDTYPE_PID) : NULL;
+  if(!pid_struct)
+  {
+    LOG_ERR(packet_id, "invalid pid_struct");
+    rcu_read_unlock();
+    return false;
+  }
+
+  task = get_pid_task(pid_struct, PIDTYPE_PID);
   if(!task)
   {
     LOG_ERR(packet_id, "invalid task info");
@@ -230,8 +237,13 @@ bool asc_psi_from_ino_pid(struct psi * psi_out, unsigned long socket_ino, pid_t 
   }
 
   task = get_task_struct(task);
-  fd_max = files_fdtable(task->files)->max_fds;
+  if(!(task->files))
+  {
+    LOG_DEBUG(packet_id, "searching for INO %ld in PID %d - no files", socket_ino, pid);
+    goto out_fail;
+  }
 
+  fd_max = files_fdtable(task->files)->max_fds;
   for(fd_i = 0; fd_i < fd_max; fd_i++)
   {
     if(!(file = fcheck_files(task->files, fd_i))) continue;
@@ -308,17 +320,28 @@ bool asc_pid_owns_ino(unsigned long socket_ino, pid_t pid, const uint32_t packet
   rcu_read_lock();
 
   pid_struct = find_get_pid(pid);
-  task = pid_struct ? get_pid_task(pid_struct, PIDTYPE_PID) : NULL;
+  if(!pid_struct)
+  {
+    LOG_ERR(packet_id, "invalid pid_struct");
+    rcu_read_unlock();
+    return false;
+  }
+
+  task = get_pid_task(pid_struct, PIDTYPE_PID);
   if(!task)
   {
     LOG_ERR(packet_id, "invalid task info");
-
     rcu_read_unlock();
     return false;
   }
 
   task = get_task_struct(task);
-  if(task->files)
+  if(!(task->files))
+  {
+    LOG_DEBUG(packet_id, "searching for INO %ld in PID %d - no files", socket_ino, pid);
+    goto out_fail;
+  }
+
   {
     unsigned int fd_i = 0;
     unsigned int fd_max = files_fdtable(task->files)->max_fds;
@@ -333,11 +356,15 @@ bool asc_pid_owns_ino(unsigned long socket_ino, pid_t pid, const uint32_t packet
       goto out_found;
     }
   }
-  put_task_struct(task);
-
   LOG_DEBUG(packet_id, "searching PID %d for INO %ld - not found", pid, socket_ino);
 
+out_fail:
+  put_task_struct(task);
+  rcu_read_unlock();
+  return false;
+
 out_found:
+  put_task_struct(task);
   rcu_read_unlock();
   return true;
 }
