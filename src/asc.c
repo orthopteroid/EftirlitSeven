@@ -158,12 +158,24 @@ refresh_cache:
 out_found:
   if(!found_task)
   {
+    if(psi_out->process_path[0]!=0)
+    {
+      LOG_DEBUG(packet_id, "searching for INO %ld - not found. fallback to %s", socket_ino, psi_out->process_path);
+      goto out_fallback;
+    }
+
     LOG_DEBUG(packet_id, "searching for INO %ld - not found", socket_ino);
     goto out_fail;
   }
 
   if(!(found_task->mm) || !(found_task->mm->exe_file))
   {
+    if(psi_out->process_path[0]!=0)
+    {
+      LOG_DEBUG(packet_id, "searching for INO %ld - mm error. fallback to %s", socket_ino, psi_out->process_path);
+      goto out_fallback;
+    }
+
     LOG_ERR(packet_id, "mm ERROR");
     goto out_fail;
   }
@@ -206,10 +218,15 @@ out_found:
   return true;
 
 out_fail:
-
   rcu_read_unlock();
   spin_unlock_bh(&asc_lock);
   return false;
+
+out_fallback:
+  if(found_task) put_task_struct(found_task);
+  rcu_read_unlock();
+  spin_unlock_bh(&asc_lock);
+  return true;
 }
 
 bool asc_psi_from_ino_pid(struct psi * psi_out, unsigned long socket_ino, pid_t pid, const uint32_t packet_id)
@@ -264,9 +281,20 @@ out_fail:
   rcu_read_unlock();
   return false;
 
+out_fallback:
+  if(task) put_task_struct(task);
+  rcu_read_unlock();
+  return true;
+
 out_found:
   if(!(task->mm) || !(task->mm->exe_file))
   {
+    if(psi_out->process_path[0]!=0)
+    {
+      LOG_DEBUG(packet_id, "searching for INO %ld - mm error. fallback to %s", socket_ino, psi_out->process_path);
+      goto out_fallback;
+    }
+
     LOG_ERR(packet_id, "mm ERROR");
     goto out_fail;
   }
