@@ -197,8 +197,9 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
 
     if (!socket_file)
     {
-      bool found_using_tcpseq = tcp_header ? ksc_from_sequence(&psi, tcp_seq, packet_id) : false;
-      if (!found_using_tcpseq)
+      bool tcpseq_cached = tcp_header ? ksc_from_sequence(&psi, tcp_seq, packet_id) : false;
+      //bool tcpseq_lookup = (tcp_seq & !tcpseq_cached) ? asc_psi_from_tcpseq(&psi, tcp_seq, packet_id) : false; // todo
+      if (!tcpseq_cached)
       {
         LOG_ERR(packet_id, "NF_ACCEPT (missing header or bad seq. unable to identify socket for process '%s')", psi.process_path);
         return NF_ACCEPT;
@@ -227,7 +228,7 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
       LOG_DEBUG(packet_id, "NF_ACCEPT (closed/closing tcp socket. possibly for FILE %p INODE %ld process '%s')", socket_file, socket_ino, psi.process_path);
       return NF_ACCEPT;
     }
-    else
+
     {
       bool cache_hit = ksc_from_inode(&psi, socket_ino, packet_id);
       bool cache_uptodate = cache_hit ? asc_pid_owns_ino(socket_ino, psi.pid, packet_id) : false;
@@ -240,24 +241,31 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
         break;
       }
 
+      if(current && asc_psi_from_ino_pid(&psi, socket_ino, current->pid, packet_id))
       {
-        bool local_hit = asc_psi_from_ino_pid(&psi, socket_ino, current->pid, packet_id);
-        bool global_hit = !local_hit ? asc_psi_from_ino(&psi, socket_ino, packet_id) : false;
-        LOG_DEBUG(packet_id, "cache is a bust - localsearch %s globalsearch %s", local_hit ? "ok" : "failed", global_hit ? "ok" : "failed");
+        LOG_DEBUG(packet_id, "INODE %ld PID %d - found in local process", socket_ino, psi.pid);
+      }
+      else if(asc_psi_from_ino(&psi, socket_ino, packet_id))
+      {
+        LOG_DEBUG(packet_id, "INODE %ld PID %d - found in process table", socket_ino, psi.pid);
+      }
+      else
+      {
+        LOG_DEBUG(packet_id, "NF_ACCEPT (unable to locate process for FILE %p INODE %ld)", socket_file, socket_ino);
+      };
 
-        if (!cache_hit)
-        {
-          ksc_remember(socket_ino, tcp_seq, psi.pid, psi.process_path, packet_id);
+      if (!cache_hit)
+      {
+        ksc_remember(socket_ino, tcp_seq, psi.pid, psi.process_path, packet_id);
 
-          LOG_DEBUG(packet_id, "caching new socket INODE %ld SEQ %u for PID %d and process '%s'", socket_ino, tcp_seq, psi.pid, psi.process_path);
-          break;
-        }
-
-        ksc_update_all(socket_ino, tcp_seq, psi.pid, psi.process_path, packet_id);
-
-        LOG_DEBUG(packet_id, "all updated for INODE %ld. returning '%s'", socket_ino, psi.process_path);
+        LOG_DEBUG(packet_id, "caching new socket INODE %ld SEQ %u for PID %d and process '%s'", socket_ino, tcp_seq, psi.pid, psi.process_path);
         break;
       }
+
+      ksc_update_all(socket_ino, tcp_seq, psi.pid, psi.process_path, packet_id);
+
+      LOG_DEBUG(packet_id, "all updated for INODE %ld. returning '%s'", socket_ino, psi.process_path);
+      break;
     }
 
     if (tcp_seq)
