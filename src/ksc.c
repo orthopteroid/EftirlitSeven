@@ -28,26 +28,29 @@
 
 #define ALIGNED ____cacheline_aligned
 
-// cache size is paired with the key cutter size
-#define CACHE_SIZE 128
+#define CACHE_KEY_MASK 0b11111111
 #define KEY_CUTTER(v) (v ^ (v >> 8) ^ (v >> 16) ^ (v >> 24))
+
+#define CACHE_FACTOR 2
+#define CACHE_SLOTS (CACHE_FACTOR * (CACHE_KEY_MASK +1))
+#define KEY_TO_SLOT(v) (CACHE_FACTOR * (KEY_CUTTER(v) & CACHE_KEY_MASK))
 
 typedef char process_path_t[PATH_LENGTH +1];
 
 // struct-of-array layout for better cpu performance
 struct ksc_data
 {
-  unsigned long  i_ino[CACHE_SIZE] ALIGNED;
-  pid_t          pid[CACHE_SIZE] ALIGNED;
-  uint32_t       sequence[CACHE_SIZE] ALIGNED;
-  process_path_t path[CACHE_SIZE] ALIGNED;
-  uint32_t       path_hash[CACHE_SIZE] ALIGNED;
+  unsigned long  i_ino[CACHE_SLOTS] ALIGNED;
+  pid_t          pid[CACHE_SLOTS] ALIGNED;
+  uint32_t       sequence[CACHE_SLOTS] ALIGNED;
+  process_path_t path[CACHE_SLOTS] ALIGNED;
+  uint32_t       path_hash[CACHE_SLOTS] ALIGNED;
 
   // bookkeeping baloney
-  uint8_t        age[CACHE_SIZE] ALIGNED;
-  uint8_t        inuse[CACHE_SIZE] ALIGNED;
-  uint8_t        key_ino[CACHE_SIZE] ALIGNED;
-  uint8_t        key_seq[CACHE_SIZE] ALIGNED;
+  uint8_t        age[CACHE_SLOTS] ALIGNED;
+  uint8_t        inuse[CACHE_SLOTS] ALIGNED;
+  uint8_t        key_ino[CACHE_SLOTS] ALIGNED;
+  uint8_t        key_seq[CACHE_SLOTS] ALIGNED;
   uint8_t        era ALIGNED;
 };
 
@@ -77,7 +80,7 @@ struct workqueue_struct * ksc_change_workq;
 static void ksc_async_remember(struct work_struct *work)
 {
   struct change_work * change = container_of(work, struct change_work, worker);
-  int rnd = change->packet_id & (CACHE_SIZE -1);
+  int rnd = change->packet_id % CACHE_SLOTS;
   uint8_t era = ksc_data->era;
   uint16_t era0, era1;
   uint8_t oldest_age;
@@ -89,10 +92,10 @@ static void ksc_async_remember(struct work_struct *work)
   oldest_age = 0;
   oldest_index = rnd;
 
-  //for(i=0, k=0; i<CACHE_SIZE; i++, k++)  // sequential allocation useful for debugging
-  for(i=0, k=rnd; i<CACHE_SIZE; i++, k++) // makes holes in cache to reduce searchtime for free slot
+  //for(i=0, k=0; i<CACHE_SLOTS; i++, k++)  // sequential allocation useful for debugging
+  for(i=0, k=rnd; i<CACHE_SLOTS; i++, k++) // makes holes in cache to reduce searchtime for free slot
   {
-    if (k == CACHE_SIZE) k = 0;
+    if (k == CACHE_SLOTS) k = 0;
     {
       uint16_t era2 = (ksc_data->age[k] <= era0) ? era0 : era1;
       if (oldest_age < (era2 - ksc_data->age[k]))
@@ -122,8 +125,8 @@ out:
   // tracking/indicies
   ksc_data->age[k] = change->age;
   ksc_data->inuse[k] = true;
-  ksc_data->key_ino[ KEY_CUTTER(change->i_ino) & (CACHE_SIZE -1) ] = k;
-  ksc_data->key_seq[ KEY_CUTTER(change->sequence) & (CACHE_SIZE -1) ] = k;
+  ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ] = k;
+  ksc_data->key_seq[ KEY_TO_SLOT(change->sequence) ] = k;
 
   ksc_data->era++;
 
@@ -137,7 +140,7 @@ static void ksc_async_forget(struct work_struct *work)
   struct change_work * change = container_of(work, struct change_work, worker);
   int i, k;
 
-  for(i=0, k = ksc_data->key_ino[ KEY_CUTTER(change->i_ino) & (CACHE_SIZE -1) ]; i<CACHE_SIZE; i++, k++)
+  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; i++, k++)
   {
     if (ksc_data->i_ino[k] != change->i_ino) continue;
     if (!ksc_data->inuse[k]) continue;
@@ -156,9 +159,9 @@ static void ksc_async_update_all(struct work_struct *work)
   struct change_work * change = container_of(work, struct change_work, worker);
   int i, k;
 
-  for(i=0, k = ksc_data->key_ino[ KEY_CUTTER(change->i_ino) & (CACHE_SIZE -1) ]; i<CACHE_SIZE; i++, k++)
+  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; i++, k++)
   {
-    if (k == CACHE_SIZE) k = 0;
+    if (k == CACHE_SLOTS) k = 0;
     if (ksc_data->i_ino[k] != change->i_ino) continue;
     if (!ksc_data->inuse[k]) continue;
 
@@ -171,8 +174,8 @@ static void ksc_async_update_all(struct work_struct *work)
     // tracking/indicies
     ksc_data->age[k] = change->age;
     ksc_data->inuse[k] = true;
-    ksc_data->key_ino[ KEY_CUTTER(change->i_ino) & (CACHE_SIZE -1) ] = k;
-    ksc_data->key_seq[ KEY_CUTTER(change->sequence) & (CACHE_SIZE -1) ] = k;
+    ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ] = k;
+    ksc_data->key_seq[ KEY_TO_SLOT(change->sequence) ] = k;
     break;
   }
 
@@ -186,9 +189,9 @@ static void ksc_async_update_seq(struct work_struct *work)
   struct change_work * change = container_of(work, struct change_work, worker);
   int i, k;
 
-  for(i=0, k = ksc_data->key_ino[ KEY_CUTTER(change->i_ino) & (CACHE_SIZE -1) ]; i<CACHE_SIZE; i++, k++)
+  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; i++, k++)
   {
-    if (k == CACHE_SIZE) k = 0;
+    if (k == CACHE_SLOTS) k = 0;
     if (ksc_data->i_ino[k] != change->i_ino) continue;
     if (!ksc_data->inuse[k]) continue;
     if (ksc_data->sequence[k] == change->sequence) break; // no change needed
@@ -208,9 +211,9 @@ static void ksc_async_update_age(struct work_struct *work)
   struct change_work * change = container_of(work, struct change_work, worker);
   int i, k;
 
-  for(i=0, k = ksc_data->key_ino[ KEY_CUTTER(change->i_ino) & (CACHE_SIZE -1) ]; i<CACHE_SIZE; i++, k++)
+  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; i++, k++)
   {
-    if (k == CACHE_SIZE) k = 0;
+    if (k == CACHE_SLOTS) k = 0;
     if (ksc_data->i_ino[k] != change->i_ino) continue;
     if (!ksc_data->inuse[k]) continue;
 
@@ -249,9 +252,9 @@ bool ksc_from_inode(struct psi * psi_out, const unsigned long i_ino, const uint3
   // log-squash
   //LOG_DEBUG(packet_id, "searching for INO %lu", i_ino);
 
-  for(i=0, k = ksc_data->key_ino[ KEY_CUTTER(i_ino) & (CACHE_SIZE -1) ]; i<CACHE_SIZE; i++, k++)
+  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(i_ino) ]; i<CACHE_SLOTS; i++, k++)
   {
-    if (k == CACHE_SIZE) k = 0;
+    if (k == CACHE_SLOTS) k = 0;
     if (ksc_data->i_ino[k] != i_ino) continue;
     if (!ksc_data->inuse[k]) continue;
 
@@ -281,9 +284,9 @@ bool ksc_from_sequence(struct psi * psi_out, const uint32_t sequence, const uint
   // log-squash
   //LOG_DEBUG(packet_id, "searching for SEQ %u", sequence);
 
-  for(i=0, k = ksc_data->key_seq[ KEY_CUTTER(sequence) & (CACHE_SIZE -1) ]; i<CACHE_SIZE; i++, k++)
+  for(i=0, k = ksc_data->key_seq[ KEY_TO_SLOT(sequence) ]; i<CACHE_SLOTS; i++, k++)
   {
-    if (k == CACHE_SIZE) k = 0;
+    if (k == CACHE_SLOTS) k = 0;
     if (!ksc_data->sequence[k]) continue;
     if ((ksc_data->sequence[k] != sequence) && ((ksc_data->sequence[k] + 1) != sequence)) continue;
     if (!ksc_data->inuse[k]) continue;
@@ -507,8 +510,7 @@ void ksc_update_age(const unsigned long i_ino, const uint32_t packet_id)
 
 int ksc_init(void)
 {
-  LOG_INFO(0, "process_socket cache %u entries %lu kb", CACHE_SIZE, sizeof(struct ksc_data) / 1024);
-
+  LOG_INFO(0, "cache %u entries %lu kb", CACHE_SLOTS, sizeof(struct ksc_data) / 1024);
   ksc_data = kzalloc(sizeof(struct ksc_data), GFP_ATOMIC); // fixme
   if (!ksc_data)
   {
@@ -517,7 +519,7 @@ int ksc_init(void)
   }
 
   // serialize all write-operations on the cache using a single, ordered queue
-  ksc_change_workq = alloc_ordered_workqueue("%s", WQ_HIGHPRI, "douane_cache");
+  ksc_change_workq = alloc_ordered_workqueue("%s", WQ_HIGHPRI, "e7_ksc");
   if (!ksc_change_workq)
   {
     LOG_ERR(0, "alloc_ordered_workqueue failed");

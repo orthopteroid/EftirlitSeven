@@ -39,13 +39,12 @@ enum nf_ip_hook_priorities {
 
 #define ALIGNED ____cacheline_aligned
 
-// cache keys is paired with the key cutter size
-#define CACHE_KEYS 256 // 8 bits
+#define CACHE_KEY_MASK 0b11111111
 #define KEY_CUTTER(v) (v ^ (v >> 8) ^ (v >> 16) ^ (v >> 24))
 
 #define CACHE_FACTOR 2
-#define CACHE_SLOTS (CACHE_FACTOR * CACHE_KEYS)
-#define KEY_TO_SLOT(v) (CACHE_FACTOR * (KEY_CUTTER(v) % CACHE_KEYS))
+#define CACHE_SLOTS (CACHE_FACTOR * (CACHE_KEY_MASK +1))
+#define KEY_TO_SLOT(v) (CACHE_FACTOR * (KEY_CUTTER(v) & CACHE_KEY_MASK))
 
 struct asc_data
 {
@@ -404,7 +403,7 @@ out_found:
 
 int asc_init(void)
 {
-  LOG_INFO(0, "asc_data %u entries %lu kb", CACHE_SLOTS, sizeof(struct asc_data) / 1024);
+  LOG_INFO(0, "cache %u entries %lu kb", CACHE_SLOTS, sizeof(struct asc_data) / 1024);
   asc_data = kzalloc(sizeof(struct asc_data), GFP_ATOMIC); // fixme
   if (!asc_data)
   {
