@@ -22,9 +22,10 @@
 #include <linux/rculist.h>        // hlist_for_each_entry_rcu
 
 #include "module.h"
+#include "types.h"
 #include "douane.h"
-#include "psi.h"
-#include "pi.h"
+#include "ksc.h"
+#include "asc.h"
 #include "rules.h"
 #include "netlink.h"
 
@@ -104,15 +105,15 @@ static int __init mod_init(void)
   }
 #endif
 
-  if (psi_init() < 0)
+  if (ksc_init() < 0)
   {
-    LOG_ERR(0, "psi_init failed");
+    LOG_ERR(0, "ksc_init failed");
     return -1;
   }
 
-  if (pi_init() < 0)
+  if (asc_init() < 0)
   {
-    LOG_ERR(0, "pi_init failed");
+    LOG_ERR(0, "asc_init failed");
     return -1;
   }
 
@@ -143,10 +144,10 @@ static void __exit mod_exit(void)
 
   douane_exit();
   enl_exit();
-  psi_clear(0);
+  ksc_clear(0);
   rules_clear(0);
-  psi_exit();
-  pi_exit();
+  ksc_exit();
+  asc_exit();
 
   LOG_INFO(0, "module unloaded");
 }
