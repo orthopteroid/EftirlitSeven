@@ -1,3 +1,5 @@
+*CONSIDER THIS BETA SOFTWARE - COMPILE AND USE AT YOUR OWN RISK*
+
 # EftirlitSeven
 
 E7 is a fork of the linux internet application firewall douane from https://gitlab.com/douaneapp with experimental changes. Some of the changes include...
