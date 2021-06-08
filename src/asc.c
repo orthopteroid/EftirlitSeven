@@ -82,7 +82,12 @@ bool asc_psi_from_ino(struct psi * psi_out, unsigned long socket_ino, const uint
     if(asc_data->ino[j] == socket_ino)
     {
       struct pid * pid_struct = find_get_pid(asc_data->pid[j]);
-      task = pid_struct ? get_pid_task(pid_struct, PIDTYPE_PID) : NULL;
+      if(!pid_struct)
+      {
+        continue; // pid is dead. todo: clear this entry?
+      }
+
+      task = get_pid_task(pid_struct, PIDTYPE_PID);
       if(!task)
       {
         LOG_ERR(packet_id, "invalid task info");
