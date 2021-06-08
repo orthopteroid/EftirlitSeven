@@ -102,8 +102,6 @@ bool asc_psi_from_ino(struct psi * psi_out, unsigned long socket_ino, const uint
     }
   }
 
-  LOG_DEBUG(packet_id, "refreshing cache");
-
 refresh_cache:
 
   // clean cache
@@ -155,7 +153,7 @@ refresh_cache:
     }
     put_task_struct(task);
   }
-  LOG_DEBUG(packet_id, "cached %d entries", k);
+  LOG_DEBUG(packet_id, "cache refreshed - %d entries", k);
 
 out_found:
   if(!found_task)
@@ -228,7 +226,7 @@ bool asc_psi_from_ino_pid(struct psi * psi_out, unsigned long socket_ino, pid_t 
   pid_struct = find_get_pid(pid);
   if(!pid_struct)
   {
-    LOG_ERR(packet_id, "invalid pid_struct");
+    LOG_DEBUG(packet_id, "searching for INO %ld in PID %d - process not found", socket_ino, pid);
     rcu_read_unlock();
     return false;
   }
@@ -327,7 +325,7 @@ bool asc_pid_owns_ino(unsigned long socket_ino, pid_t pid, const uint32_t packet
   pid_struct = find_get_pid(pid);
   if(!pid_struct)
   {
-    LOG_ERR(packet_id, "invalid pid_struct");
+    LOG_DEBUG(packet_id, "searching for INO %ld in PID %d - process not found", socket_ino, pid);
     rcu_read_unlock();
     return false;
   }
