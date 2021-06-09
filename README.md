@@ -20,6 +20,12 @@ In douane, when the pid of a socket-packet can't be identified from the cache of
 
 In e7 I cache the results of this search in a hashtable, keyed on the socket inode which is directly available from the netfilter packet. This can result in some significant performance gains on my low-end testing hardware: 8us vs 800us. This cache is refreshed, as a block, when there is a cache-miss which only seems to occur for new socket-pid configurations.
 
+## Submodules for INet protocols
+
+In douane, the tcp and udp codepaths were one and the same with the protol's differing requirements for socket and process identification codepaths mainly the same and all located in the same netfilter handler.
+
+E7 is adpoting the design of having submodules for each of the inet protocols, with their own protocol-hint parsing and process identification codepaths as well as their own separate init and exit routines to manage protocol specific resources. In addition to uncluttering the codepaths of some protocols with others it also facilitates a distributed development effort by simplifying merge and rebase workflows.
+
 ## Migrate from priviliged-netlink to generic-netlink
 
 Allow unpriv access
