@@ -673,7 +673,10 @@ int enl_init(struct enl_recvfns * rfns)
 
 void enl_exit(void)
 {
-  enl_send_bye(0);
+  if (nl_net && nl_port)
+  {
+    enl_send_bye(0);
+  }
 
   nl_rfns = NULL;
 

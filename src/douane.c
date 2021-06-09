@@ -38,6 +38,9 @@ enum nf_ip_hook_priorities {
 #include "asc.h"
 #include "rules.h"
 
+#include "prot_tcp.h"
+#include "prot_udp.h"
+
 // fwd decls
 static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
 
@@ -118,12 +121,8 @@ char * douane_lookup_protname(const int protocol)
 static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
   struct iphdr * ip_header = NULL;
-  struct udphdr * udp_header = NULL;
-  struct tcphdr * tcp_header = NULL;
   struct rule_struct existing_rule;
-  int sport = 0;
-  int dport = 0;
-  bool filterable = false;
+  bool process_identified = false;
   struct psi psi;
   uint32_t packet_id;
 
@@ -159,26 +158,11 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
   switch(ip_header->protocol)
   {
     case IPPROTO_UDP:
-      udp_header = udp_hdr(skb);
-      if (udp_header == NULL)
-      {
-        LOG_ERR(packet_id, "NF_ACCEPT (udp_header is null)");
-        return NF_ACCEPT;
-      }
-      sport = (unsigned int) ntohs(udp_header->source);
-      dport = (unsigned int) ntohs(udp_header->dest);
-      return NF_ACCEPT; // different filter needed
+      process_identified = prot_udp_parse(&psi, packet_id, priv, skb, state);
       break;
 
     case IPPROTO_TCP:
-      tcp_header = tcp_hdr(skb);
-      if (tcp_header == NULL)
-      {
-        LOG_ERR(packet_id, "NF_ACCEPT (tcp_header is null)");
-        return NF_ACCEPT;
-      }
-      sport = (unsigned int) ntohs(tcp_header->source);
-      dport = (unsigned int) ntohs(tcp_header->dest);
+      process_identified = prot_tcp_parse(&psi, packet_id, priv, skb, state);
       break;
 
     default:
@@ -186,204 +170,34 @@ static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const stru
       return NF_ACCEPT;
   }
 
-  // from packet header and socket buffer try to identify process
-  do {
-    struct file * socket_file = (skb->sk && skb->sk->sk_socket) ? skb->sk->sk_socket->file : NULL;
-    unsigned long socket_ino = socket_file ? file_inode(socket_file)->i_ino : 0;
-    uint32_t tcp_seq = tcp_header ? ntohl(tcp_header->seq) : 0;
-
-    // ? use sock_hold/_put on skb->sk ?
-    // https://github.com/torvalds/linux/blob/v5.8/drivers/crypto/chelsio/chtls/chtls_cm.c#L1488
-
-    if (!socket_file)
-    {
-      bool tcpseq_cached = tcp_header ? ksc_from_sequence(&psi, tcp_seq, packet_id) : false;
-      //bool tcpseq_lookup = (tcp_seq & !tcpseq_cached) ? asc_psi_from_tcpseq(&psi, tcp_seq, packet_id) : false; // todo
-      if (!tcpseq_cached)
-      {
-        LOG_ERR(packet_id, "NF_ACCEPT (missing header or bad seq. unable to identify socket for process '%s')", psi.process_path);
-        return NF_ACCEPT;
-      }
-
-      // set ino, if it can be found from seq number
-      socket_ino = psi.i_ino;
-    }
-
-    filterable = true;
-
-    if (!socket_ino)
-    {
-      unsigned int tcp_state = (skb->sk && skb->sk) ? skb->sk->sk_state : 0; // 0 invalid
-      do {
-        if(tcp_state == TCP_FIN_WAIT1) break;
-        if(tcp_state == TCP_FIN_WAIT2) break;
-        if(tcp_state == TCP_CLOSE) break;
-        if(tcp_state == TCP_CLOSE_WAIT) break;
-        if(tcp_state == TCP_CLOSING) break;
-
-        LOG_ERR(packet_id, "NF_ACCEPT (unidentified tcp socket state. possibly for FILE %p INODE %ld process '%s')", socket_file, socket_ino, psi.process_path);
-        return NF_ACCEPT;
-      } while(false);
-
-      LOG_DEBUG(packet_id, "NF_ACCEPT (closed/closing tcp socket. possibly for FILE %p INODE %ld process '%s')", socket_file, socket_ino, psi.process_path);
-      return NF_ACCEPT;
-    }
-
-    {
-      bool cache_hit = ksc_from_inode(&psi, socket_ino, packet_id);
-      bool cache_uptodate = cache_hit ? asc_pid_owns_ino(socket_ino, psi.pid, packet_id) : false;
-
-      if(cache_uptodate)
-      {
-        ksc_update_age(socket_ino, packet_id);
-
-        LOG_DEBUG(packet_id, "hit for INODE %ld SEQ %u for PID %d and process '%s'", socket_ino, tcp_seq, psi.pid, psi.process_path);
-        break;
-      }
-
-      if(asc_psi_from_ino_pid(&psi, socket_ino, current->pid, packet_id)) ; // no need for message
-      else if(asc_psi_from_ino(&psi, socket_ino, packet_id)) ; // no need for message
-      else
-      {
-        LOG_DEBUG(packet_id, "NF_ACCEPT (unable to locate process for FILE %p INODE %ld)", socket_file, socket_ino);
-        return NF_ACCEPT;
-      };
-
-      if (!cache_hit)
-      {
-        ksc_remember(socket_ino, tcp_seq, psi.pid, psi.process_path, packet_id);
-
-        LOG_DEBUG(packet_id, "caching new socket INODE %ld SEQ %u for PID %d and process '%s'", socket_ino, tcp_seq, psi.pid, psi.process_path);
-        break;
-      }
-
-      ksc_update_all(socket_ino, tcp_seq, psi.pid, psi.process_path, packet_id);
-
-      LOG_DEBUG(packet_id, "all updated for INODE %ld. returning '%s'", socket_ino, psi.process_path);
-      break;
-    }
-
-    if (tcp_seq)
-    {
-      ksc_update_seq(socket_ino, tcp_seq, packet_id);
-
-      LOG_DEBUG(packet_id, "seq update for INODE %ld to SEQ %u. returning '%s'", socket_ino, tcp_seq, psi.process_path);
-      break;
-    }
-
-    // fallback to update only age field
-    ksc_update_age(socket_ino, packet_id);
-
-    LOG_DEBUG(packet_id, "age update for INODE %ld. returning '%s'", socket_ino, psi.process_path);
-  } while(false);
-
-  if (psi.process_path[0] == 0)
-  {
-    LOG_ERR(packet_id, "NF_ACCEPT (no process path)");
-    return NF_ACCEPT;
-  }
-
-/*
-
-#define KIND_HAND_SHAKE   1
-#define KIND_SENDING_RULE 2
-#define KIND_GOODBYE      3
-#define KIND_DELETE_RULE  4
-
-// raw netlink-io packet to douane-daemon
-// nb: this revision has smaller process_path so-as to allow kfree_rcu usage
-struct douane_nlpacket {
-  int   kind;                         // Deamon -> LKM  | Define which kind of message it is
-  char  process_path[PATH_LENGTH +1]; // Bidirectional  | Related process path, +1 for \0
-  int   allowed;                      // Deamon -> LKM  | Define if the process is allowed to outgoing network traffic or not
-  char  device_name[16];              // Bidirectional  | Device name where the packet has been detected (IFNAMSIZ = 16)
-  int   protocol;                     // LKM -> Deamon  | Protocol id of the detected outgoing network activity
-  char  ip_source[16];                // LKM -> Deamon  | Outgoing network traffic ip source
-  int   port_source;                  // LKM -> Deamon  | Outgoing network traffic port source
-  char  ip_destination[16];           // LKM -> Deamon  | Outgoing network traffic ip destination
-  int   port_destination;             // LKM -> Deamon  | Outgoing network traffic port destination
-  int   size;                         // LKM -> Deamon  | Size of the packet
-};
-
-  if (daemon_socket == NULL || daemon_pid == 0)
-  {
-    LOG_DEBUG(packet_id, "NF_ACCEPT (no daemon)");
-    return NF_ACCEPT;
-  }
-
-  {
-    struct douane_nlpacket_rcu * activity_rcu = kzalloc(sizeof(struct douane_nlpacket_rcu), GFP_ATOMIC );
-    struct douane_nlpacket * activity = activity_rcu ? &activity_rcu->activity : NULL;
-    char ip_source[16];
-    char ip_destination[16];
-
-    if (activity == NULL)
-    {
-      LOG_ERR(packet_id, "NF_ACCEPT (kzalloc failed)");
-      return NF_ACCEPT;
-    }
-
-    snprintf(ip_source, 16, "%pI4", &ip_header->saddr);
-    snprintf(ip_destination, 16, "%pI4", &ip_header->daddr);
-
-    strcpy(activity->process_path, psi.process_path);
-    strcpy(activity->device_name, state->out->name);
-    activity->protocol = ip_header->protocol;
-    strcpy(activity->ip_source, ip_source);
-    activity->port_source = sport;
-    strcpy(activity->ip_destination, ip_destination);
-    activity->port_destination = dport;
-    activity->size = skb->len;
-
-    // synchronous
-    // as we're outside an rculock is this block-safe?
-    if (douane_send_nlpacket(activity, packet_id) < 0)
-    {
-      LOG_ERR(packet_id, "douane_send_nlpacket failed");
-    }
-    else
-    {
-      LOG_DEBUG(packet_id, "douane_send_nlpacket completed to PID %d", daemon_pid);
-    }
-
-    kfree_rcu(activity_rcu, rcu);
-  }
-*/
-
   if (!enabled)
   {
     LOG_DEBUG(packet_id, "NF_ACCEPT (filtering disabled. process %s)", psi.process_path);
     return NF_ACCEPT;
   }
 
-  if (filterable)
+  if (!process_identified)
   {
-    LOG_DEBUG(packet_id, "searching rule for %s", psi.process_path);
-
-    if (rules_search(&existing_rule, psi.process_path, packet_id) < 0)
-    {
-      LOG_DEBUG(packet_id, "NF_QUEUE (rules_search failed for %s)", psi.process_path);
-      return NF_QUEUE;
-    }
-    else
-    {
-      if (existing_rule.allowed)
-      {
-        LOG_DEBUG(packet_id, "NF_ACCEPT (allow %s)", psi.process_path);
-        return NF_ACCEPT;
-      }
-      else
-      {
-        LOG_DEBUG(packet_id, "NF_DROP (block %s)", psi.process_path);
-        return NF_DROP;
-      }
-    }
-  }
-  else
-  {
-    LOG_DEBUG(packet_id, "NF_ACCEPT (unfilterable %s)", psi.process_path);
+    LOG_DEBUG(packet_id, "NF_ACCEPT (unprocess_identified %s)", psi.process_path);
     return NF_ACCEPT;
   }
+
+  LOG_DEBUG(packet_id, "searching rule for %s", psi.process_path);
+
+  if (0>rules_search(&existing_rule, psi.process_path, packet_id))
+  {
+    LOG_DEBUG(packet_id, "NF_QUEUE (rules_search failed for %s)", psi.process_path);
+    return NF_QUEUE;
+  }
+
+  if (!existing_rule.allowed)
+  {
+    LOG_DEBUG(packet_id, "NF_DROP (block %s)", psi.process_path);
+    return NF_DROP;
+  }
+
+  LOG_DEBUG(packet_id, "NF_ACCEPT (allow %s)", psi.process_path);
+  return NF_ACCEPT;
 }
 
 //////////////////
@@ -391,10 +205,12 @@ struct douane_nlpacket {
 int douane_init(void)
 {
   nf_register_net_hook(&init_net, &netfilter_config);
+  prot_tcp_init();
   return 0;
 }
 
 void douane_exit(void)
 {
+  prot_tcp_exit();
   nf_unregister_net_hook(&init_net, &netfilter_config);
 }

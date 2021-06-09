@@ -88,7 +88,7 @@ int rules_get(struct ruleset_struct_rcu ** ruleset_out_rcufree, const uint32_t p
   rcu_read_lock();
   list_for_each_entry_rcu(rule, &rules_list, list)
   {
-    memcpy( &((*ruleset_out_rcufree)->rules[i]), &(rule->r), sizeof(struct rule_struct) );
+    memcpy( &((*ruleset_out_rcufree)->rules[i]), &(rule->r), sizeof(struct rule_struct) ); // todo: use i++
   }
   rcu_read_unlock();
 
