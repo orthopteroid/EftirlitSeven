@@ -29,6 +29,9 @@
 #include "rules.h"
 #include "netlink.h"
 
+#include "prot_udp.h"
+#include "prot_tcp.h"
+
 #ifndef MOD_VERSION
 #define MOD_VERSION "UNKNOWN"
 #endif
@@ -117,6 +120,17 @@ static int __init mod_init(void)
     return -1;
   }
 
+  if (prot_udp_init() < 0)
+  {
+    LOG_ERR(0, "prot_udp_init failed");
+    return -1;
+  }
+  if (prot_tcp_init() < 0)
+  {
+    LOG_ERR(0, "prot_tcp_init failed");
+    return -1;
+  }
+
   if (enl_init(&mod_recvfns) < 0)
   {
     LOG_ERR(0, "enl_init failed");
@@ -146,6 +160,10 @@ static void __exit mod_exit(void)
   enl_exit();
   ksc_clear(0);
   rules_clear(0);
+
+  prot_udp_exit();
+  prot_tcp_exit();
+
   ksc_exit();
   asc_exit();
 
