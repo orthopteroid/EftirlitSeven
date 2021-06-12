@@ -121,6 +121,11 @@ enum {
 
 ///////////
 
+#define E7_LOG(fmt, ...) \
+  do { \
+    printf("%s:%d: " fmt "\n", __FUNCTION__, __LINE__, ##__VA_ARGS__); \
+    fflush(stdout); \
+  } while(false)
 
 ///////////
 // https://stackoverflow.com/a/42506763
@@ -156,51 +161,83 @@ static void e7_printrc(const char* cxt, int rc)
     printf("%s: %d bytes sent\n",cxt,rc);
 }
 
-static int e7_prep(MSGSTATE* ms, uint8_t comm) {
-  ms->msg = nlmsg_alloc();
-  if (ms->msg<0) return -1;
+static int e7_prep(MSGSTATE & ms, uint8_t comm) {
+  ms.msg = nlmsg_alloc();
+  if (ms.msg<0) return -1;
 
-  ms->hdr = genlmsg_put(ms->msg, NL_AUTO_PORT, NL_AUTO_SEQ, nl_familyid, 0, 0, comm, ENL_VERSION);
-  if (ms->hdr) return 0;
+  ms.hdr = genlmsg_put(ms.msg, NL_AUTO_PORT, NL_AUTO_SEQ, nl_familyid, 0, 0, comm, ENL_VERSION);
+  if (ms.hdr) return 0;
 
-  if (ms->msg) nlmsg_free(ms->msg);
-  ms->msg = 0;
+  if (ms.msg) nlmsg_free(ms.msg);
+  ms.msg = 0;
   return -1;
 }
 
-static int e7_send(MSGSTATE* ms) {
-  if (!ms->msg || !ms->hdr) return -1;
+static int e7_send(MSGSTATE & ms) {
+  if (!ms.msg || !ms.hdr) return -1;
 
-  int rc = nl_send_auto(nl_sk, ms->msg); // review: "unknown or invalid cache type" error
+  int rc = nl_send_auto(nl_sk, ms.msg); // review: "unknown or invalid cache type" error
 
-  if (0>rc && ms->msg) nlmsg_free(ms->msg);
-  ms->msg = 0;
-  ms->hdr = 0;
+  if (0>rc && ms.msg) nlmsg_free(ms.msg);
+  ms.msg = 0;
+  ms.hdr = 0;
   return rc;
 }
 
+static int e7_compose_send(int comm, int attr) {
+  MSGSTATE ms;
+  if(0>e7_prep(ms, comm)) return -1;
+  if(0>nla_put_flag(ms.msg, attr)) return -1;
+  return e7_send(ms);
+}
+
+static int e7_compose_send(int comm, int attr, const char* sz) {
+  MSGSTATE ms;
+  if(0>e7_prep(ms, comm)) return -1;
+  if(0>nla_put_string(ms.msg, attr, sz)) return -1;
+  return e7_send(ms);
+}
+
+//////////////////////
+
 static int e7_nlcallback(struct nl_msg *msg, void *arg) {
   struct nlattr * attribs[ENL_ATTR_MAX +1]; // +1 because attrib 0 is nl_skipped
+  struct nlmsghdr * nlh = NULL;
+  struct genlmsghdr * gnlh = NULL;
+  struct nlattr * gnlad = NULL;
+  struct nlattr * a = NULL;
+  char * sz = 0;
+  int gnlal = 0;
 
-  struct genlmsghdr *gnlh = (struct genlmsghdr *)nlmsg_data(nlmsg_hdr(msg));
-  nla_parse(attribs, ENL_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
+  //E7_LOG("start");
+
+  if(!msg) { E7_LOG("!msg"); return 0; }
+  if(!(nlh = nlmsg_hdr(msg))) { E7_LOG("!nlh"); return 0; }
+  if(!(gnlh = (struct genlmsghdr *)nlmsg_data(nlh))) { E7_LOG("!gnlh"); return 0; }
+  if(!(gnlad = genlmsg_attrdata(gnlh, 0))) { E7_LOG("!gnlad"); return 0; }
+  if(!(gnlal = genlmsg_attrlen(gnlh, 0))) { E7_LOG("!gnlal"); return 0; }
+  nla_parse(attribs, ENL_ATTR_MAX, gnlad, gnlal, NULL);
 
   switch(gnlh->cmd) {
   case ENL_COMM_ECHO:
-    printf("Kernel replied: %s\n", nla_get_string(attribs[ENL_ATTR_ECHOBODY]));
+    do {
+      if(!(a = attribs[ENL_ATTR_ECHOBODY])) { E7_LOG("!a"); break; }
+      if(!(sz = nla_get_string(a))) { E7_LOG("!sz"); break; }
+      E7_LOG("Kernel replied: %s", sz);
+    } while(false);
     break;
   case ENL_COMM_LOG:
-    printf("Unrecognized log message\n");
+    E7_LOG("Unrecognized log message");
     break;
   case ENL_COMM_MODE:
-    printf("ENL_COMM_MODE message\n");
+    E7_LOG("ENL_COMM_MODE message");
     if(attribs[ENL_ATTR_BYE]) stop = true;
     break;
   case ENL_COMM_RULE:
-    printf("Unrecognized rule message\n");
+    E7_LOG("Unrecognized rule message");
     break;
   case ENL_COMM_RULES:
-    printf("Unrecognized rules message\n");
+    E7_LOG("Unrecognized rules message");
 /* TODO: parse nested rules
   if(info->attrs[ENL_ATTR_ECHONESTED])
   {
@@ -233,12 +270,18 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
 */
     break;
   case ENL_COMM_EVENT:
-    printf("event %s\n", nla_get_string(attribs[ENL_ATTR_PROCESS_STR]));
+    do {
+      if(!(a = attribs[ENL_ATTR_PROCESS_STR])) { E7_LOG("!a"); break; }
+      if(!(sz = nla_get_string(a))) { E7_LOG("!sz"); break; }
+      E7_LOG("event %s", sz);
+    } while(false);
     break;
   default:
-    printf("Unrecognized message\n");
+    E7_LOG("Unrecognized message");
     break;
   }
+
+  //E7_LOG("done");
 
   return NL_OK;
 }
@@ -278,6 +321,59 @@ struct CMDBUF
 
 /////////////////
 
+void e7_parsecmd(CMDBUF & buf)
+{
+  MSGSTATE ms;
+  switch(crc32(buf.text))
+  {
+    case crc32("quit"):
+      stop = true;
+      break;
+    case crc32("hi"):
+      e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_MODE, ENL_ATTR_HELLO) );
+      break;
+    case crc32("bye"):
+      e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_MODE, ENL_ATTR_BYE) );
+      break;
+    case crc32("hibye"):
+      e7_printrc( "e7_prep", e7_prep(ms, ENL_COMM_MODE) );
+      e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, ENL_ATTR_HELLO) );
+      e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, ENL_ATTR_BYE) );
+      e7_printrc( "e7_send", e7_send(ms) );
+      break;
+    case crc32("echo"):
+      e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_ECHO, ENL_ATTR_ECHOBODY, "Hello World") );
+      break;
+    case crc32("echolist"):
+      {
+        e7_printrc( "e7_prep", e7_prep(ms, ENL_COMM_ECHO) );
+        e7_printrc( "nla_put_string", nla_put_string(ms.msg, ENL_ATTR_ECHOBODY, "OUTER") );
+        // a list built with recursive enumeration...
+        std::deque<struct nlattr *> attrptr_stack;
+        std::string inner;
+        for(int z=0;z<3;z++)
+        {
+          // there appears to be overhead for each entry, but it seems to be around ENL_ATTR_MAX bytes. hmmm.
+          inner = inner + "INNER ";
+          attrptr_stack.push_front( nla_nest_start(ms.msg, ENL_ATTR_ECHONESTED | NLA_F_NESTED) ); // | NESTED required with ubuntu libnl 3.2.29
+          e7_printrc( "nla_put_string", nla_put_string(ms.msg, ENL_ATTR_ECHOBODY, inner.c_str()) );
+        }
+        while(!attrptr_stack.empty())
+        {
+          nla_nest_end(ms.msg, attrptr_stack.front());
+          attrptr_stack.pop_front();
+        }
+        e7_printrc( "e7_send", e7_send(ms) );
+      }
+      break;
+    default:
+      printf("quit, hi, by, hibye, echo, echolist\n");
+  }
+}
+
+
+/////////////////
+
 struct EPOLL
 {
   const static int timeout = -1;
@@ -298,7 +394,7 @@ int main(void)
 {
   int rc = 0;
 
-  printf("configure sighandler\n");
+  E7_LOG("configure sighandler");
 
   sigset_t sigset;
   rc = sigemptyset(&sigset) | sigaddset(&sigset, SIGINT) | sigprocmask(SIG_BLOCK, &sigset, NULL);
@@ -308,7 +404,7 @@ int main(void)
   assert(0<fdsig);
   auto close_fdsig = defer([&](){ close(fdsig); fdsig=0; });
 
-  printf("configure netlink\n");
+  E7_LOG("configure netlink");
 
   nl_sk = nl_socket_alloc();
   assert(nl_sk);
@@ -317,11 +413,8 @@ int main(void)
   e7_printrc( "genl_connect", rc = genl_connect(nl_sk) );
   assert(rc>-1);
 
-  nl_familyid = genl_ctrl_resolve(nl_sk, "douane");
-  if (nl_familyid<1) {
-    printf("douane module not installed\n");
-    return -1;
-  }
+  nl_familyid = genl_ctrl_resolve(nl_sk, "eftirlit");
+  if (nl_familyid<1) { E7_LOG("eftirlit LKM not installed"); return -1; }
 
   nl_socket_disable_seq_check(nl_sk); // for stateless support
   //nl_socket_disable_auto_ack(nl_sk); // testme: for async support
@@ -333,91 +426,43 @@ int main(void)
 
   // configure epoll
 
-  printf("configure epoll\n");
+  E7_LOG("configure epoll");
 
   EPOLL epoll(&sigset);
   epoll.addfd(fdsig);
   epoll.addfd(fdnl);
   epoll.addfd(fdstdin);
 
-  printf("begin console\n");
+  E7_LOG("begin console");
 
-  MSGSTATE ms;
   CMDBUF buf;
-  while(!stop) {
+  while(!stop)
+  {
     int nfds = epoll.pwait();
     assert(nfds>=0);
 
-    for (int n = 0; n < nfds; ++n) {
-      if (epoll.events[n].data.fd == fdsig) {
+    for (int n = 0; n < nfds; ++n)
+    {
+      if (epoll.events[n].data.fd == fdsig)
+      {
         stop = true;
-      } else if (epoll.events[n].data.fd == fdnl) {
+      }
+      else if (epoll.events[n].data.fd == fdnl)
+      {
         e7_printrc( "nl_recvmsgs", nl_recvmsgs_default(nl_sk) ); // 0==EOF +ve==#bytes
-      } else if (epoll.events[n].data.fd == fdstdin) {
+      }
+      else if (epoll.events[n].data.fd == fdstdin)
+      {
         if(0<buf.appendln_noblock(fdstdin)) // 0==incomplete, -ve==error, +ve==complete_length
         {
-          switch(crc32(buf.text))
-          {
-            case crc32("help"):
-              printf("ya whatever\n");
-              break;
-            case crc32("hello"):
-              e7_printrc( "e7_prep", e7_prep(&ms, ENL_COMM_MODE) );
-              e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, ENL_ATTR_HELLO) );
-              e7_printrc( "e7_send", e7_send(&ms) );
-              break;
-            case crc32("bye"):
-              e7_printrc( "e7_prep", e7_prep(&ms, ENL_COMM_MODE) );
-              e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, ENL_ATTR_BYE) );
-              e7_printrc( "e7_send", e7_send(&ms) );
-              //stop = true;
-              break;
-            case crc32("hiby"):
-              e7_printrc( "e7_prep", e7_prep(&ms, ENL_COMM_MODE) );
-              e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, ENL_ATTR_HELLO) );
-              e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, ENL_ATTR_BYE) );
-              e7_printrc( "e7_send", e7_send(&ms) );
-              //stop = true;
-              break;
-            case crc32("echo"):
-              e7_printrc( "e7_prep", e7_prep(&ms, ENL_COMM_ECHO) );
-              e7_printrc( "nla_put_string", nla_put_string(ms.msg, ENL_ATTR_ECHOBODY, "Hello World") );
-              e7_printrc( "e7_send", e7_send(&ms) );
-              break;
-            case crc32("en"): // echonest
-              {
-                e7_printrc( "e7_prep", e7_prep(&ms, ENL_COMM_ECHO) );
-                e7_printrc( "nla_put_string", nla_put_string(ms.msg, ENL_ATTR_ECHOBODY, "OUTER") );
-                // a list built with recursive enumeration...
-                std::deque<struct nlattr *> attrptr_stack;
-                std::string inner;
-                for(int z=0;z<3;z++)
-                {
-                  // there appears to be overhead for each entry, but it seems to be around ENL_ATTR_MAX bytes. hmmm.
-                  inner = inner + "INNER ";
-                  attrptr_stack.push_front( nla_nest_start(ms.msg, ENL_ATTR_ECHONESTED | NLA_F_NESTED) ); // | NESTED required with ubuntu libnl 3.2.29
-                  e7_printrc( "nla_put_string", nla_put_string(ms.msg, ENL_ATTR_ECHOBODY, inner.c_str()) );
-                }
-                while(!attrptr_stack.empty())
-                {
-                  nla_nest_end(ms.msg, attrptr_stack.front());
-                  attrptr_stack.pop_front();
-                }
-                e7_printrc( "e7_send", e7_send(&ms) );
-              }
-              break;
-            default:
-              printf("huh?\n");
-          }
+          e7_parsecmd(buf);
         }
       }
     }
   }
 
-  printf("Shutting down...\n");
-  e7_printrc( "e7_prep", e7_prep(&ms, ENL_COMM_MODE) );
-  e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, ENL_ATTR_BYE) );
-  e7_printrc( "e7_send", e7_send(&ms) );
+  E7_LOG("Shutting down...");
+  e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_MODE, ENL_ATTR_BYE) );
 
   return 0;
 }
