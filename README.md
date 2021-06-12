@@ -10,9 +10,7 @@ In douane, a list of socket identifiers for active connections are kept in a lin
 
 E7 tries to speed up searching by making better use of the processor cache by using an array-of-fields organization and associated array-search loops. This assumes that the arrays are small enough to fit into a processor's data cache and given the bus-width of the cpu-memory channel can be transferred efficiently to show some significant speed gains. Hopefully not too much to assume.
 
-Another goal for E7 is that this caching will work properly on SMP (where each core may have its own cache and that updates to one cache and eventually gets mirrored into other caches) by making cache updates serialized through a work queue of `struct change_work`. Giving this work queue affinity to a particular core/processor may be important to making this strategy work, additional testing and instrumentation needs to be done to determine this.
-
-Cache entries have additional bookeeping that marks their age so least recently used entries can be overwritten. New cache entries or entries that see updates are marked using an atomic counter which is updated for each new cache entry. Slots for new entries are selected from the oldest slot using wrap-safe arithmetic on slot age.
+Another goal for E7 is that this caching will work properly on SMP (were processor-cache peek, snoop or mirroring might not work as expected) by serializing cache updates through a kernel work queue. Atomic LRU bookeeping is used to identify old cache entries for overwrite using wrap-safe arithmetic on entry age. Giving the work queue affinity to a particular core/processor may be important to making this strategy work, additional testing and instrumentation needs to be done to determine this.
 
 ## Active Socket Cache (asc_ code prefix)
 
