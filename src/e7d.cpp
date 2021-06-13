@@ -394,6 +394,12 @@ int main(void)
 {
   int rc = 0;
 
+  E7_LOG("nice");
+
+  errno = 0;
+  rc = nice(-20);
+  if(0>rc && errno!=0) { E7_LOG("unable to change daemon priority. not root?"); return -1; }
+
   E7_LOG("configure sighandler");
 
   sigset_t sigset;
