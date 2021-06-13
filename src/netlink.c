@@ -127,13 +127,13 @@ static struct nla_policy enl_policy[] = {
   /*NOLOG*/ { .type = NLA_FLAG },
   //
   /*REMOVE*/ { .type = NLA_FLAG },
-  /*QUERY*/ { .type = NLA_FLAG },
+  /*QUERY*/ { .type = NLA_U32 }, // u32 is a queryid for later NF_QUEUE integration
   /*CLEAR*/ { .type = NLA_FLAG },
   /*HELLO*/ { .type = NLA_FLAG },
   /*BYE*/ { .type = NLA_FLAG },
 };
 
-DEFINE_SPINLOCK(nl_lock); // protects np_port and nl_net
+DEFINE_SPINLOCK(nl_lock); // protects np_port and nl_net. todo: remove somehow....
 
 static int nl_port = 0;
 static struct net * nl_net = NULL;
@@ -196,7 +196,7 @@ static bool enl__prep(struct MSGSTATE * ms, int comm)
   return true;
 }
 
-static bool enl__send(struct MSGSTATE * ms)
+static bool enl__send(struct MSGSTATE * ms, const uint32_t stack_id)
 {
   if (!ms->msg || !ms->hdr)
   {
@@ -223,6 +223,9 @@ static bool enl__send(struct MSGSTATE * ms)
 fail:
   spin_unlock(&nl_lock);
 
+  if(ms->err != 0)
+    LOG_ERR(stack_id, "error %d", ms->err);
+
   return ms->err == 0;
 }
 
@@ -234,7 +237,7 @@ int enl_send_bye(const uint32_t stack_id)
 
   if(!enl__prep(&ms, ENL_COMM_MODE)) goto fail;
   if(0>(ms.err=nla_put_flag(ms.msg, ENL_ATTR_BYE))) goto fail;
-  if(!enl__send(&ms)) goto fail;
+  if(!enl__send(&ms, stack_id)) goto fail;
 
   return ms.err;
 
@@ -253,7 +256,27 @@ int enl_send_event(const char * process, const char * device, bool allowed, cons
   if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_PROCESS_STR, process))) goto fail;
   if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_DEVICE_STR, device))) goto fail;
   if(0>(ms.err=nla_put_flag(ms.msg, allowed ? ENL_ATTR_ALLOW : ENL_ATTR_BLOCK))) goto fail;
-  if(!enl__send(&ms)) goto fail;
+  if(!enl__send(&ms, stack_id)) goto fail;
+
+  return ms.err;
+
+fail:
+  enl__checked_free(&ms);
+
+  LOG_ERR(stack_id, "error %d", ms.err);
+  return ms.err;
+}
+
+int enl_send_event_query(const char * process, const char * device, bool allowed, uint32_t queryid, const uint32_t stack_id)
+{
+  struct MSGSTATE ms = { 0, 0, 0 };
+
+  if(!enl__prep(&ms, ENL_COMM_EVENT)) goto fail;
+  if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_PROCESS_STR, process))) goto fail;
+  if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_DEVICE_STR, device))) goto fail;
+  if(0>(ms.err=nla_put_flag(ms.msg, allowed ? ENL_ATTR_ALLOW : ENL_ATTR_BLOCK))) goto fail;
+  if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_QUERY, queryid))) goto fail;
+  if(!enl__send(&ms, stack_id)) goto fail;
 
   return ms.err;
 
@@ -270,7 +293,7 @@ int enl_send_echo(const char * message, const uint32_t stack_id)
 
   if(!enl__prep(&ms, ENL_COMM_ECHO)) goto fail;
   if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_ECHOBODY, message))) goto fail;
-  if(!enl__send(&ms)) goto fail;
+  if(!enl__send(&ms, stack_id)) goto fail;
 
   return ms.err;
 
@@ -331,7 +354,7 @@ int enl_send_rules(int count, const struct rule_struct * rules, const uint32_t s
     nla_nest_end(ms.msg, attrptr_stack->a[i]);
   }
 
-  if(!enl__send(&ms)) goto fail;
+  if(!enl__send(&ms, stack_id)) goto fail;
 
   LOG_DEBUG(stack_id, "complete");
   return ms.err;
@@ -437,7 +460,7 @@ static int enl__comm_log(struct sk_buff *skb_in, struct genl_info *info)
     do {
       if(!enl__prep(&ms, ENL_COMM_LOG)) goto failquery;
       if(0>(ms.err=nla_put_flag(ms.msg, logging ? ENL_ATTR_ENABLE : ENL_ATTR_DISABLE))) goto failquery;
-      if(!enl__send(&ms)) goto failquery;
+      if(!enl__send(&ms, stack_id)) goto failquery;
 
       LOG_DEBUG(stack_id, "ENL_ATTR_QUERY complete");
       break;
@@ -465,13 +488,13 @@ static int enl__comm_mode(struct sk_buff *skb_in, struct genl_info *info)
   }
   if (info->attrs[ENL_ATTR_ENABLE] && nl_rfns)
   {
-    nl_rfns->flag_set(DOUANE_EARLY_ACTION, -1, stack_id); // -1 invalid and so ignored
-    LOG_DEBUG(stack_id, "filtering enabled");
+    nl_rfns->flag_set(DOUANE_EARLY_ACTION, -1, stack_id); // -1 == IGNORED
+    LOG_INFO(stack_id, "filtering enabled"); // keep as info
   }
   if (info->attrs[ENL_ATTR_DISABLE] && nl_rfns)
   {
-    nl_rfns->flag_set(DOUANE_EARLY_ACTION, NF_ACCEPT, stack_id);
-    LOG_DEBUG(stack_id, "filtering disabled");
+    nl_rfns->flag_set(DOUANE_EARLY_ACTION, NF_ACCEPT, stack_id); // NF_ACCEPT == DISABLE
+    LOG_INFO(stack_id, "filtering disabled"); // keep as info
   }
   if (info->attrs[ENL_ATTR_QUERY] && nl_rfns)
   {
@@ -484,7 +507,7 @@ static int enl__comm_mode(struct sk_buff *skb_in, struct genl_info *info)
     do {
       if(!enl__prep(&ms, ENL_COMM_MODE)) goto failquery;
       if(0>(ms.err=nla_put_flag(ms.msg, enable ? ENL_ATTR_ENABLE : ENL_ATTR_DISABLE))) goto failquery;
-      if(!enl__send(&ms)) goto failquery;
+      if(!enl__send(&ms, stack_id)) goto failquery;
 
       LOG_DEBUG(stack_id, "ENL_ATTR_QUERY complete");
       break;

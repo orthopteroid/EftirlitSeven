@@ -20,6 +20,7 @@ int enl_send_echo(const char * message, const uint32_t stack_id);
 
 int enl_send_bye(const uint32_t stack_id);
 int enl_send_event(const char * process, const char * device, bool allowed, const uint32_t stack_id);
+int enl_send_event_query(const char * process, const char * device, bool allowed, uint32_t queryid, const uint32_t stack_id);
 int enl_send_rules(int count, const struct rule_struct * rules, const uint32_t stack_id);
 
 int enl_init(struct enl_recvfns * rfns);

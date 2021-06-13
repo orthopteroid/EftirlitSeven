@@ -206,6 +206,7 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
   struct genlmsghdr * gnlh = NULL;
   struct nlattr * gnlad = NULL;
   struct nlattr * a = NULL;
+  uint32_t u32 = 0;
   char * sz = 0;
   int gnlal = 0;
 
@@ -273,7 +274,15 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
     do {
       if(!(a = attribs[ENL_ATTR_PROCESS_STR])) { E7_LOG("!a"); break; }
       if(!(sz = nla_get_string(a))) { E7_LOG("!sz"); break; }
-      E7_LOG("event %s", sz);
+      if((a = attribs[ENL_ATTR_QUERY]))
+      {
+        u32 = nla_get_u32(a);
+        E7_LOG("event %s query %d", sz, u32);
+      }
+      else
+      {
+        E7_LOG("event %s", sz);
+      }
     } while(false);
     break;
   default:

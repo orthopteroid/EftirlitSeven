@@ -54,14 +54,14 @@ static struct nf_hook_ops netfilter_config = {
 };
 
 static int16_t flags[DOUANE_FLAGS_COUNT] = {
-  /*EARLY_ACTION*/ 1,
+  /*EARLY_ACTION*/ -1,
   /*ENABLE_LKM_DEBUG*/ 1,
   /*FAILPATH_ACTION*/ NF_ACCEPT,
   /*UNKN_PROCESS_ACTION*/ NF_ACCEPT,
   /*UNKN_PROTOCOL_ACTION*/ NF_ACCEPT,
-  /*RULE_QUERY_EVENTS*/ 1, // if changed then the module goes silent!
-  /*RULE_QUERY_ACTION*/ NF_DROP, // if we use NF_QUEUE here we need to track and later nf_reinject() the packet, yes?
-  /*RULE_DROP_EVENTS*/ 1,
+  /*RULE_QUERY_EVENTS*/ 1,
+  /*RULE_QUERY_ACTION*/ NF_ACCEPT, // todo: NF_QUEUE possibly with nf_reinject()
+  /*RULE_DROP_EVENTS*/ 0,
   /*RULE_ACCEPT_EVENTS*/ 0,
 };
 
@@ -135,7 +135,7 @@ static char * douane__lookup_nfaction(int action)
     case NF_STOLEN: return "NF_STOLEN";
     case NF_QUEUE: return "NF_QUEUE";
     case NF_REPEAT: return "NF_REPEAT";
-    default: return "IGNORED";
+    default: return "IGNORE";
   }
 }
 
@@ -176,7 +176,7 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
   action = flags[DOUANE_EARLY_ACTION];
   if (douane__valid_nfaction(action))
   {
-    LOG_DEBUG(packet_id, "early action - %s", douane__lookup_nfaction(action));
+    //LOG_DEBUG(packet_id, "early filter action - %s", douane__lookup_nfaction(action)); // too chatty in log. but keep for later
     return action;
   }
 
@@ -250,7 +250,7 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
       {
         LOG_DEBUG(packet_id, "rules_search failed for %s - %s", psi.process_path, douane__lookup_nfaction(action));
 
-        if(flags[DOUANE_RULE_QUERY_EVENTS]) enl_send_event(psi.process_path, "", rule.allowed, packet_id);
+        if(flags[DOUANE_RULE_QUERY_EVENTS]) enl_send_event_query(psi.process_path, "", rule.allowed, 123, packet_id);
 
         return action;
       }
@@ -278,6 +278,9 @@ int douane_init(void)
 {
   nf_register_net_hook(&init_net, &netfilter_config);
   prot_tcp_init();
+
+  LOG_INFO(0, "early filter action - %s", douane__lookup_nfaction(flags[DOUANE_EARLY_ACTION]));
+
   return 0;
 }
 

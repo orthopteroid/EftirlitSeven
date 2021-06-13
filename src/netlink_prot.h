@@ -150,16 +150,18 @@ For clarity, the following enumerations are changed:
 <qlist> = rule <cxtid> <cxt> <eopt> [ <lopt> ] [ <qlist> ]
 
 **********************************************************************
-**ADDENDUM** 15Jun2021
+**ADDENDUM** 13Jun2021
 
 A2.1 Description of Event Handling
 
 When an event is generated, some action is also taken on the packet in
 question - either to allow the packet to pass or to block it. This information
-should be included in <event> as a non-optional <action> field.
+should be included in <event> as a non-optional <action> field. Additionally,
+if the event is a query for userspace to set a rule for a blocked packet
+this information should also be added to the event.
 
 <action> = allow | block
-<event> = <cxt> <dest> <action>
+<event> = <cxt> <dest> <action> [ query ]
 
 */
 
