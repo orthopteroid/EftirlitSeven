@@ -30,6 +30,8 @@
 // debug with: genl-ctrl-list -d
 
 #include "module.h"
+#include "types.h"
+#include "douane.h"
 #include "rules.h"
 #include "netlink.h"
 
@@ -149,7 +151,7 @@ struct nlattrptr_stack_rcu
 
 /////////
 
-static uint32_t _enl_stackid(void)
+static uint32_t enl__stackid(void)
 {
   uint32_t id;
   get_random_bytes(&id, sizeof(id));
@@ -165,14 +167,14 @@ struct MSGSTATE
   int err;
 };
 
-static void _enl_checked_free(struct MSGSTATE * ms)
+static void enl__checked_free(struct MSGSTATE * ms)
 {
   if (ms->msg) nlmsg_free(ms->msg);
   ms->msg = 0;
   ms->hdr = 0;
 }
 
-static bool _enl_prep(struct MSGSTATE * ms, int comm)
+static bool enl__prep(struct MSGSTATE * ms, int comm)
 {
   ms->msg = genlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
   if (!ms->msg)
@@ -186,7 +188,7 @@ static bool _enl_prep(struct MSGSTATE * ms, int comm)
   ms->hdr = genlmsg_put(ms->msg, 0, 0 /* seq num */, &enl_family, 0, comm);
   if (!ms->hdr)
   {
-    _enl_checked_free(ms);
+    enl__checked_free(ms);
     ms->err = -ENOMEM; // but really a problem with the skb's tail pointer
     return false;
   }
@@ -194,7 +196,7 @@ static bool _enl_prep(struct MSGSTATE * ms, int comm)
   return true;
 }
 
-static bool _enl_send(struct MSGSTATE * ms)
+static bool enl__send(struct MSGSTATE * ms)
 {
   if (!ms->msg || !ms->hdr)
   {
@@ -230,32 +232,33 @@ int enl_send_bye(const uint32_t stack_id)
 {
   struct MSGSTATE ms = { 0, 0, 0 };
 
-  if(!_enl_prep(&ms, ENL_COMM_MODE)) goto fail;
+  if(!enl__prep(&ms, ENL_COMM_MODE)) goto fail;
   if(0>(ms.err=nla_put_flag(ms.msg, ENL_ATTR_BYE))) goto fail;
-  if(!_enl_send(&ms)) goto fail;
+  if(!enl__send(&ms)) goto fail;
 
   return ms.err;
 
 fail:
-  _enl_checked_free(&ms);
+  enl__checked_free(&ms);
 
   LOG_ERR(stack_id, "error %d", ms.err);
   return ms.err;
 }
 
-int enl_send_event(const char * process, const char * device, const uint32_t stack_id)
+int enl_send_event(const char * process, const char * device, bool allowed, const uint32_t stack_id)
 {
   struct MSGSTATE ms = { 0, 0, 0 };
 
-  if(!_enl_prep(&ms, ENL_COMM_EVENT)) goto fail;
+  if(!enl__prep(&ms, ENL_COMM_EVENT)) goto fail;
   if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_PROCESS_STR, process))) goto fail;
   if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_DEVICE_STR, device))) goto fail;
-  if(!_enl_send(&ms)) goto fail;
+  if(0>(ms.err=nla_put_flag(ms.msg, allowed ? ENL_ATTR_ALLOW : ENL_ATTR_BLOCK))) goto fail;
+  if(!enl__send(&ms)) goto fail;
 
   return ms.err;
 
 fail:
-  _enl_checked_free(&ms);
+  enl__checked_free(&ms);
 
   LOG_ERR(stack_id, "error %d", ms.err);
   return ms.err;
@@ -265,14 +268,14 @@ int enl_send_echo(const char * message, const uint32_t stack_id)
 {
   struct MSGSTATE ms = { 0, 0, 0 };
 
-  if(!_enl_prep(&ms, ENL_COMM_ECHO)) goto fail;
+  if(!enl__prep(&ms, ENL_COMM_ECHO)) goto fail;
   if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_ECHOBODY, message))) goto fail;
-  if(!_enl_send(&ms)) goto fail;
+  if(!enl__send(&ms)) goto fail;
 
   return ms.err;
 
 fail:
-  _enl_checked_free(&ms);
+  enl__checked_free(&ms);
 
   LOG_ERR(stack_id, "error %d", ms.err);
   return ms.err;
@@ -286,7 +289,7 @@ int enl_send_rules(int count, const struct rule_struct * rules, const uint32_t s
 
   LOG_DEBUG(stack_id, "start");
 
-  if(!_enl_prep(&ms, ENL_COMM_RULES)) goto fail;
+  if(!enl__prep(&ms, ENL_COMM_RULES)) goto fail;
 
   attrptr_stack = kzalloc(sizeof(struct nlattrptr_stack_rcu) + sizeof(struct nlattr *) * count, GFP_ATOMIC );
   if(attrptr_stack == NULL) { ms.err=-1; goto fail; }
@@ -328,14 +331,14 @@ int enl_send_rules(int count, const struct rule_struct * rules, const uint32_t s
     nla_nest_end(ms.msg, attrptr_stack->a[i]);
   }
 
-  if(!_enl_send(&ms)) goto fail;
+  if(!enl__send(&ms)) goto fail;
 
   LOG_DEBUG(stack_id, "complete");
   return ms.err;
 
 fail:
   if(attrptr_stack) kfree_rcu(attrptr_stack, rcu);
-  _enl_checked_free(&ms);
+  enl__checked_free(&ms);
 
   LOG_ERR(stack_id, "error %d", ms.err);
   return ms.err;
@@ -344,9 +347,9 @@ fail:
 ////////////////////
 
 // An echo command, receives a message, prints it and sends another message back
-static int _enl_comm_echo(struct sk_buff *skb_in, struct genl_info *info)
+static int enl__comm_echo(struct sk_buff *skb_in, struct genl_info *info)
 {
-  uint32_t stack_id = _enl_stackid();
+  uint32_t stack_id = enl__stackid();
   struct nlattr * tmp_attr;
 
   if(!nl_rfns) { LOG_ERR(stack_id, "!nl_rfns"); return -1; }
@@ -393,16 +396,16 @@ static int _enl_comm_echo(struct sk_buff *skb_in, struct genl_info *info)
   return 0;
 }
 
-static int _enl_comm_event(struct sk_buff *skb_in, struct genl_info *info)
+static int enl__comm_event(struct sk_buff *skb_in, struct genl_info *info)
 {
-  uint32_t stack_id = _enl_stackid();
+  uint32_t stack_id = enl__stackid();
   LOG_DEBUG(stack_id, "called");
   return 0;
 }
 
-static int _enl_comm_log(struct sk_buff *skb_in, struct genl_info *info)
+static int enl__comm_log(struct sk_buff *skb_in, struct genl_info *info)
 {
-  uint32_t stack_id = _enl_stackid();
+  uint32_t stack_id = enl__stackid();
 
   LOG_DEBUG(stack_id, "start");
 
@@ -414,33 +417,33 @@ static int _enl_comm_log(struct sk_buff *skb_in, struct genl_info *info)
 
   if (info->attrs[ENL_ATTR_ENABLE] && nl_rfns)
   {
-    nl_rfns->logging_set(true, stack_id);
+    nl_rfns->flag_set(DOUANE_ENABLE_LKM_DEBUG, 1, stack_id);
     LOG_DEBUG(stack_id, "logging enabled");
   }
   if (info->attrs[ENL_ATTR_DISABLE] && nl_rfns)
   {
-    nl_rfns->logging_set(false, stack_id);
+    nl_rfns->flag_set(DOUANE_ENABLE_LKM_DEBUG, 0, stack_id);
     LOG_DEBUG(stack_id, "logging disabled");
   }
 
   if (info->attrs[ENL_ATTR_QUERY])
   {
     struct MSGSTATE ms = { 0, 0, 0 };
-    bool logging = false;
-    nl_rfns->logging_get(&logging, stack_id);
+    int logging = 0;
+    nl_rfns->flag_get(DOUANE_ENABLE_LKM_DEBUG, &logging, stack_id);
 
     LOG_DEBUG(stack_id, "ENL_ATTR_QUERY");
 
     do {
-      if(!_enl_prep(&ms, ENL_COMM_LOG)) goto failquery;
+      if(!enl__prep(&ms, ENL_COMM_LOG)) goto failquery;
       if(0>(ms.err=nla_put_flag(ms.msg, logging ? ENL_ATTR_ENABLE : ENL_ATTR_DISABLE))) goto failquery;
-      if(!_enl_send(&ms)) goto failquery;
+      if(!enl__send(&ms)) goto failquery;
 
       LOG_DEBUG(stack_id, "ENL_ATTR_QUERY complete");
       break;
 
   failquery:
-      _enl_checked_free(&ms);
+      enl__checked_free(&ms);
       LOG_ERR(stack_id, "ENL_ATTR_QUERY error %d", ms.err);
     } while(false);
   }
@@ -448,9 +451,9 @@ static int _enl_comm_log(struct sk_buff *skb_in, struct genl_info *info)
   return 0;
 }
 
-static int _enl_comm_mode(struct sk_buff *skb_in, struct genl_info *info)
+static int enl__comm_mode(struct sk_buff *skb_in, struct genl_info *info)
 {
-  uint32_t stack_id = _enl_stackid();
+  uint32_t stack_id = enl__stackid();
 
   if (info->attrs[ENL_ATTR_HELLO])
   {
@@ -462,32 +465,32 @@ static int _enl_comm_mode(struct sk_buff *skb_in, struct genl_info *info)
   }
   if (info->attrs[ENL_ATTR_ENABLE] && nl_rfns)
   {
-    nl_rfns->enable_set(true, stack_id);
+    nl_rfns->flag_set(DOUANE_EARLY_ACTION, -1, stack_id); // -1 invalid and so ignored
     LOG_DEBUG(stack_id, "filtering enabled");
   }
   if (info->attrs[ENL_ATTR_DISABLE] && nl_rfns)
   {
-    nl_rfns->enable_set(false, stack_id);
+    nl_rfns->flag_set(DOUANE_EARLY_ACTION, NF_ACCEPT, stack_id);
     LOG_DEBUG(stack_id, "filtering disabled");
   }
   if (info->attrs[ENL_ATTR_QUERY] && nl_rfns)
   {
     struct MSGSTATE ms = { 0, 0, 0 };
-    bool enable = false;
-    nl_rfns->enable_get(&enable, stack_id);
+    int enable = 0;
+    nl_rfns->flag_get(DOUANE_EARLY_ACTION, &enable, stack_id);
 
     LOG_DEBUG(stack_id, "ENL_ATTR_QUERY");
 
     do {
-      if(!_enl_prep(&ms, ENL_COMM_MODE)) goto failquery;
+      if(!enl__prep(&ms, ENL_COMM_MODE)) goto failquery;
       if(0>(ms.err=nla_put_flag(ms.msg, enable ? ENL_ATTR_ENABLE : ENL_ATTR_DISABLE))) goto failquery;
-      if(!_enl_send(&ms)) goto failquery;
+      if(!enl__send(&ms)) goto failquery;
 
       LOG_DEBUG(stack_id, "ENL_ATTR_QUERY complete");
       break;
 
-  failquery:
-      _enl_checked_free(&ms);
+failquery:
+      enl__checked_free(&ms);
       LOG_ERR(stack_id, "ENL_ATTR_QUERY error %d", ms.err);
     } while(false);
   }
@@ -503,9 +506,9 @@ static int _enl_comm_mode(struct sk_buff *skb_in, struct genl_info *info)
   return 0;
 }
 
-static int _enl_comm_rule(struct sk_buff *skb_in, struct genl_info *info)
+static int enl__comm_rule(struct sk_buff *skb_in, struct genl_info *info)
 {
-  uint32_t stack_id = _enl_stackid();
+  uint32_t stack_id = enl__stackid();
 
   LOG_DEBUG(stack_id, "start");
 
@@ -515,7 +518,7 @@ static int _enl_comm_rule(struct sk_buff *skb_in, struct genl_info *info)
     return 0;
   }
 
-  // model after _enl_comm_echo ?
+  // model after enl__comm_echo ?
 
   {
     uint32_t u32proc = 0, u32prot = 0, u32user = 0, u32group = 0;
@@ -550,9 +553,9 @@ static int _enl_comm_rule(struct sk_buff *skb_in, struct genl_info *info)
   return 0;
 }
 
-static int _enl_comm_rules(struct sk_buff *skb_in, struct genl_info *info)
+static int enl__comm_rules(struct sk_buff *skb_in, struct genl_info *info)
 {
-  uint32_t stack_id = _enl_stackid();
+  uint32_t stack_id = enl__stackid();
 
   LOG_DEBUG(stack_id, "start");
 
@@ -579,12 +582,12 @@ static int _enl_comm_rules(struct sk_buff *skb_in, struct genl_info *info)
 
 // command/handler mapping
 struct genl_ops enl_ops[] = {
-  { .cmd = ENL_COMM_ECHO, .doit = _enl_comm_echo, },
-  { .cmd = ENL_COMM_LOG, .doit = _enl_comm_log, },
-  { .cmd = ENL_COMM_MODE, .doit = _enl_comm_mode, .flags = GENL_ADMIN_PERM, },
-  { .cmd = ENL_COMM_RULE, .doit = _enl_comm_rule, },
-  { .cmd = ENL_COMM_RULES, .doit = _enl_comm_rules, },
-  { .cmd = ENL_COMM_EVENT, .doit = _enl_comm_event, },
+  { .cmd = ENL_COMM_ECHO, .doit = enl__comm_echo, },
+  { .cmd = ENL_COMM_LOG, .doit = enl__comm_log, },
+  { .cmd = ENL_COMM_MODE, .doit = enl__comm_mode, .flags = GENL_ADMIN_PERM, },
+  { .cmd = ENL_COMM_RULE, .doit = enl__comm_rule, },
+  { .cmd = ENL_COMM_RULES, .doit = enl__comm_rules, },
+  { .cmd = ENL_COMM_EVENT, .doit = enl__comm_event, },
 };
 
 //family definition

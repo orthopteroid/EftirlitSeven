@@ -149,6 +149,18 @@ For clarity, the following enumerations are changed:
 <alist> = add <cxt> [ <eopt> ] [ <lopt> ] [ <alist> ]
 <qlist> = rule <cxtid> <cxt> <eopt> [ <lopt> ] [ <qlist> ]
 
+**********************************************************************
+**ADDENDUM** 15Jun2021
+
+A2.1 Description of Event Handling
+
+When an event is generated, some action is also taken on the packet in
+question - either to allow the packet to pass or to block it. This information
+should be included in <event> as a non-optional <action> field.
+
+<action> = allow | block
+<event> = <cxt> <dest> <action>
+
 */
 
 

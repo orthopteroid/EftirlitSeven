@@ -82,10 +82,8 @@ void mod_send_echo(const char * message, const uint32_t stack_id)
 struct enl_recvfns mod_recvfns =
 {
   .recv_echo = mod_send_echo,
-  .enable_set = douane_enable_set,
-  .enable_get = douane_enable_get,
-  .logging_set = douane_logging_set,
-  .logging_get = douane_logging_get,
+  .flag_set = douane_flag_set,
+  .flag_get = douane_flag_get,
   .rule_add = mod_rule_add,
   .rules_clear = rules_clear,
   .rules_query = mod_rules_query,
