@@ -148,6 +148,9 @@ module_init(mod_init);
 
 static void __exit mod_exit(void)
 {
+  // calls that are async or rely on rcu
+  enl_send_bye(0);
+
   // set flag and wait until all rcu/softirq processing is done
   // synchronize_rcu waits for a grace period and rcu_barrier waits for all callbacks to complete
   atomic_set(&stopping, 1);

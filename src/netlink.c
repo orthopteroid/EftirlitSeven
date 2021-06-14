@@ -133,6 +133,10 @@ static struct nla_policy enl_policy[] = {
   /*BYE*/ { .type = NLA_FLAG },
 };
 
+// make all communic with userspace async via workq for packet storm protection
+// review: ovbious latency issues with hi priority messages
+#define ENL_ASYNC_SEND 1
+
 DEFINE_SPINLOCK(nl_lock); // protects np_port and nl_net. todo: remove somehow....
 
 static int nl_port = 0;
@@ -149,6 +153,20 @@ struct nlattrptr_stack_rcu
   struct nlattr * a[];
 };
 
+struct async_message
+{
+  int port;
+  struct net * net;
+  struct sk_buff * msg;
+  uint32_t stack_id;
+  //
+  struct work_struct worker;
+  struct rcu_head rcu;
+};
+
+DEFINE_SPINLOCK(nlq_workq_lock);
+struct workqueue_struct * nlq_workq;
+
 /////////
 
 static uint32_t enl__stackid(void)
@@ -156,6 +174,34 @@ static uint32_t enl__stackid(void)
   uint32_t id;
   get_random_bytes(&id, sizeof(id));
   return id;
+}
+
+static void enl__wq_send(struct work_struct *work)
+{
+  struct async_message * am = container_of(work, struct async_message, worker);
+  int rc = 0;
+
+  if(am->net == NULL || am->port == 0)
+  {
+    rc = ENXIO;
+  }
+  else
+  {
+    // m->msg is always handed off, even on error.
+    // see impl of netlink_unicast
+    rc = genlmsg_unicast(am->net, am->msg, am->port);
+  }
+
+  if(rc)
+  {
+    LOG_ERR(am->stack_id, "error %d", rc);
+  }
+  else
+  {
+    LOG_DEBUG(am->stack_id, "async work complete");
+  }
+
+  kfree_rcu(am, rcu);
 }
 
 /////////
@@ -196,8 +242,76 @@ static bool enl__prep(struct MSGSTATE * ms, int comm)
   return true;
 }
 
+#ifdef ENL_ASYNC_SEND
+
 static bool enl__send(struct MSGSTATE * ms, const uint32_t stack_id)
 {
+  int port;
+  struct net * net;
+
+  if (!ms->msg || !ms->hdr)
+  {
+    ms->err = -EINVAL;
+    goto fail;
+  }
+
+  genlmsg_end(ms->msg, ms->hdr);
+
+  spin_lock(&nl_lock);
+  port = nl_port;
+  net = nl_net;
+  spin_unlock(&nl_lock);
+
+  if(nl_net == NULL || nl_port == 0)
+  {
+    ms->err = -ENXIO;
+    goto fail;
+  }
+
+  {
+    struct async_message * am = kzalloc(sizeof(struct async_message), GFP_ATOMIC);
+    if (!am)
+    {
+      LOG_ERR(stack_id, "kzalloc failure");
+      ms->err = -ENOMEM;
+      goto fail;
+    }
+    if (!nlq_workq)
+    {
+      LOG_ERR(stack_id, "!nlq_workq");
+      ms->err = -1;
+      goto fail;
+    }
+
+    LOG_DEBUG(stack_id, "queueing async call");
+
+    am->stack_id = stack_id;
+    am->port = port;
+    am->net = net;
+    am->msg = ms->msg;
+    //
+    INIT_WORK(&am->worker, enl__wq_send);
+
+    spin_lock_bh(&nlq_workq_lock);
+    queue_work(nlq_workq, &am->worker);
+    spin_unlock_bh(&nlq_workq_lock);
+  }
+
+  ms->err = 0;
+  ms->msg = 0; // mark as handed off
+  ms->hdr = 0;
+
+fail:
+  return ms->err == 0;
+}
+
+#else // ENL_ASYNC_SEND
+
+static bool enl__send(struct MSGSTATE * ms, const uint32_t stack_id)
+{
+  int port;
+  struct net * net;
+
   if (!ms->msg || !ms->hdr)
   {
     ms->err = -EINVAL;
@@ -207,8 +321,11 @@ static bool enl__send(struct MSGSTATE * ms, const uint32_t stack_id)
   genlmsg_end(ms->msg, ms->hdr);
 
   spin_lock(&nl_lock);
+  port = nl_port;
+  net = nl_net;
+  spin_unlock(&nl_lock);
 
-  if(nl_net == NULL || nl_port == 0)
+  if(net == NULL || port == 0)
   {
     ms->err = -ENXIO;
     goto fail;
@@ -216,18 +333,18 @@ static bool enl__send(struct MSGSTATE * ms, const uint32_t stack_id)
 
   // ms->msg is always handed off, even on error.
   // see impl of netlink_unicast
-  ms->err = genlmsg_unicast(nl_net, ms->msg, nl_port);
+  ms->err = genlmsg_unicast(net, ms->msg, port);
   ms->msg = 0; // mark as handed off
   ms->hdr = 0;
 
 fail:
-  spin_unlock(&nl_lock);
-
   if(ms->err != 0)
     LOG_ERR(stack_id, "error %d", ms->err);
 
   return ms->err == 0;
 }
+
+#endif // ENL_ASYNC_SEND
 
 /////////////////
 
@@ -634,6 +751,14 @@ int enl_init(struct enl_recvfns * rfns)
     return -1;
   }
 
+  // buffer all events back to userspace
+  nlq_workq = alloc_ordered_workqueue("%s", WQ_HIGHPRI, "e7_nlq"); // review: WQ_HIGHPRI
+  if (!nlq_workq)
+  {
+    LOG_ERR(0, "alloc_ordered_workqueue failed");
+    return -1;
+  }
+
   nl_rfns = rfns;
 
   return 0;
@@ -641,10 +766,9 @@ int enl_init(struct enl_recvfns * rfns)
 
 void enl_exit(void)
 {
-  if (nl_net && nl_port)
-  {
-    enl_send_bye(0);
-  }
+  // review: workq clear first?
+  destroy_workqueue(nlq_workq);
+  nlq_workq = NULL;
 
   nl_rfns = NULL;
 
