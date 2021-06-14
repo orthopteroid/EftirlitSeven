@@ -301,16 +301,15 @@ const int fdstdin = 0;
 
 struct CMDBUF
 {
-  const static int len = 100;
-
-  char text[len];
-  int idx = 0;
+  const static int textlen = 100;
+  char text[textlen +1];
+  int idx = 0, len = 0;
 
   // return +ve length of \n terminated string
   // return -1 on error or untermed string
   int appendln_noblock(int fd)
   {
-    while(idx<len)
+    while(idx<textlen)
     {
       int rc = read(fd, (void*)&text[idx], 1); // read single char
       if (0==rc) return -EAGAIN; // no data
@@ -318,6 +317,7 @@ struct CMDBUF
       if ('\n'==text[idx])
       {
         text[idx] = '\0';
+        len = idx;
         int cl = idx;
         idx = 0; // reset to buf start for next line
         return cl;
@@ -326,6 +326,30 @@ struct CMDBUF
     }
     return -EFAULT; // buffer overflow
   }
+
+  const static int arglen = 5;
+  char * arg[arglen +1];
+  int argc = 0;
+
+  const char* identifyargs()
+  {
+    argc = 0;
+    if(0==text[0]) { return "no command"; }
+
+    int j = 0;
+    for(int i=0; i<len; i++) { if('"'==text[i]) j++; }
+    if((j % 2) != 0) return "mismatched quotes";
+
+    // 3 pass quote handling
+    bool q = false;
+    bool l = true;
+    for(int i=0; i<len; i++) { if('"'==text[i]) q = !q; else if(!q && (' '==text[i])) text[i] = '\0'; } // null non-quoted spaces
+    for(int i=0; i<len; i++) { if('"'==text[i]) text[i] = '\0'; } // null quotes
+    for(int i=0; i<len; i++) { if('\0'!=text[i]) { if(l) { arg[argc++] = &text[i]; l = false; } } else l = true; } // args are leading non-nulls
+
+    //for(int i=0; i<argc; i++) E7_LOG("arg: '%s'", arg[i]);
+    return 0;
+  }
 };
 
 /////////////////
@@ -333,7 +357,11 @@ struct CMDBUF
 void e7_parsecmd(CMDBUF & buf)
 {
   MSGSTATE ms;
-  switch(crc32(buf.text))
+
+  const char * sz = buf.identifyargs();
+  if(sz) E7_LOG("%s", sz);
+
+  switch(crc32(buf.arg[0]))
   {
     case crc32("quit"):
       stop = true;
