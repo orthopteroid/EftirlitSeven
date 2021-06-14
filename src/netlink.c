@@ -741,6 +741,17 @@ static struct genl_family enl_family __ro_after_init = {
   .n_ops = ENL_COMM_MAX,
 };
 
+int enl_is_connected(void)
+{
+  bool connected = false;
+
+  spin_lock(&nl_lock);
+  connected = (0!=nl_port) && (0!=nl_net);
+  spin_unlock(&nl_lock);
+
+  return connected;
+}
+
 int enl_init(struct enl_recvfns * rfns)
 {
   int rc;

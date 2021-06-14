@@ -250,7 +250,8 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
       {
         LOG_DEBUG(packet_id, "rules_search failed for %s - %s", psi.process_path, douane__lookup_nfaction(action));
 
-        if(flags[DOUANE_RULE_QUERY_EVENTS]) enl_send_event_query(psi.process_path, "", rule.allowed, 123, packet_id);
+        if(flags[DOUANE_RULE_QUERY_EVENTS] && enl_is_connected())
+          enl_send_event_query(psi.process_path, "", rule.allowed, 123, packet_id);
 
         return action;
       }
@@ -260,13 +261,19 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
     if (rule.allowed)
     {
       LOG_DEBUG(packet_id, "allowed %s - NF_ACCEPT", psi.process_path);
-      if(flags[DOUANE_RULE_ACCEPT_EVENTS]) enl_send_event(psi.process_path, "", rule.allowed, packet_id);
+
+      if(flags[DOUANE_RULE_ACCEPT_EVENTS] && enl_is_connected())
+        enl_send_event(psi.process_path, "", rule.allowed, packet_id);
+
       return NF_ACCEPT;
     }
     else
     {
       LOG_DEBUG(packet_id, "blocked %s - NF_DROP", psi.process_path);
-      if(flags[DOUANE_RULE_DROP_EVENTS]) enl_send_event(psi.process_path, "", rule.allowed, packet_id);
+
+      if(flags[DOUANE_RULE_DROP_EVENTS] && enl_is_connected())
+        enl_send_event(psi.process_path, "", rule.allowed, packet_id);
+
       return NF_DROP;
     }
   }
