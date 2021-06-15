@@ -1,5 +1,7 @@
 *THIS KERNEL MODULE SHOULD BE CONSIDERED BARELY BETA - COMPILE AND USE AT YOUR OWN RISK*
 
+Development done with kernel 5.4.0-74 (ubuntu 18.04.1 x76) on an old Intel Atom 330
+
 # EftirlitSeven
 
 E7 is a fork of the linux internet application firewall douane from https://gitlab.com/douaneapp with experimental changes. Some of the changes include...
