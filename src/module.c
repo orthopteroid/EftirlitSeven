@@ -82,10 +82,8 @@ void mod_send_echo(const char * message, const uint32_t stack_id)
 struct enl_recvfns mod_recvfns =
 {
   .recv_echo = mod_send_echo,
-  .enable_set = douane_enable_set,
-  .enable_get = douane_enable_get,
-  .logging_set = douane_logging_set,
-  .logging_get = douane_logging_get,
+  .flag_set = douane_flag_set,
+  .flag_get = douane_flag_get,
   .rule_add = mod_rule_add,
   .rules_clear = rules_clear,
   .rules_query = mod_rules_query,
@@ -150,6 +148,9 @@ module_init(mod_init);
 
 static void __exit mod_exit(void)
 {
+  // calls that are async or rely on rcu
+  enl_send_bye(0);
+
   // set flag and wait until all rcu/softirq processing is done
   // synchronize_rcu waits for a grace period and rcu_barrier waits for all callbacks to complete
   atomic_set(&stopping, 1);

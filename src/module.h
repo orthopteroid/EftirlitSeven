@@ -18,7 +18,7 @@
 #define LOG_DEBUG(id, fmt, ...) \
   pr_debug("D " MOD_NAME "(%08X):%s:%d: " fmt "\n", id, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #else
-#define LOG_DEBUG(fmt, ...) while(false)
+#define LOG_DEBUG(fmt, ...) do {} while(false)
 #endif
 
 #else
@@ -33,7 +33,7 @@
 #define LOG_DEBUG(id, fmt, ...) \
   printk("D " MOD_NAME "(%08X):%s:%d: " fmt "\n", id, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #else
-#define LOG_DEBUG(fmt, ...) while(false)
+#define LOG_DEBUG(fmt, ...) do {} while(false)
 #endif
 
 #endif

@@ -34,57 +34,52 @@ enum nf_ip_hook_priorities {
 
 #include "module.h"
 #include "types.h"
+#include "douane.h"
 #include "ksc.h"
 #include "asc.h"
 #include "rules.h"
+#include "netlink.h"
 
 #include "prot_tcp.h"
 #include "prot_udp.h"
 
 // fwd decls
-static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
 
 static struct nf_hook_ops netfilter_config = {
-  .hook     = douane_nfhandler,
+  .hook     = douane__nfhandler,
   .hooknum  = NF_IP_LOCAL_OUT,
   .pf       = NFPROTO_IPV4,
   .priority = NF_IP_PRI_LAST,
 };
 
-static bool enabled = false;
-static bool logging = true;
+static int16_t flags[DOUANE_FLAGS_COUNT] = {
+  /*EARLY_ACTION*/ -1,
+  /*ENABLE_LKM_DEBUG*/ 1,
+  /*FAILPATH_ACTION*/ NF_ACCEPT,
+  /*UNKN_PROCESS_ACTION*/ NF_ACCEPT,
+  /*UNKN_PROTOCOL_ACTION*/ NF_ACCEPT,
+  /*RULE_QUERY_EVENTS*/ 1,
+  /*RULE_QUERY_ACTION*/ NF_ACCEPT, // todo: NF_QUEUE possibly with nf_reinject()
+  /*RULE_DROP_EVENTS*/ 0,
+  /*RULE_ACCEPT_EVENTS*/ 0,
+};
 
 ///////////////
 
-void douane_enable_set(bool value, const uint32_t packet_id)
+void douane_flag_set(int flag, int value, const uint32_t packet_id)
 {
-  LOG_DEBUG(packet_id, "enable change to %s", value ? "enable" : "disable");
-
-  enabled = value;
+  flags[flag] = value;
+  LOG_DEBUG(packet_id, "flag %d changed to %d", flag, value);
 }
 
-void douane_enable_get(bool * value_out, const uint32_t packet_id)
+void douane_flag_get(int flag, int * value_out, const uint32_t packet_id)
 {
-  LOG_DEBUG(packet_id, "get enable value of %s", enabled ? "enable" : "disable");
-
-  *value_out = enabled;
+  *value_out = flags[flag];
+  LOG_DEBUG(packet_id, "flag %d returns to %d", flag, *value_out);
 }
 
-void douane_logging_set(bool value, const uint32_t packet_id)
-{
-  LOG_DEBUG(packet_id, "logging change to %s", value ? "enable" : "disable");
-
-  logging = value;
-}
-
-void douane_logging_get(bool * value_out, const uint32_t packet_id)
-{
-  LOG_DEBUG(packet_id, "get logging value of %s", logging ? "enable" : "disable");
-
-  *value_out = logging;
-}
-
-char * douane_lookup_protname(const int protocol)
+static char * douane__lookup_protname(const int protocol)
 {
   switch(protocol)
   {
@@ -116,88 +111,172 @@ char * douane_lookup_protname(const int protocol)
   }
 }
 
+static bool douane__valid_nfaction(int action)
+{
+  switch(action)
+  {
+    case NF_DROP:
+    case NF_ACCEPT:
+    case NF_STOLEN:
+    case NF_QUEUE:
+    case NF_REPEAT:
+      return true;
+    default:
+      return false;
+  }
+}
+
+static char * douane__lookup_nfaction(int action)
+{
+  switch(action)
+  {
+    case NF_DROP: return "NF_DROP";
+    case NF_ACCEPT: return "NF_ACCEPT";
+    case NF_STOLEN: return "NF_STOLEN";
+    case NF_QUEUE: return "NF_QUEUE";
+    case NF_REPEAT: return "NF_REPEAT";
+    default: return "IGNORE";
+  }
+}
+
+static void douane__parse_protocol(
+  bool * prot_out, bool * proc_out, struct iphdr * ip_header,
+  struct psi *psi_out, uint32_t packet_id, void *priv, struct sk_buff *skb, const struct nf_hook_state *state
+)
+{
+  *prot_out = *proc_out = true; // assume identified
+  switch(ip_header->protocol)
+  {
+    case IPPROTO_UDP:
+      *proc_out = prot_udp_parse(psi_out, packet_id, priv, skb, state);
+      break;
+
+    case IPPROTO_TCP:
+      *proc_out = prot_tcp_parse(psi_out, packet_id, priv, skb, state);
+      break;
+
+    default:
+      *prot_out = false; // protocol unidentified
+  }
+}
+
 ///////////////
 
-static unsigned int douane_nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
+static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
   struct iphdr * ip_header = NULL;
-  struct rule_struct existing_rule;
-  bool process_identified = false;
   struct psi psi;
   uint32_t packet_id;
+  int action = 0;
 
   memset(&psi, 0, sizeof(struct psi));
 
   get_random_bytes(&packet_id, sizeof(packet_id));
 
-  LOG_DEBUG(packet_id, "~~~ new packet");
+  action = flags[DOUANE_EARLY_ACTION];
+  if (douane__valid_nfaction(action))
+  {
+    //LOG_DEBUG(packet_id, "early filter action - %s", douane__lookup_nfaction(action)); // too chatty in log. but keep for later
+    return action;
+  }
 
   if (mod_isstopping())
   {
-    LOG_DEBUG(packet_id, "NF_ACCEPT (module is stopping)");
+    LOG_DEBUG(packet_id, "module is stopping - NF_ACCEPT)");
     return NF_ACCEPT;
   }
 
   if (skb == NULL)
   {
-    LOG_ERR(packet_id, "NF_ACCEPT (socket buffer is null)");
-    return NF_ACCEPT;
+    action = flags[DOUANE_EARLY_ACTION];
+    if (douane__valid_nfaction(action))
+    {
+      LOG_ERR(packet_id, "socket buffer is null - %s", douane__lookup_nfaction(action));
+      return action;
+    }
+    return NF_ACCEPT; // review
   }
 
   ip_header = ip_hdr(skb);
   if (ip_header == NULL)
   {
-    LOG_ERR(packet_id, "NF_ACCEPT (ip_header is null)");
-    return NF_ACCEPT;
+    action = flags[DOUANE_FAILPATH_ACTION];
+    if (douane__valid_nfaction(action))
+    {
+      LOG_ERR(packet_id, "ip_header is null - %s", douane__lookup_nfaction(action));
+      return action;
+    }
+    return NF_ACCEPT; // review
   }
-  LOG_DEBUG(packet_id, "packet %s, %s",
-    douane_lookup_protname(ip_header->protocol),
-    in_softirq() ? "in_softirq()" : "!in_softirq()"
-  );
 
-  switch(ip_header->protocol)
+  LOG_DEBUG(packet_id, "~~~ new %s packet", douane__lookup_protname(ip_header->protocol));
+
   {
-    case IPPROTO_UDP:
-      process_identified = prot_udp_parse(&psi, packet_id, priv, skb, state);
-      break;
+    bool process_identified = false;
+    bool protocol_identified = false;
 
-    case IPPROTO_TCP:
-      process_identified = prot_tcp_parse(&psi, packet_id, priv, skb, state);
-      break;
+    douane__parse_protocol(&protocol_identified, &process_identified, ip_header, &psi, packet_id, priv, skb, state);
 
-    default:
-      LOG_ERR(packet_id, "NF_ACCEPT (ip_header->protocol fallthrough)");
+    if (!protocol_identified)
+    {
+      action = flags[DOUANE_UNKN_PROTOCOL_ACTION];
+      if (douane__valid_nfaction(action))
+      {
+        LOG_DEBUG(packet_id, "unhandled protocol - %s", douane__lookup_nfaction(action));
+        return action;
+      }
+      return NF_ACCEPT; // review
+    }
+
+    if (!process_identified)
+    {
+      action = flags[DOUANE_UNKN_PROCESS_ACTION];
+      if (douane__valid_nfaction(action))
+      {
+        LOG_DEBUG(packet_id, "unidentfied process PID %d '%s' - %s", psi.pid, psi.process_path, douane__lookup_nfaction(action));
+        return action;
+      }
+      return NF_ACCEPT; // review
+    }
+  }
+
+  {
+    struct rule_struct rule;
+
+    if (0>rules_search(&rule, psi.process_path, packet_id))
+    {
+      action = flags[DOUANE_RULE_QUERY_ACTION];
+      if (douane__valid_nfaction(action))
+      {
+        LOG_DEBUG(packet_id, "rules_search failed for %s - %s", psi.process_path, douane__lookup_nfaction(action));
+
+        if(flags[DOUANE_RULE_QUERY_EVENTS] && enl_is_connected())
+          enl_send_event_query(psi.process_path, "", rule.allowed, 123, packet_id);
+
+        return action;
+      }
+      return NF_ACCEPT; // review
+    }
+
+    if (rule.allowed)
+    {
+      LOG_DEBUG(packet_id, "allowed %s - NF_ACCEPT", psi.process_path);
+
+      if(flags[DOUANE_RULE_ACCEPT_EVENTS] && enl_is_connected())
+        enl_send_event(psi.process_path, "", rule.allowed, packet_id);
+
       return NF_ACCEPT;
+    }
+    else
+    {
+      LOG_DEBUG(packet_id, "blocked %s - NF_DROP", psi.process_path);
+
+      if(flags[DOUANE_RULE_DROP_EVENTS] && enl_is_connected())
+        enl_send_event(psi.process_path, "", rule.allowed, packet_id);
+
+      return NF_DROP;
+    }
   }
-
-  if (!enabled)
-  {
-    LOG_DEBUG(packet_id, "NF_ACCEPT (filtering disabled. process %s)", psi.process_path);
-    return NF_ACCEPT;
-  }
-
-  if (!process_identified)
-  {
-    LOG_DEBUG(packet_id, "NF_ACCEPT (unprocess_identified %s)", psi.process_path);
-    return NF_ACCEPT;
-  }
-
-  LOG_DEBUG(packet_id, "searching rule for %s", psi.process_path);
-
-  if (0>rules_search(&existing_rule, psi.process_path, packet_id))
-  {
-    LOG_DEBUG(packet_id, "NF_QUEUE (rules_search failed for %s)", psi.process_path);
-    return NF_QUEUE;
-  }
-
-  if (!existing_rule.allowed)
-  {
-    LOG_DEBUG(packet_id, "NF_DROP (block %s)", psi.process_path);
-    return NF_DROP;
-  }
-
-  LOG_DEBUG(packet_id, "NF_ACCEPT (allow %s)", psi.process_path);
-  return NF_ACCEPT;
 }
 
 //////////////////
@@ -206,6 +285,9 @@ int douane_init(void)
 {
   nf_register_net_hook(&init_net, &netfilter_config);
   prot_tcp_init();
+
+  LOG_INFO(0, "early filter action - %s", douane__lookup_nfaction(flags[DOUANE_EARLY_ACTION]));
+
   return 0;
 }
 
