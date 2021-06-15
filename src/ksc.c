@@ -26,6 +26,14 @@
 #include "crc32.h"
 #include "ksc.h"
 
+//#define DEBUG_KSC_ASYNC
+
+#ifdef DEBUG_KSC_ASYNC
+#define LOG_DEBUG_ASYNC LOG_DEBUG
+#else // DEBUG_KSC_ASYNC
+#define LOG_DEBUG_ASYNC(fmt, ...) do {} while(false)
+#endif // DEBUG_KSC_ASYNC
+
 #define ALIGNED ____cacheline_aligned
 
 #define CACHE_KEY_MASK 0b11111111
@@ -132,7 +140,7 @@ out:
 
   kfree_rcu(change, rcu);
 
-  LOG_DEBUG(change->packet_id, "async work complete");
+  LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
 }
 
 static void ksc_async_forget(struct work_struct *work)
@@ -151,7 +159,7 @@ static void ksc_async_forget(struct work_struct *work)
 
   kfree_rcu(change, rcu);
 
-  LOG_DEBUG(change->packet_id, "async work complete");
+  LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
 }
 
 static void ksc_async_update_all(struct work_struct *work)
@@ -181,7 +189,7 @@ static void ksc_async_update_all(struct work_struct *work)
 
   kfree_rcu(change, rcu);
 
-  LOG_DEBUG(change->packet_id, "async work complete");
+  LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
 }
 
 static void ksc_async_update_seq(struct work_struct *work)
@@ -203,7 +211,7 @@ static void ksc_async_update_seq(struct work_struct *work)
 
   kfree_rcu(change, rcu);
 
-  LOG_DEBUG(change->packet_id, "async work complete");
+  LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
 }
 
 static void ksc_async_update_age(struct work_struct *work)
@@ -223,7 +231,7 @@ static void ksc_async_update_age(struct work_struct *work)
 
   kfree_rcu(change, rcu);
 
-  LOG_DEBUG(change->packet_id, "async work complete");
+  LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
 }
 
 static void ksc_async_clearcache(struct work_struct *work)
@@ -234,7 +242,7 @@ static void ksc_async_clearcache(struct work_struct *work)
 
   kfree_rcu(change, rcu);
 
-  LOG_DEBUG(change->packet_id, "async work complete");
+  LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
 }
 
 ////////////////////////
@@ -324,7 +332,7 @@ void ksc_forget(const unsigned long i_ino, const uint32_t packet_id)
     return;
   }
 
-  LOG_DEBUG(packet_id, "queuing async call to forget entry for INO %lu", i_ino);
+  LOG_DEBUG_ASYNC(packet_id, "queuing async call to forget entry for INO %lu", i_ino);
 
   new_work->packet_id = packet_id;
   new_work->i_ino = i_ino;
@@ -387,7 +395,7 @@ void ksc_remember(const unsigned long i_ino, const uint32_t sequence, const pid_
     return;
   }
 
-  LOG_DEBUG(packet_id, "queueing async call to remember entry INO %lu PID %d SEQ %u PATH %s", i_ino, pid, sequence, path);
+  LOG_DEBUG_ASYNC(packet_id, "queueing async call to remember entry INO %lu PID %d SEQ %u PATH %s", i_ino, pid, sequence, path);
 
   new_work->packet_id = packet_id;
   new_work->i_ino = i_ino;
@@ -424,7 +432,7 @@ void ksc_update_all(const unsigned long i_ino, const uint32_t sequence, const pi
     return;
   }
 
-  LOG_DEBUG(packet_id, "queueing async call to update_all for INO %lu", i_ino);
+  LOG_DEBUG_ASYNC(packet_id, "queueing async call to update_all for INO %lu", i_ino);
 
   new_work->packet_id = packet_id;
   new_work->i_ino = i_ino;
@@ -461,7 +469,7 @@ void ksc_update_seq(const unsigned long i_ino, const uint32_t sequence, const ui
     return;
   }
 
-  LOG_DEBUG(packet_id, "queueing async call to update_seq for INO %lu", i_ino);
+  LOG_DEBUG_ASYNC(packet_id, "queueing async call to update_seq for INO %lu", i_ino);
 
   new_work->packet_id = packet_id;
   new_work->i_ino = i_ino;
@@ -495,7 +503,7 @@ void ksc_update_age(const unsigned long i_ino, const uint32_t packet_id)
     return;
   }
 
-  LOG_DEBUG(packet_id, "queueing async call to update_age INO %lu", i_ino);
+  LOG_DEBUG_ASYNC(packet_id, "queueing async call to update_age INO %lu", i_ino);
 
   new_work->packet_id = packet_id;
   new_work->i_ino = i_ino;

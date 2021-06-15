@@ -37,105 +37,110 @@
 
 ////////////////////
 
-#define ENL_NAME "eftirlit"
-#define ENL_VERSION 1
+#define E7X_NAME(x)       const char * ENL_NAME = #x;
+#define E7X_VERSION(x)    const int ENL_VERSION = x;
+#define E7X_COMM(x)
+#define E7X_ATTR(x, t)
+  #include "e7_netlink.x"
+#undef E7X_NAME
+#undef E7X_VERSION
+#undef E7X_COMM
+#undef E7X_ATTR
 
-// <created> = auto | manual
-// <state> = enable | disable
-// <criteria> = [process] [protocol] [device] [user] [group]
-// <action> = (allow | block) [log | nolog]
-// LOG u->m = <state> | query
-// LOG u<-m = <state>
-// MODE u->m = <state> | query | hello | bye
-// MODE u<-m = <state> | bye
-// RULE u->m = ( <criteria> | <cxtid> ) <action> [<state> | remove]
-// RULES u->m = query | clear
-// RULES u<-m = <criteria> <cxtid> <created> <action> <state>
-// EVENT u<-m = <criteria> <cxtid>
-
-// command enumeration
+// command enumeration (command 0 is not supported in netlink)
 enum {
   ENL_COMM_UNSUPP,
-  ENL_COMM_ECHO, // removeme: old demo code
-  ENL_COMM_LOG,
-  ENL_COMM_MODE,
-  ENL_COMM_RULE,
-  ENL_COMM_RULES,
-  ENL_COMM_EVENT,
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_COMM(x)     x,
+  #define E7X_ATTR(x, t)
+  #include "e7_netlink.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_COMM
+  #undef E7X_ATTR
   __ENL_COMM_MAX,
 };
 #define ENL_COMM_MAX (__ENL_COMM_MAX-1)
 
-// attribute enumeration
+// attribute enumeration (attribute 0 is not supported in netlink)
 enum {
   ENL_ATTR_UNSUPP,
-  ENL_ATTR_ECHOBODY, // removeme: old demo code
-  ENL_ATTR_ECHONESTED, // removeme: old demo code
-  ENL_ATTR_RULENESTED,
-  // <state>
-  ENL_ATTR_ENABLE,
-  ENL_ATTR_DISABLE,
-  ENL_ATTR_AUTO,
-  ENL_ATTR_MANUAL,
-  // <criteria>
-  ENL_ATTR_CONTEXT_ID,
-  ENL_ATTR_PROCESS_ID,
-  ENL_ATTR_PROTOCOL_ID,
-  ENL_ATTR_USER_ID,
-  ENL_ATTR_GROUP_ID,
-  ENL_ATTR_PROCESS_STR,
-  ENL_ATTR_DEVICE_STR,
-  // <action>
-  ENL_ATTR_ALLOW,
-  ENL_ATTR_BLOCK,
-  ENL_ATTR_LOG,
-  ENL_ATTR_NOLOG,
-  // misc
-  ENL_ATTR_REMOVE,
-  ENL_ATTR_QUERY,
-  ENL_ATTR_CLEAR,
-  ENL_ATTR_HELLO,
-  ENL_ATTR_BYE,
-  //
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_COMM(x)
+  #define E7X_ATTR(x, t)  x,
+  #include "e7_netlink.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_COMM
+  #undef E7X_ATTR
   __ENL_ATTR_MAX,
 };
 #define ENL_ATTR_MAX (__ENL_ATTR_MAX-1)
 
-// attribute policies and types
+// attribute policies and types (attribute 0 is not supported in netlink)
 static struct nla_policy enl_policy[] = {
-  /*UNSUPP*/ {},
-  /*ECHOBODY*/ { .type = NLA_NUL_STRING }, // removeme: old demo code
-  /*ECHONESTED*/ { .type = NLA_NESTED }, // removeme: old demo code
-  /*RULENESTED*/ { .type = NLA_NESTED },
-  //
-  /*ENABLE*/ { .type = NLA_FLAG },
-  /*DISABLE*/ { .type = NLA_FLAG },
-  /*AUTO*/ { .type = NLA_FLAG },
-  /*MANUAL*/ { .type = NLA_FLAG },
-  //
-  /*CONTEXT_ID*/ { .type = NLA_U32 },
-  /*PROCESS_ID*/ { .type = NLA_U32 },
-  /*PROTOCOL_ID*/ { .type = NLA_U32 },
-  /*USER_ID*/ { .type = NLA_U32 },
-  /*GROUP_ID*/ { .type = NLA_U32 },
-  /*PROCESS_STR*/ { .type = NLA_NUL_STRING }, // .len sets max size?
-  /*DEVICE_STR*/ { .type = NLA_NUL_STRING }, // .len sets max size?
-  //
-  /*ALLOW*/ { .type = NLA_FLAG },
-  /*BLOCK*/ { .type = NLA_FLAG },
-  /*LOG*/ { .type = NLA_FLAG },
-  /*NOLOG*/ { .type = NLA_FLAG },
-  //
-  /*REMOVE*/ { .type = NLA_FLAG },
-  /*QUERY*/ { .type = NLA_U32 }, // u32 is a queryid for later NF_QUEUE integration
-  /*CLEAR*/ { .type = NLA_FLAG },
-  /*HELLO*/ { .type = NLA_FLAG },
-  /*BYE*/ { .type = NLA_FLAG },
+  /*ENL_ATTR_UNSUPP*/ { },
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_COMM(x)
+  #define E7X_ATTR(x, t)  { .type = t },
+  #include "e7_netlink.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_COMM
+  #undef E7X_ATTR
 };
+
+// command names (command 0 is not supported in netlink)
+static const char * enl_comm_name[] = {
+  "ENL_COMM_UNSUPP",
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_COMM(x)     #x ,
+  #define E7X_ATTR(x, t)
+  #include "e7_netlink.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_COMM
+  #undef E7X_ATTR
+};
+
+// attribute names (attribute 0 is not supported in netlink)
+static const char * enl_attr_name[] = {
+  "ENL_ATTR_UNSUPP" ,
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_COMM(x)
+  #define E7X_ATTR(x, t)  #x ,
+  #include "e7_netlink.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_COMM
+  #undef E7X_ATTR
+};
+
+//////////////////
+
+#define DEBUG_ENL_PROTOCOL
+//#define DEBUG_ENL_ASYNC
 
 // make all communic with userspace async via workq for packet storm protection
 // review: ovbious latency issues with hi priority messages
 #define ENL_ASYNC_SEND 1
+
+#ifdef DEBUG_ENL_PROTOCOL
+#define LOG_DEBUG_PROTO LOG_DEBUG
+#else // DEBUG_ENL_PROTOCOL
+#define LOG_DEBUG_PROTO(fmt, ...) do {} while(false)
+#endif // DEBUG_ENL_PROTOCOL
+
+#ifdef DEBUG_ENL_ASYNC
+#define LOG_DEBUG_ASYNC LOG_DEBUG
+#else // DEBUG_ENL_ASYNC
+#define LOG_DEBUG_ASYNC(fmt, ...) do {} while(false)
+#endif // DEBUG_ENL_ASYNC
 
 DEFINE_SPINLOCK(nl_lock); // protects np_port and nl_net. todo: remove somehow....
 
@@ -194,11 +199,11 @@ static void enl__wq_send(struct work_struct *work)
 
   if(rc)
   {
-    LOG_ERR(am->stack_id, "error %d", rc);
+    LOG_ERR(am->stack_id, "async enqueue error %d", rc);
   }
   else
   {
-    LOG_DEBUG(am->stack_id, "async work complete");
+    LOG_DEBUG_ASYNC(am->stack_id, "async work complete");
   }
 
   kfree_rcu(am, rcu);
@@ -283,7 +288,7 @@ static bool enl__send(struct MSGSTATE * ms, const uint32_t stack_id)
       goto fail;
     }
 
-    LOG_DEBUG(stack_id, "queueing async call");
+    LOG_DEBUG_ASYNC(stack_id, "queueing async call");
 
     am->stack_id = stack_id;
     am->port = port;
@@ -392,7 +397,8 @@ int enl_send_event_query(const char * process, const char * device, bool allowed
   if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_PROCESS_STR, process))) goto fail;
   if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_DEVICE_STR, device))) goto fail;
   if(0>(ms.err=nla_put_flag(ms.msg, allowed ? ENL_ATTR_ALLOW : ENL_ATTR_BLOCK))) goto fail;
-  if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_QUERY, queryid))) goto fail;
+  if(0>(ms.err=nla_put_flag(ms.msg, ENL_ATTR_QUERY))) goto fail;
+  if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_CONTEXT_ID, queryid))) goto fail;
   if(!enl__send(&ms, stack_id)) goto fail;
 
   return ms.err;
@@ -547,7 +553,7 @@ static int enl__comm_log(struct sk_buff *skb_in, struct genl_info *info)
 {
   uint32_t stack_id = enl__stackid();
 
-  LOG_DEBUG(stack_id, "start");
+  LOG_DEBUG_PROTO(stack_id, "%s", enl_comm_name[ENL_COMM_LOG]);
 
   if(!netlink_capable(skb_in, CAP_NET_ADMIN))
   {
@@ -557,34 +563,37 @@ static int enl__comm_log(struct sk_buff *skb_in, struct genl_info *info)
 
   if (info->attrs[ENL_ATTR_ENABLE] && nl_rfns)
   {
+    LOG_DEBUG_PROTO(stack_id, "%s", enl_attr_name[ENL_ATTR_ENABLE]);
+
     nl_rfns->flag_set(DOUANE_ENABLE_LKM_DEBUG, 1, stack_id);
-    LOG_DEBUG(stack_id, "logging enabled");
   }
   if (info->attrs[ENL_ATTR_DISABLE] && nl_rfns)
   {
+    LOG_DEBUG_PROTO(stack_id, "%s", enl_attr_name[ENL_ATTR_DISABLE]);
+
     nl_rfns->flag_set(DOUANE_ENABLE_LKM_DEBUG, 0, stack_id);
-    LOG_DEBUG(stack_id, "logging disabled");
   }
 
   if (info->attrs[ENL_ATTR_QUERY])
   {
     struct MSGSTATE ms = { 0, 0, 0 };
     int logging = 0;
-    nl_rfns->flag_get(DOUANE_ENABLE_LKM_DEBUG, &logging, stack_id);
 
-    LOG_DEBUG(stack_id, "ENL_ATTR_QUERY");
+    LOG_DEBUG_PROTO(stack_id, "%s start", enl_attr_name[ENL_ATTR_QUERY]);
+
+    nl_rfns->flag_get(DOUANE_ENABLE_LKM_DEBUG, &logging, stack_id);
 
     do {
       if(!enl__prep(&ms, ENL_COMM_LOG)) goto failquery;
       if(0>(ms.err=nla_put_flag(ms.msg, logging ? ENL_ATTR_ENABLE : ENL_ATTR_DISABLE))) goto failquery;
       if(!enl__send(&ms, stack_id)) goto failquery;
 
-      LOG_DEBUG(stack_id, "ENL_ATTR_QUERY complete");
+      LOG_DEBUG_PROTO(stack_id, "%s complete", enl_attr_name[ENL_ATTR_QUERY]);
       break;
 
-  failquery:
+failquery:
       enl__checked_free(&ms);
-      LOG_ERR(stack_id, "ENL_ATTR_QUERY error %d", ms.err);
+      LOG_ERR(stack_id, "%s error %d", enl_attr_name[ENL_ATTR_QUERY], ms.err);
     } while(false);
   }
 
@@ -595,8 +604,12 @@ static int enl__comm_mode(struct sk_buff *skb_in, struct genl_info *info)
 {
   uint32_t stack_id = enl__stackid();
 
+  LOG_DEBUG_PROTO(stack_id, "%s", enl_comm_name[ENL_COMM_MODE]);
+
   if (info->attrs[ENL_ATTR_HELLO])
   {
+    LOG_DEBUG_PROTO(stack_id, "%s", enl_attr_name[ENL_ATTR_HELLO]);
+
     spin_lock(&nl_lock);
     nl_port = info->snd_portid;
     nl_net = genl_info_net(info);
@@ -605,37 +618,42 @@ static int enl__comm_mode(struct sk_buff *skb_in, struct genl_info *info)
   }
   if (info->attrs[ENL_ATTR_ENABLE] && nl_rfns)
   {
+    LOG_DEBUG_PROTO(stack_id, "%s", enl_attr_name[ENL_ATTR_ENABLE]);
+
     nl_rfns->flag_set(DOUANE_EARLY_ACTION, -1, stack_id); // -1 == IGNORED
-    LOG_INFO(stack_id, "filtering enabled"); // keep as info
   }
   if (info->attrs[ENL_ATTR_DISABLE] && nl_rfns)
   {
+    LOG_DEBUG_PROTO(stack_id, "%s", enl_attr_name[ENL_ATTR_DISABLE]);
+
     nl_rfns->flag_set(DOUANE_EARLY_ACTION, NF_ACCEPT, stack_id); // NF_ACCEPT == DISABLE
-    LOG_INFO(stack_id, "filtering disabled"); // keep as info
   }
   if (info->attrs[ENL_ATTR_QUERY] && nl_rfns)
   {
     struct MSGSTATE ms = { 0, 0, 0 };
-    int enable = 0;
-    nl_rfns->flag_get(DOUANE_EARLY_ACTION, &enable, stack_id);
+    int early_action = 0;
 
-    LOG_DEBUG(stack_id, "ENL_ATTR_QUERY");
+    LOG_DEBUG_PROTO(stack_id, "%s start", enl_attr_name[ENL_ATTR_QUERY]);
+
+    nl_rfns->flag_get(DOUANE_EARLY_ACTION, &early_action, stack_id);
 
     do {
       if(!enl__prep(&ms, ENL_COMM_MODE)) goto failquery;
-      if(0>(ms.err=nla_put_flag(ms.msg, enable ? ENL_ATTR_ENABLE : ENL_ATTR_DISABLE))) goto failquery;
+      if(0>(ms.err=nla_put_flag(ms.msg, (early_action == NF_ACCEPT) ? ENL_ATTR_DISABLE : ENL_ATTR_ENABLE))) goto failquery;
       if(!enl__send(&ms, stack_id)) goto failquery;
 
-      LOG_DEBUG(stack_id, "ENL_ATTR_QUERY complete");
+      LOG_DEBUG_PROTO(stack_id, "%s complete", enl_attr_name[ENL_ATTR_QUERY]);
       break;
 
 failquery:
       enl__checked_free(&ms);
-      LOG_ERR(stack_id, "ENL_ATTR_QUERY error %d", ms.err);
+      LOG_ERR(stack_id, "%s error %d", enl_attr_name[ENL_ATTR_QUERY], ms.err);
     } while(false);
   }
   if (info->attrs[ENL_ATTR_BYE])
   {
+    LOG_DEBUG_PROTO(stack_id, "%s", enl_attr_name[ENL_ATTR_BYE]);
+
     spin_lock(&nl_lock);
     nl_port = 0;
     nl_net = 0;
@@ -650,7 +668,7 @@ static int enl__comm_rule(struct sk_buff *skb_in, struct genl_info *info)
 {
   uint32_t stack_id = enl__stackid();
 
-  LOG_DEBUG(stack_id, "start");
+  LOG_DEBUG_PROTO(stack_id, "%s", enl_comm_name[ENL_COMM_RULE]);
 
   if(!netlink_capable(skb_in, CAP_NET_ADMIN))
   {
@@ -659,6 +677,7 @@ static int enl__comm_rule(struct sk_buff *skb_in, struct genl_info *info)
   }
 
   // model after enl__comm_echo ?
+  //LOG_DEBUG_PROTO(stack_id, "%s", enl_attr_name[ENL_ATTR_BYE]);
 
   {
     uint32_t u32proc = 0, u32prot = 0, u32user = 0, u32group = 0;
@@ -697,7 +716,7 @@ static int enl__comm_rules(struct sk_buff *skb_in, struct genl_info *info)
 {
   uint32_t stack_id = enl__stackid();
 
-  LOG_DEBUG(stack_id, "start");
+  LOG_DEBUG_PROTO(stack_id, "%s", enl_comm_name[ENL_COMM_RULES]);
 
   if(!netlink_capable(skb_in, CAP_NET_ADMIN))
   {
@@ -707,11 +726,15 @@ static int enl__comm_rules(struct sk_buff *skb_in, struct genl_info *info)
 
   if (info->attrs[ENL_ATTR_CLEAR] && nl_rfns)
   {
+    LOG_DEBUG_PROTO(stack_id, "%s", enl_attr_name[ENL_ATTR_CLEAR]);
+
     nl_rfns->rules_clear(stack_id);
   }
 
   if (info->attrs[ENL_ATTR_QUERY] && nl_rfns)
   {
+    LOG_DEBUG_PROTO(stack_id, "%s", enl_attr_name[ENL_ATTR_QUERY]);
+
     nl_rfns->rules_query(stack_id);
   }
 
@@ -731,9 +754,7 @@ struct genl_ops enl_ops[] = {
 };
 
 //family definition
-static struct genl_family enl_family __ro_after_init = {
-  .name = ENL_NAME,
-  .version = ENL_VERSION,
+static struct genl_family enl_family /*__ro_after_init*/ = {
   .hdrsize = 0,
   .maxattr = ENL_ATTR_MAX,
   .policy = enl_policy,
@@ -755,6 +776,9 @@ int enl_is_connected(void)
 int enl_init(struct enl_recvfns * rfns)
 {
   int rc;
+
+  strncpy(enl_family.name, ENL_NAME, GENL_NAMSIZ);
+  enl_family.version = ENL_VERSION;
 
   if ((rc = genl_register_family(&enl_family)) != 0)
   {

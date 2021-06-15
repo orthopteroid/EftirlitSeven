@@ -56,30 +56,28 @@
 // userspace
 // https://stackoverflow.com/questions/21601521/how-to-use-the-libnl-library-to-trigger-nl80211-commands
 
-#define ENL_NAME "eftirlit"
-#define ENL_VERSION 1
+#define E7X_NAME(x)       const char * ENL_NAME = #x;
+#define E7X_VERSION(x)    const int ENL_VERSION = x;
+#define E7X_COMM(x)
+#define E7X_ATTR(x, t)
+  #include "e7_netlink.x"
+#undef E7X_NAME
+#undef E7X_VERSION
+#undef E7X_COMM
+#undef E7X_ATTR
 
-// <state> = enable | disable
-// <criteria> = [process] [protocol] [device] [user] [group]
-// <action> = (allow | block) [log | nolog]
-// LOG u->m = <state> | query
-// LOG u<-m = <state>
-// MODE u->m = <state> | query | hello | bye
-// MODE u<-m = <state> | bye
-// RULE u->m = <criteria> <action> [<state> | remove]
-// RULES u->m = query | clear
-// RULES u<-m = <criteria> <action> <state>
-// EVENT u<-m = <criteria>
-
-// command enumeration
+// command enumeration (command 0 is not supported in netlink)
 enum {
   ENL_COMM_UNSUPP,
-  ENL_COMM_ECHO, // removeme: old demo code
-  ENL_COMM_LOG,
-  ENL_COMM_MODE,
-  ENL_COMM_RULE,
-  ENL_COMM_RULES,
-  ENL_COMM_EVENT,
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_COMM(x)     x,
+  #define E7X_ATTR(x, t)
+  #include "e7_netlink.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_COMM
+  #undef E7X_ATTR
   __ENL_COMM_MAX,
 };
 #define ENL_COMM_MAX (__ENL_COMM_MAX-1)
@@ -87,37 +85,50 @@ enum {
 // attribute enumeration
 enum {
   ENL_ATTR_UNSUPP,
-  ENL_ATTR_ECHOBODY, // removeme: old demo code
-  ENL_ATTR_ECHONESTED, // removeme: old demo code
-  ENL_ATTR_RULENESTED,
-  // <state>
-  ENL_ATTR_ENABLE,
-  ENL_ATTR_DISABLE,
-  ENL_ATTR_AUTO,
-  ENL_ATTR_MANUAL,
-  // <criteria>
-  ENL_ATTR_CONTEXT_ID,
-  ENL_ATTR_PROCESS_ID,
-  ENL_ATTR_PROTOCOL_ID,
-  ENL_ATTR_USER_ID,
-  ENL_ATTR_GROUP_ID,
-  ENL_ATTR_PROCESS_STR,
-  ENL_ATTR_DEVICE_STR,
-  // <action>
-  ENL_ATTR_ALLOW,
-  ENL_ATTR_BLOCK,
-  ENL_ATTR_LOG,
-  ENL_ATTR_NOLOG,
-  // misc
-  ENL_ATTR_REMOVE,
-  ENL_ATTR_QUERY,
-  ENL_ATTR_CLEAR,
-  ENL_ATTR_HELLO,
-  ENL_ATTR_BYE,
-  //
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_COMM(x)
+  #define E7X_ATTR(x, t)  x,
+  #include "e7_netlink.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_COMM
+  #undef E7X_ATTR
   __ENL_ATTR_MAX,
 };
 #define ENL_ATTR_MAX (__ENL_ATTR_MAX-1)
+
+// command names (command 0 is not supported in netlink)
+static const char * enl_comm_name[] = {
+  "ENL_COMM_UNSUPP",
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_COMM(x)     #x ,
+  #define E7X_ATTR(x, t)
+  #include "e7_netlink.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_COMM
+  #undef E7X_ATTR
+};
+
+// attribute names (attribute 0 is not supported in netlink)
+static const char * enl_attr_name[] = {
+  "ENL_ATTR_UNSUPP" ,
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_COMM(x)
+  #define E7X_ATTR(x, t)  #x ,
+  #include "e7_netlink.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_COMM
+  #undef E7X_ATTR
+};
+
+//////////////////
+
+//#define DEBUG_BYTES_SENT
 
 ///////////
 
@@ -157,8 +168,10 @@ static void e7_printrc(const char* cxt, int rc)
 {
   if (rc<0)
     printf("%s: %s\n",cxt,nl_geterror(rc));
+#ifdef DEBUG_BYTES_SENT
   else if (rc>0)
     printf("%s: %d bytes sent\n",cxt,rc);
+#endif // DEBUG_BYTES_SENT
 }
 
 static int e7_prep(MSGSTATE & ms, uint8_t comm) {
@@ -219,6 +232,10 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
   if(!(gnlal = genlmsg_attrlen(gnlh, 0))) { E7_LOG("!gnlal"); return 0; }
   nla_parse(attribs, ENL_ATTR_MAX, gnlad, gnlal, NULL);
 
+  printf("%s ", enl_comm_name[gnlh->cmd]);
+  for(int i=0; i<__ENL_ATTR_MAX; i++) if(attribs[i]) printf("%s ", enl_attr_name[i]);
+  printf("\n");
+
   switch(gnlh->cmd) {
   case ENL_COMM_ECHO:
     do {
@@ -228,17 +245,13 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
     } while(false);
     break;
   case ENL_COMM_LOG:
-    E7_LOG("Unrecognized log message");
     break;
   case ENL_COMM_MODE:
-    E7_LOG("ENL_COMM_MODE message");
     if(attribs[ENL_ATTR_BYE]) stop = true;
     break;
   case ENL_COMM_RULE:
-    E7_LOG("Unrecognized rule message");
     break;
   case ENL_COMM_RULES:
-    E7_LOG("Unrecognized rules message");
 /* TODO: parse nested rules
   if(info->attrs[ENL_ATTR_ECHONESTED])
   {
@@ -276,8 +289,10 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
       if(!(sz = nla_get_string(a))) { E7_LOG("!sz"); break; }
       if((a = attribs[ENL_ATTR_QUERY]))
       {
+        if(!(a = attribs[ENL_ATTR_CONTEXT_ID])) goto fail;
+
         u32 = nla_get_u32(a);
-        E7_LOG("event %s query %d", sz, u32);
+        E7_LOG("event %s cxt %d", sz, u32);
       }
       else
       {
@@ -286,6 +301,7 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
     } while(false);
     break;
   default:
+fail:
     E7_LOG("Unrecognized message");
     break;
   }
@@ -372,6 +388,31 @@ void e7_parsecmd(CMDBUF & buf)
     case crc32("bye"):
       e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_MODE, ENL_ATTR_BYE) );
       break;
+    case crc32("mode"):
+      if(buf.argc!=2) goto help;
+      switch(crc32(buf.arg[1]))
+      {
+        case crc32("enable"):
+          e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_MODE, ENL_ATTR_ENABLE) );
+          break;
+        case crc32("disable"):
+          e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_MODE, ENL_ATTR_DISABLE) );
+          break;
+        default:
+          goto help;
+      }
+      break;
+    case crc32("query"):
+      if(buf.argc!=2) goto help;
+      switch(crc32(buf.arg[1]))
+      {
+        case crc32("mode"):
+          e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_MODE, ENL_ATTR_QUERY) );
+          break;
+        default:
+          goto help;
+      }
+      break;
     case crc32("hibye"):
       e7_printrc( "e7_prep", e7_prep(ms, ENL_COMM_MODE) );
       e7_printrc( "nla_put_flag", nla_put_flag(ms.msg, ENL_ATTR_HELLO) );
@@ -404,7 +445,8 @@ void e7_parsecmd(CMDBUF & buf)
       }
       break;
     default:
-      printf("quit, hi, by, hibye, echo, echolist\n");
+help:
+      printf("quit, hi, by, hibye, echo, echolist, mode ( enable | disable ), query mode\n");
   }
 }
 
@@ -456,7 +498,7 @@ int main(void)
   e7_printrc( "genl_connect", rc = genl_connect(nl_sk) );
   assert(rc>-1);
 
-  nl_familyid = genl_ctrl_resolve(nl_sk, "eftirlit");
+  nl_familyid = genl_ctrl_resolve(nl_sk, ENL_NAME);
   if (nl_familyid<1) { E7_LOG("eftirlit LKM not installed"); return -1; }
 
   nl_socket_disable_seq_check(nl_sk); // for stateless support
