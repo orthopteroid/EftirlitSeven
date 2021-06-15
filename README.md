@@ -1,6 +1,13 @@
 *THIS KERNEL MODULE SHOULD BE CONSIDERED BARELY BETA - COMPILE AND USE AT YOUR OWN RISK*
 
-Development done with kernel 5.4.0-74 (ubuntu 18.04.1 x76) on an old Intel Atom 330
+Development Details:
+- kernel 5.4.0-74 (ubuntu 18.04.1 x64)
+- old Intel Atom 330 with a nice SSD
+- libnl 3.2.29+ is needed to accomodate problems with attribute nesting
+- `make_e7d` builds the C++11 daemon, `make` will build the LKM on unsecure kernels
+- `make dkms` builds the LKM on secure kernels but if debugfs support is missing kernel log output is limited
+- launch LKM for a test run with `./test` or `./test-dkms`. NB: these command clobber your kernel.log
+- additional component debugging supported. `grep "define DEBUG_" src/*.c` for details.
 
 # EftirlitSeven
 
@@ -32,9 +39,11 @@ Douane has been written initally to use basic netlink with a binary struct to co
 
 E7 uses generic netlink and the attendant command, attribute and policy enumeration machinery to define the communications schema. Benefits of using a generic netlink system and schema include typed attributes, command privilege levels and multicast subscribers.
 
+E7 also uses X-Macro tricks to place all generic netlink protocol particulars into the single file E7_netlink.x so it stays synchronized between the LKM and the daemon.
+
 ## Console daemon
 
-In E7 the control daemon is a console app with streamlined use of epoll to handle singals, netlink and stdin commands.
+In E7 the control daemon is a console app with streamlined use of epoll to handle singals, netlink and stdin commands. The daemon also uses some command-string parsing tricks (C++11 constexpr string hash calculation) that hopefully aren't too clever.
 
 ## Stats tracker
 
