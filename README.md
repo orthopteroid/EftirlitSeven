@@ -1,8 +1,7 @@
 *THIS KERNEL MODULE SHOULD BE CONSIDERED BARELY BETA - COMPILE AND USE AT YOUR OWN RISK*
 
 Development Details:
-- kernel 5.4.0-74 (ubuntu 18.04.1 x64)
-- old Intel Atom 330 with a nice SSD
+- kernel 5.4.0-74 (ubuntu 18.04.1 x64) on a friendly old ssd-assisted Intel Atom 330 (dual cpu with HT)
 - libnl 3.2.29+ is needed to accomodate problems with attribute nesting
 - `make_e7d` builds the C++11 daemon, `make` will build the LKM on unsecure kernels
 - `make dkms` builds the LKM on secure kernels but if debugfs support is missing kernel log output is limited
