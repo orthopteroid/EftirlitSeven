@@ -6,7 +6,7 @@ Development Details:
 - libnl 3.2.29+ is needed to accomodate problems with attribute nesting
 - `make_e7d` builds the C++11 daemon, `make` will build the LKM on unsecure kernels
 - `make dkms` builds the LKM on secure kernels but if debugfs support is missing kernel log output is limited
-- launch LKM for a test run with `./test` or `./test-dkms`. NB: these command clobber your kernel.log
+- launch LKM for a test run with `./test` or `./test-dkms`. NB: these commands clobber your kernel.log
 - additional component debugging supported. `grep "define DEBUG_" src/*.c` for details.
 
 # EftirlitSeven
