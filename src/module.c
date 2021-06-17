@@ -28,6 +28,7 @@
 #include "asc.h"
 #include "rules.h"
 #include "netlink.h"
+#include "flags.h"
 
 #include "prot_udp.h"
 #include "prot_tcp.h"
@@ -106,6 +107,12 @@ static int __init mod_init(void)
   }
 #endif
 
+  if (flag_init() < 0)
+  {
+    LOG_ERR(0, "flag_init failed");
+    return -1;
+  }
+
   if (ksc_init() < 0)
   {
     LOG_ERR(0, "ksc_init failed");
@@ -149,7 +156,7 @@ module_init(mod_init);
 static void __exit mod_exit(void)
 {
   // calls that are async or rely on rcu
-  enl_send_bye(0);
+  enl_send_disconnect(0);
 
   // set flag and wait until all rcu/softirq processing is done
   // synchronize_rcu waits for a grace period and rcu_barrier waits for all callbacks to complete
@@ -167,6 +174,7 @@ static void __exit mod_exit(void)
 
   ksc_exit();
   asc_exit();
+  flag_exit();
 
   LOG_INFO(0, "module unloaded");
 }

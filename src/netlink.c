@@ -34,29 +34,71 @@
 #include "douane.h"
 #include "rules.h"
 #include "netlink.h"
+#include "flags.h"
 
 ////////////////////
 
 #define E7X_NAME(x)       const char * ENL_NAME = #x;
 #define E7X_VERSION(x)    const int ENL_VERSION = x;
+#define E7X_CONST(x)
+#define E7X_FLAG(x)
 #define E7X_COMM(x)
 #define E7X_ATTR(x, t)
   #include "e7_netlink.x"
 #undef E7X_NAME
 #undef E7X_VERSION
+#undef E7X_CONST
+#undef E7X_FLAG
 #undef E7X_COMM
 #undef E7X_ATTR
+
+// const enumeration
+enum {
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_CONST(x)  x,
+  #define E7X_FLAG(x)
+  #define E7X_COMM(x)
+  #define E7X_ATTR(x, t)
+  #include "e7_netlink.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_CONST
+  #undef E7X_FLAG
+  #undef E7X_COMM
+  #undef E7X_ATTR
+};
+
+static const char * enl_state_name[] = {
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_CONST(x)  #x ,
+  #define E7X_FLAG(x)
+  #define E7X_COMM(x)
+  #define E7X_ATTR(x, t)
+  #include "e7_netlink.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_CONST
+  #undef E7X_FLAG
+  #undef E7X_COMM
+  #undef E7X_ATTR
+};
 
 // command enumeration (command 0 is not supported in netlink)
 enum {
   ENL_COMM_UNSUPP,
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
+  #define E7X_CONST(x)
+  #define E7X_FLAG(x)
   #define E7X_COMM(x)     x,
   #define E7X_ATTR(x, t)
   #include "e7_netlink.x"
   #undef E7X_NAME
   #undef E7X_VERSION
+  #undef E7X_CONST
+  #undef E7X_FLAG
   #undef E7X_COMM
   #undef E7X_ATTR
   __ENL_COMM_MAX,
@@ -68,11 +110,15 @@ enum {
   ENL_ATTR_UNSUPP,
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
+  #define E7X_CONST(x)
+  #define E7X_FLAG(x)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)  x,
   #include "e7_netlink.x"
   #undef E7X_NAME
   #undef E7X_VERSION
+  #undef E7X_CONST
+  #undef E7X_FLAG
   #undef E7X_COMM
   #undef E7X_ATTR
   __ENL_ATTR_MAX,
@@ -84,11 +130,15 @@ static struct nla_policy enl_policy[] = {
   /*ENL_ATTR_UNSUPP*/ { },
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
+  #define E7X_CONST(x)
+  #define E7X_FLAG(x)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)  { .type = t },
   #include "e7_netlink.x"
   #undef E7X_NAME
   #undef E7X_VERSION
+  #undef E7X_CONST
+  #undef E7X_FLAG
   #undef E7X_COMM
   #undef E7X_ATTR
 };
@@ -98,11 +148,15 @@ static const char * enl_comm_name[] = {
   "ENL_COMM_UNSUPP",
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
+  #define E7X_CONST(x)
+  #define E7X_FLAG(x)
   #define E7X_COMM(x)     #x ,
   #define E7X_ATTR(x, t)
   #include "e7_netlink.x"
   #undef E7X_NAME
   #undef E7X_VERSION
+  #undef E7X_CONST
+  #undef E7X_FLAG
   #undef E7X_COMM
   #undef E7X_ATTR
 };
@@ -112,11 +166,15 @@ static const char * enl_attr_name[] = {
   "ENL_ATTR_UNSUPP" ,
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
+  #define E7X_CONST(x)
+  #define E7X_FLAG(x)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)  #x ,
   #include "e7_netlink.x"
   #undef E7X_NAME
   #undef E7X_VERSION
+  #undef E7X_CONST
+  #undef E7X_FLAG
   #undef E7X_COMM
   #undef E7X_ATTR
 };
@@ -353,12 +411,11 @@ fail:
 
 /////////////////
 
-int enl_send_bye(const uint32_t stack_id)
+int enl_send_disconnect(const uint32_t stack_id)
 {
   struct MSGSTATE ms = { 0, 0, 0 };
 
-  if(!enl__prep(&ms, ENL_COMM_MODE)) goto fail;
-  if(0>(ms.err=nla_put_flag(ms.msg, ENL_ATTR_BYE))) goto fail;
+  if(!enl__prep(&ms, ENL_COMM_DISCONNECT)) goto fail;
   if(!enl__send(&ms, stack_id)) goto fail;
 
   return ms.err;
@@ -370,35 +427,14 @@ fail:
   return ms.err;
 }
 
-int enl_send_event(const char * process, const char * device, bool allowed, const uint32_t stack_id)
-{
-  struct MSGSTATE ms = { 0, 0, 0 };
-
-  if(!enl__prep(&ms, ENL_COMM_EVENT)) goto fail;
-  if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_PROCESS_STR, process))) goto fail;
-  if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_DEVICE_STR, device))) goto fail;
-  if(0>(ms.err=nla_put_flag(ms.msg, allowed ? ENL_ATTR_ALLOW : ENL_ATTR_BLOCK))) goto fail;
-  if(!enl__send(&ms, stack_id)) goto fail;
-
-  return ms.err;
-
-fail:
-  enl__checked_free(&ms);
-
-  LOG_ERR(stack_id, "error %d", ms.err);
-  return ms.err;
-}
-
-int enl_send_event_query(const char * process, const char * device, bool allowed, uint32_t queryid, const uint32_t stack_id)
+int enl_send_event(uint32_t state, uint32_t prot, const char * path, const uint32_t stack_id)
 {
   struct MSGSTATE ms = { 0, 0, 0 };
 
   if(!enl__prep(&ms, ENL_COMM_EVENT)) goto fail;
-  if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_PROCESS_STR, process))) goto fail;
-  if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_DEVICE_STR, device))) goto fail;
-  if(0>(ms.err=nla_put_flag(ms.msg, allowed ? ENL_ATTR_ALLOW : ENL_ATTR_BLOCK))) goto fail;
-  if(0>(ms.err=nla_put_flag(ms.msg, ENL_ATTR_QUERY))) goto fail;
-  if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_CONTEXT_ID, queryid))) goto fail;
+  if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_STATE, state))) goto fail;
+  if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_PROT, prot))) goto fail;
+  if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_PATH, path))) goto fail;
   if(!enl__send(&ms, stack_id)) goto fail;
 
   return ms.err;
@@ -409,24 +445,7 @@ fail:
   LOG_ERR(stack_id, "error %d", ms.err);
   return ms.err;
 }
-
-int enl_send_echo(const char * message, const uint32_t stack_id)
-{
-  struct MSGSTATE ms = { 0, 0, 0 };
-
-  if(!enl__prep(&ms, ENL_COMM_ECHO)) goto fail;
-  if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_ECHOBODY, message))) goto fail;
-  if(!enl__send(&ms, stack_id)) goto fail;
-
-  return ms.err;
-
-fail:
-  enl__checked_free(&ms);
-
-  LOG_ERR(stack_id, "error %d", ms.err);
-  return ms.err;
-}
-
+???
 int enl_send_rules(int count, const struct rule_struct * rules, const uint32_t stack_id)
 {
   struct MSGSTATE ms = { 0, 0, 0 };
@@ -492,6 +511,216 @@ fail:
 
 ////////////////////
 
+static int enl__comm_disconnect(struct sk_buff *skb_in, struct genl_info *info)
+{
+  uint32_t stack_id = enl__stackid();
+
+  LOG_DEBUG_PROTO(stack_id, "%s", enl_comm_name[ENL_COMM_DISCONNECT]);
+
+  enl__connect(NULL, 0);
+  LOG_DEBUG(stack_id, "daemon disconnected");
+
+  return 0;
+}
+
+static int enl__comm_block(struct sk_buff *skb_in, struct genl_info *info)
+{
+  uint32_t stack_id = enl__stackid();
+  const char * szerror = NULL;
+  bool connected = enl_is_connected();
+
+  LOG_DEBUG_PROTO(stack_id, "%s", enl_comm_name[ENL_COMM_BLOCK]);
+
+  if(!netlink_capable(skb_in, CAP_NET_ADMIN)) { LOG_ERR(stack_id, "rejected from unprivileged process"); return 0; }
+
+  // todo: check for connection theft
+  enl__connect(genl_info_net(info), info->snd_portid);
+  if(!connected) LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
+
+  do {
+ } while(false);
+
+  if(szerror) LOG_ERR(stack_id, szerror);
+  return 0;
+}
+
+static int enl__comm_allow(struct sk_buff *skb_in, struct genl_info *info)
+{
+  uint32_t stack_id = enl__stackid();
+  const char * szerror = NULL;
+
+  LOG_DEBUG_PROTO(stack_id, "%s", enl_comm_name[ENL_COMM_ALLOW]);
+
+  if(!netlink_capable(skb_in, CAP_NET_ADMIN)) { LOG_ERR(stack_id, "rejected from unprivileged process"); return 0; }
+
+  // todo: check for connection theft
+  enl__connect(genl_info_net(info), info->snd_portid);
+  if(!connected) LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
+
+  do {
+  } while(false);
+
+  if(szerror) LOG_ERR(stack_id, szerror);
+  return 0;
+}
+
+static int enl__comm_query(struct sk_buff *skb_in, struct genl_info *info)
+{
+  uint32_t stack_id = enl__stackid();
+  struct MSGSTATE ms = { 0, 0, 0 };
+  struct nlattrptr_stack_rcu * stack = 0;
+  int count, i, j;
+  uint32_t state = 0;
+  const char * test[] = { "one", "two", "three" };
+  const char * testB[] = { "oneB", "twoB", "threeB" };
+  const char * testA[] = { "oneA", "twoA", "threeA" };
+  const char * testP[] = { "oneP", "twoP", "threeP" };
+
+  LOG_DEBUG_PROTO(stack_id, "%s", enl_comm_name[ENL_COMM_QUERY]);
+
+  // todo: check for connection theft
+  enl__connect(genl_info_net(info), info->snd_portid);
+  if(!connected) LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
+
+  if(!attribs[ENL_ATTR_STATE])
+  {
+    // no args queries main fw state
+    switch(flags_value[E7F_MODE])
+    {
+      case NF_ACCEPT: state = ENL_CONST_DISABLED; break;
+      case NF_BLOCK: state = ENL_CONST_LOCKDOWN; break;
+      case NF_IGNORE: state = ENL_CONST_ENABLED; break;
+      default: state = ENL_CONST_ERROR;
+    }
+    if(!enl__prep(&ms, ENL_COMM_QUERY)) goto fail;
+    if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_STATE, state))) goto fail;
+    if(!enl__send(&ms, stack_id)) goto fail;
+  }
+  else
+  {
+    // with an arg, queries a particular list
+    if(a = attribs[ENL_ATTR_STATE]) state = nla_get_u32(a);
+
+    test = 0;
+    switch(state)
+    {
+      case ENL_CONST_BLOCK:    test = testB; break;
+      case ENL_CONST_ALLOW:    test = testA; break;
+      case ENL_CONST_PENDING:  test = testP; break;
+      default:
+        if(!enl__prep(&ms, ENL_COMM_QUERY)) goto fail;
+        if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_STATE, ENL_CONST_ERROR))) goto fail;
+        if(!enl__send(&ms, stack_id)) goto fail;
+    }
+
+    if(test)
+    {
+      stack = kzalloc(sizeof(struct nlattrptr_stack_rcu) + sizeof(struct nlattr *) * count, GFP_ATOMIC );
+      if(stack == NULL) { ms.err=-1; goto fail; }
+
+      if(!enl__prep(&ms, ENL_COMM_QUERY)) goto fail;
+      for(i=0; i<count; i++)
+      {
+        stack->a[i] = nla_nest_start(ms.msg, ENL_ATTR_NESTED | NLA_F_NESTED); // | NESTED required with ubuntu libnl 3.2.29
+        if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_STATE, state))) goto fail;
+        if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_PROT, 999))) goto fail;
+        if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_PATH, (const char*) &test[i]))) goto fail;
+      }
+      for(i=0; i<count; i++) nla_nest_end(ms.msg, stack->a[ count -i -1 ]);
+      if(!enl__send(&ms, stack_id)) goto fail;
+    }
+  }
+
+  if(stack) kfree_rcu(stack, rcu);
+  LOG_DEBUG(stack_id, "complete");
+  return 0;
+
+fail:
+  if(stack) kfree_rcu(stack, rcu);
+  enl__checked_free(&ms);
+  LOG_ERR(stack_id, "error %d", ms.err);
+  return 0;
+}
+
+static int enl__comm_event(struct sk_buff *skb_in, struct genl_info *info)
+{
+  uint32_t stack_id = enl__stackid();
+  LOG_DEBUG_PROTO(stack_id, " unexpected %s", enl_comm_name[ENL_COMM_EVENT]);
+  return 0;
+}
+
+static int enl__comm_set(struct sk_buff *skb_in, struct genl_info *info)
+{
+  uint32_t stack_id = enl__stackid();
+  struct nlattr * a = NULL;
+  uint32_t u32 = 0;
+  char * sz = 0;
+
+  LOG_DEBUG_PROTO(stack_id, "%s", enl_comm_name[ENL_COMM_SET]);
+
+  if(!netlink_capable(skb_in, CAP_NET_ADMIN)) { LOG_ERR(stack_id, "rejected from unprivileged process"); return 0; }
+
+  // todo: check for connection theft
+  enl__connect(genl_info_net(info), info->snd_portid);
+  if(!connected) LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
+
+  if(a = info->attrs[ENL_ATTR_FLAG]) sz = nla_get_string(a);
+  if(a = attribs[ENL_ATTR_VALUE]) u32 = nla_get_u32(a);
+
+  LOG_DEBUG(stack_id, "set %s %u", sz ? sz : "(null)", u32);
+
+  if(-1==(flag=flag_lookup(sz))
+  {
+    LOG_ERR(stack_id, "bad flag name %s", sz);
+    return 0;
+  }
+
+  flag_value[flag] = u32;
+
+  return 0;
+}
+
+static int enl__comm_get(struct sk_buff *skb_in, struct genl_info *info)
+{
+  uint32_t stack_id = enl__stackid();
+  struct MSGSTATE ms = { 0, 0, 0 };
+  struct nlattr * a = NULL;
+  uint32_t u32 = 0;
+  char * sz = 0;
+  int flag = 0;
+
+  LOG_DEBUG_PROTO(stack_id, "%s", enl_comm_name[ENL_COMM_GET]);
+
+  // todo: check for connection theft
+  enl__connect(genl_info_net(info), info->snd_portid);
+  if(!connected) LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
+
+  if(a = info->attrs[ENL_ATTR_STR]) sz = nla_get_string(a);
+
+  LOG_DEBUG(stack_id, "get %s", sz ? sz : "(null)");
+
+  if(-1==(flag=flag_lookup(sz))
+  {
+    LOG_ERR(stack_id, "bad flag name %s", sz);
+    return 0;
+  }
+
+  if(!enl__prep(&ms, ENL_COMM_GET)) goto fail;
+  if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_FLAG, sz))) goto fail;
+  if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_VALUE, flag_value[flag]))) goto fail;
+  if(!enl__send(&ms, stack_id)) goto fail;
+
+  return 0;
+
+fail:
+  enl__checked_free(&ms);
+
+  LOG_ERR(stack_id, "error %d", ms.err);
+  return 0;
+}
+
+////////////////////
+/*
 // An echo command, receives a message, prints it and sends another message back
 static int enl__comm_echo(struct sk_buff *skb_in, struct genl_info *info)
 {
@@ -565,13 +794,13 @@ static int enl__comm_log(struct sk_buff *skb_in, struct genl_info *info)
   {
     LOG_DEBUG_PROTO(stack_id, "%s", enl_attr_name[ENL_ATTR_ENABLE]);
 
-    nl_rfns->flag_set(DOUANE_ENABLE_LKM_DEBUG, 1, stack_id);
+    nl_rfns->flag_set(E7F_DEBUG, 1, stack_id);
   }
   if (info->attrs[ENL_ATTR_DISABLE] && nl_rfns)
   {
     LOG_DEBUG_PROTO(stack_id, "%s", enl_attr_name[ENL_ATTR_DISABLE]);
 
-    nl_rfns->flag_set(DOUANE_ENABLE_LKM_DEBUG, 0, stack_id);
+    nl_rfns->flag_set(E7F_DEBUG, 0, stack_id);
   }
 
   if (info->attrs[ENL_ATTR_QUERY])
@@ -581,7 +810,7 @@ static int enl__comm_log(struct sk_buff *skb_in, struct genl_info *info)
 
     LOG_DEBUG_PROTO(stack_id, "%s start", enl_attr_name[ENL_ATTR_QUERY]);
 
-    nl_rfns->flag_get(DOUANE_ENABLE_LKM_DEBUG, &logging, stack_id);
+    nl_rfns->flag_get(E7F_DEBUG, &logging, stack_id);
 
     do {
       if(!enl__prep(&ms, ENL_COMM_LOG)) goto failquery;
@@ -620,13 +849,13 @@ static int enl__comm_mode(struct sk_buff *skb_in, struct genl_info *info)
   {
     LOG_DEBUG_PROTO(stack_id, "%s", enl_attr_name[ENL_ATTR_ENABLE]);
 
-    nl_rfns->flag_set(DOUANE_EARLY_ACTION, -1, stack_id); // -1 == IGNORED
+    nl_rfns->flag_set(E7F_MODE, -1, stack_id); // -1 == IGNORED
   }
   if (info->attrs[ENL_ATTR_DISABLE] && nl_rfns)
   {
     LOG_DEBUG_PROTO(stack_id, "%s", enl_attr_name[ENL_ATTR_DISABLE]);
 
-    nl_rfns->flag_set(DOUANE_EARLY_ACTION, NF_ACCEPT, stack_id); // NF_ACCEPT == DISABLE
+    nl_rfns->flag_set(E7F_MODE, NF_ACCEPT, stack_id); // NF_ACCEPT == DISABLE
   }
   if (info->attrs[ENL_ATTR_QUERY] && nl_rfns)
   {
@@ -635,7 +864,7 @@ static int enl__comm_mode(struct sk_buff *skb_in, struct genl_info *info)
 
     LOG_DEBUG_PROTO(stack_id, "%s start", enl_attr_name[ENL_ATTR_QUERY]);
 
-    nl_rfns->flag_get(DOUANE_EARLY_ACTION, &early_action, stack_id);
+    nl_rfns->flag_get(E7F_MODE, &early_action, stack_id);
 
     do {
       if(!enl__prep(&ms, ENL_COMM_MODE)) goto failquery;
@@ -701,11 +930,11 @@ static int enl__comm_rule(struct sk_buff *skb_in, struct genl_info *info)
     //rule.log = info->attrs[ENL_ATTR_LOG] ? true : false;
     //rule.log = info->attrs[ENL_ATTR_NOLOG] ? false : true;
 
-  /*
+
       if (info->attrs[ENL_ATTR_REMOVE])
       {
       }
-  */
+
     if(nl_rfns) nl_rfns->rule_add(&rule, stack_id);
   }
 
@@ -740,17 +969,18 @@ static int enl__comm_rules(struct sk_buff *skb_in, struct genl_info *info)
 
   return 0;
 }
-
+*/
 ///////
 
 // command/handler mapping
 struct genl_ops enl_ops[] = {
-  { .cmd = ENL_COMM_ECHO, .doit = enl__comm_echo, },
-  { .cmd = ENL_COMM_LOG, .doit = enl__comm_log, },
-  { .cmd = ENL_COMM_MODE, .doit = enl__comm_mode, .flags = GENL_ADMIN_PERM, },
-  { .cmd = ENL_COMM_RULE, .doit = enl__comm_rule, },
-  { .cmd = ENL_COMM_RULES, .doit = enl__comm_rules, },
-  { .cmd = ENL_COMM_EVENT, .doit = enl__comm_event, },
+  { .cmd = ENL_COMM_DISCONNECT, .doit = enl__comm_disconnect, },
+  { .cmd = ENL_COMM_BLOCK, .doit = enl__comm_block, .flags = GENL_ADMIN_PERM, },
+  { .cmd = ENL_COMM_ALLOW, .doit = enl__comm_allow, .flags = GENL_ADMIN_PERM, },
+  { .cmd = ENL_COMM_QUERY, .doit = enl__comm_query, },
+  { .cmd = ENL_COMM_EVENT, .doit = enl__comm_event, }, // review: needed? wrong way anyway
+  { .cmd = ENL_COMM_SET, .doit = enl__comm_set, .flags = GENL_ADMIN_PERM, },
+  { .cmd = ENL_COMM_GET, .doit = enl__comm_get, },
 };
 
 //family definition
@@ -771,6 +1001,14 @@ int enl_is_connected(void)
   spin_unlock(&nl_lock);
 
   return connected;
+}
+
+void enl__connect(struct net * net, int port)
+{
+  spin_lock(&nl_lock);
+  nl_port = port;
+  nl_net = net;
+  spin_unlock(&nl_lock);
 }
 
 int enl_init(struct enl_recvfns * rfns)

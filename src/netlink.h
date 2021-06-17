@@ -6,8 +6,7 @@
 
 struct enl_recvfns
 {
-  void(*recv_echo)(const char * message, const uint32_t stack_id);
-
+  ???
   void(*flag_set)(int flag, int value, const uint32_t stack_id);
   void(*flag_get)(int flag, int * value_out, const uint32_t stack_id);
 
@@ -16,14 +15,12 @@ struct enl_recvfns
   void(*rules_query)(const uint32_t stack_id);
 };
 
-int enl_send_echo(const char * message, const uint32_t stack_id);
-
-int enl_send_bye(const uint32_t stack_id);
-int enl_send_event(const char * process, const char * device, bool allowed, const uint32_t stack_id);
-int enl_send_event_query(const char * process, const char * device, bool allowed, uint32_t queryid, const uint32_t stack_id);
+int enl_send_disconnect(const uint32_t stack_id);
+int enl_send_event(uint32_t state, uint32_t prot, const char * path, const uint32_t stack_id);
 int enl_send_rules(int count, const struct rule_struct * rules, const uint32_t stack_id);
 
 int enl_is_connected(void);
+
 int enl_init(struct enl_recvfns * rfns);
 void enl_exit(void);
 

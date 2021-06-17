@@ -39,6 +39,7 @@ enum nf_ip_hook_priorities {
 #include "asc.h"
 #include "rules.h"
 #include "netlink.h"
+#include "flags.h"
 
 #include "prot_tcp.h"
 #include "prot_udp.h"
@@ -53,31 +54,7 @@ static struct nf_hook_ops netfilter_config = {
   .priority = NF_IP_PRI_LAST,
 };
 
-static int16_t flags[DOUANE_FLAGS_COUNT] = {
-  /*EARLY_ACTION*/ -1,
-  /*ENABLE_LKM_DEBUG*/ 1,
-  /*FAILPATH_ACTION*/ NF_ACCEPT,
-  /*UNKN_PROCESS_ACTION*/ NF_ACCEPT,
-  /*UNKN_PROTOCOL_ACTION*/ NF_ACCEPT,
-  /*RULE_QUERY_EVENTS*/ 1,
-  /*RULE_QUERY_ACTION*/ NF_ACCEPT, // todo: NF_QUEUE possibly with nf_reinject()
-  /*RULE_DROP_EVENTS*/ 0,
-  /*RULE_ACCEPT_EVENTS*/ 0,
-};
-
 ///////////////
-
-void douane_flag_set(int flag, int value, const uint32_t packet_id)
-{
-  flags[flag] = value;
-  LOG_DEBUG(packet_id, "flag %d changed to %d", flag, value);
-}
-
-void douane_flag_get(int flag, int * value_out, const uint32_t packet_id)
-{
-  *value_out = flags[flag];
-  LOG_DEBUG(packet_id, "flag %d returns to %d", flag, *value_out);
-}
 
 static char * douane__lookup_protname(const int protocol)
 {
@@ -173,7 +150,7 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
 
   get_random_bytes(&packet_id, sizeof(packet_id));
 
-  action = flags[DOUANE_EARLY_ACTION];
+  action = flags_value[E7F_MODE];
   if (douane__valid_nfaction(action))
   {
     //LOG_DEBUG(packet_id, "early filter action - %s", douane__lookup_nfaction(action)); // too chatty in log. but keep for later
@@ -188,7 +165,7 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
 
   if (skb == NULL)
   {
-    action = flags[DOUANE_EARLY_ACTION];
+    action = flags_value[E7F_MODE];
     if (douane__valid_nfaction(action))
     {
       LOG_ERR(packet_id, "socket buffer is null - %s", douane__lookup_nfaction(action));
@@ -200,7 +177,7 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
   ip_header = ip_hdr(skb);
   if (ip_header == NULL)
   {
-    action = flags[DOUANE_FAILPATH_ACTION];
+    action = flags_value[E7F_FAILPATH_ACTION];
     if (douane__valid_nfaction(action))
     {
       LOG_ERR(packet_id, "ip_header is null - %s", douane__lookup_nfaction(action));
@@ -219,7 +196,7 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
 
     if (!protocol_identified)
     {
-      action = flags[DOUANE_UNKN_PROTOCOL_ACTION];
+      action = flags_value[E7F_UNKN_PROTOCOL_ACTION];
       if (douane__valid_nfaction(action))
       {
         LOG_DEBUG(packet_id, "unhandled protocol - %s", douane__lookup_nfaction(action));
@@ -230,7 +207,7 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
 
     if (!process_identified)
     {
-      action = flags[DOUANE_UNKN_PROCESS_ACTION];
+      action = flags_value[E7F_UNKN_PROCESS_ACTION];
       if (douane__valid_nfaction(action))
       {
         LOG_DEBUG(packet_id, "unidentfied process PID %d '%s' - %s", psi.pid, psi.process_path, douane__lookup_nfaction(action));
@@ -245,13 +222,13 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
 
     if (0>rules_search(&rule, psi.process_path, packet_id))
     {
-      action = flags[DOUANE_RULE_QUERY_ACTION];
+      action = flags_value[E7F_RULE_QUERY_ACTION];
       if (douane__valid_nfaction(action))
       {
         LOG_DEBUG(packet_id, "rules_search failed for %s - %s", psi.process_path, douane__lookup_nfaction(action));
 
-        if(flags[DOUANE_RULE_QUERY_EVENTS] && enl_is_connected())
-          enl_send_event_query(psi.process_path, "", rule.allowed, 123, packet_id);
+        if(flags_value[E7F_RULE_QUERY_EVENTS] && enl_is_connected())
+          enl_send_event(ENL_CONST_PENDING, ip_header->protocol, psi.process_path, packet_id);
 
         return action;
       }
@@ -262,8 +239,8 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
     {
       LOG_DEBUG(packet_id, "allowed %s - NF_ACCEPT", psi.process_path);
 
-      if(flags[DOUANE_RULE_ACCEPT_EVENTS] && enl_is_connected())
-        enl_send_event(psi.process_path, "", rule.allowed, packet_id);
+      if(flags_value[E7F_RULE_ACCEPT_EVENTS] && enl_is_connected())
+        enl_send_event(ENL_CONST_ALLOW, ip_header->protocol, psi.process_path, packet_id);
 
       return NF_ACCEPT;
     }
@@ -271,8 +248,8 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
     {
       LOG_DEBUG(packet_id, "blocked %s - NF_DROP", psi.process_path);
 
-      if(flags[DOUANE_RULE_DROP_EVENTS] && enl_is_connected())
-        enl_send_event(psi.process_path, "", rule.allowed, packet_id);
+      if(flags_value[E7F_RULE_DROP_EVENTS] && enl_is_connected())
+        enl_send_event(ENL_CONST_BLOCK, ip_header->protocol, psi.process_path, packet_id);
 
       return NF_DROP;
     }
@@ -286,7 +263,7 @@ int douane_init(void)
   nf_register_net_hook(&init_net, &netfilter_config);
   prot_tcp_init();
 
-  LOG_INFO(0, "early filter action - %s", douane__lookup_nfaction(flags[DOUANE_EARLY_ACTION]));
+  LOG_INFO(0, "early filter action - %s", douane__lookup_nfaction(flags_value[E7F_MODE]));
 
   return 0;
 }
