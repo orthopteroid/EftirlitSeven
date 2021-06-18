@@ -22,11 +22,28 @@
 
 #include "crc32.h"
 
+// const enumeration
+enum {
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_CONST(x, y)     x,
+  #define E7X_FLAG(x, y, z)
+  #define E7X_COMM(x)
+  #define E7X_ATTR(x, t)
+  #include "e7_netlink.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_CONST
+  #undef E7X_FLAG
+  #undef E7X_COMM
+  #undef E7X_ATTR
+};
+
 uint32_t flag_value[] = {
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x)
-  #define E7X_FLAG(x)     0,
+  #define E7X_CONST(x, y)
+  #define E7X_FLAG(x, y, z)     z,
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
   #include "e7_netlink.x"
@@ -41,8 +58,8 @@ uint32_t flag_value[] = {
 const char * flag_name[] = {
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x)
-  #define E7X_FLAG(x)  #x ,
+  #define E7X_CONST(x, y)
+  #define E7X_FLAG(x, y, z)  #x ,
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
   #include "e7_netlink.x"
@@ -57,8 +74,8 @@ const char * flag_name[] = {
 uint32_t flag_hash[] = {
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x)
-  #define E7X_FLAG(x)     0,
+  #define E7X_CONST(x, y)
+  #define E7X_FLAG(x, y, z)     0,
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
   #include "e7_netlink.x"
@@ -72,18 +89,23 @@ uint32_t flag_hash[] = {
 
 int flag_lookup(const char* name)
 {
-  uint32_t h = crc32(name);
+  uint32_t h;
   int i;
-  for(i=0; i<sizeof(flag_value); i++)
+
+  if(!name) return -1;
+  h = crc32(name);
+
+  for(i=0; i<sizeof(flag_hash); i++)
     if(h==flag_hash[i]) return i;
   return -1;
 }
 
-int flag_init()
+int flag_init(void)
 {
   int i = 0;
-  for(i=0; i<sizeof(flag_value); i++)
-    flag_hash[i] = crc32(flag_name[i]);
+  for(i=0; i<sizeof(flag_hash); i++)
+    flag_hash[i] = crc32(flag_name[i]); // review: unwind optimization gave a warning
+  return 0;
 }
 
 void flag_exit(void)
