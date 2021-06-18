@@ -34,7 +34,7 @@
 #include "douane.h"
 #include "rules.h"
 #include "netlink.h"
-#include "flags.h"
+#include "defs.h"
 
 //////////////////
 

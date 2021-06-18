@@ -1,7 +1,7 @@
 // eftirlit7 (gpl3) - orthopteroid@gmail.com
 
 #include "crc32.h"
-#include "flags.h"
+#include "defs.h"
 
 #define E7X_NAME(x)       const char * ENL_NAME = #x;
 #define E7X_VERSION(x)    const int ENL_VERSION = x;
@@ -9,7 +9,7 @@
 #define E7X_FLAG(x, y, z)
 #define E7X_COMM(x)
 #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
+  #include "defs.x"
 #undef E7X_NAME
 #undef E7X_VERSION
 #undef E7X_CONST
@@ -24,7 +24,7 @@ uint32_t def_flag_value[] = {
   #define E7X_FLAG(x, y, z)     z,
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
+  #include "defs.x"
   #undef E7X_NAME
   #undef E7X_VERSION
   #undef E7X_CONST
@@ -40,7 +40,7 @@ const char * def_flag_name[] = {
   #define E7X_FLAG(x, y, z)  #x ,
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
+  #include "defs.x"
   #undef E7X_NAME
   #undef E7X_VERSION
   #undef E7X_CONST
@@ -56,7 +56,7 @@ const char * def_flag_alias[] = {
   #define E7X_FLAG(x, y, z)  #y ,
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
+  #include "defs.x"
   #undef E7X_NAME
   #undef E7X_VERSION
   #undef E7X_CONST
@@ -72,7 +72,7 @@ uint32_t def_flag_alias_hash[] = {
   #define E7X_FLAG(x, y, z)     0,
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
+  #include "defs.x"
   #undef E7X_NAME
   #undef E7X_VERSION
   #undef E7X_CONST
@@ -88,7 +88,7 @@ const char * def_const_name[] = {
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
+  #include "defs.x"
   #undef E7X_NAME
   #undef E7X_VERSION
   #undef E7X_CONST
@@ -104,7 +104,7 @@ const char * def_const_alias[] = {
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
+  #include "defs.x"
   #undef E7X_NAME
   #undef E7X_VERSION
   #undef E7X_CONST
@@ -120,7 +120,7 @@ uint32_t def_const_alias_hash[] = {
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
+  #include "defs.x"
   #undef E7X_NAME
   #undef E7X_VERSION
   #undef E7X_CONST
@@ -138,7 +138,7 @@ struct nla_policy def_policy[] = {
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)  { .type = t },
-  #include "e7_netlink.x"
+  #include "defs.x"
   #undef E7X_NAME
   #undef E7X_VERSION
   #undef E7X_CONST
@@ -156,7 +156,7 @@ const char * def_comm_name[] = {
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)     #x ,
   #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
+  #include "defs.x"
   #undef E7X_NAME
   #undef E7X_VERSION
   #undef E7X_CONST
@@ -174,7 +174,7 @@ const char * def_attrib_name[] = {
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)  #x ,
-  #include "e7_netlink.x"
+  #include "defs.x"
   #undef E7X_NAME
   #undef E7X_VERSION
   #undef E7X_CONST

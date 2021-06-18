@@ -33,7 +33,7 @@
 #include <libnl3/netlink/genl/genl.h>
 
 #include "crc32.h"
-#include "flags.h"
+#include "defs.h"
 
 // reference
 // https://github.com/torvalds/linux/blob/master/include/uapi/asm-generic/errno-base.h

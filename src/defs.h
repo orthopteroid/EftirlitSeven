@@ -1,5 +1,5 @@
-#ifndef _FLAGS_H_
-#define _FLAGS_H_
+#ifndef _DEFS_H_
+#define _DEFS_H_
 
 #ifdef __cplusplus
 
@@ -36,7 +36,7 @@ enum {
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
+  #include "defs.x"
   #undef E7X_NAME
   #undef E7X_VERSION
   #undef E7X_CONST
@@ -53,7 +53,7 @@ enum {
   #define E7X_FLAG(x, y, z)  x,
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
+  #include "defs.x"
   #undef E7X_NAME
   #undef E7X_VERSION
   #undef E7X_CONST
@@ -71,7 +71,7 @@ enum {
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)     x,
   #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
+  #include "defs.x"
   #undef E7X_NAME
   #undef E7X_VERSION
   #undef E7X_CONST
@@ -91,7 +91,7 @@ enum {
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)  x,
-  #include "e7_netlink.x"
+  #include "defs.x"
   #undef E7X_NAME
   #undef E7X_VERSION
   #undef E7X_CONST
@@ -130,4 +130,4 @@ const char* def_const_name_str(int c);
 int def_init(void);
 void def_exit(void);
 
-#endif // _FLAGS_H_
+#endif // _DEFS_H_

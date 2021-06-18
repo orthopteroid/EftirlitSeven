@@ -39,7 +39,7 @@ enum nf_ip_hook_priorities {
 #include "asc.h"
 #include "rules.h"
 #include "netlink.h"
-#include "flags.h"
+#include "defs.h"
 
 #include "prot_tcp.h"
 #include "prot_udp.h"
