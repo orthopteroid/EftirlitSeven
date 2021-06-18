@@ -33,6 +33,7 @@
 #include <libnl3/netlink/genl/genl.h>
 
 #include "crc32.h"
+#include "flags.h"
 
 // reference
 // https://github.com/torvalds/linux/blob/master/include/uapi/asm-generic/errno-base.h
@@ -55,270 +56,6 @@
 
 // userspace
 // https://stackoverflow.com/questions/21601521/how-to-use-the-libnl-library-to-trigger-nl80211-commands
-
-#define E7X_NAME(x)       const char * ENL_NAME = #x;
-#define E7X_VERSION(x)    const int ENL_VERSION = x;
-#define E7X_CONST(x, y)
-#define E7X_FLAG(x, y, z)
-#define E7X_COMM(x)
-#define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
-#undef E7X_NAME
-#undef E7X_VERSION
-#undef E7X_CONST
-#undef E7X_FLAG
-#undef E7X_COMM
-#undef E7X_ATTR
-
-static const char * enl_const_name[] = {
-  #define E7X_NAME(x)
-  #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)  #x ,
-  #define E7X_FLAG(x, y, z)
-  #define E7X_COMM(x)
-  #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
-  #undef E7X_NAME
-  #undef E7X_VERSION
-  #undef E7X_CONST
-  #undef E7X_FLAG
-  #undef E7X_COMM
-  #undef E7X_ATTR
-};
-
-static const char * enl_const_alias[] = {
-  #define E7X_NAME(x)
-  #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)  #y ,
-  #define E7X_FLAG(x, y, z)
-  #define E7X_COMM(x)
-  #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
-  #undef E7X_NAME
-  #undef E7X_VERSION
-  #undef E7X_CONST
-  #undef E7X_FLAG
-  #undef E7X_COMM
-  #undef E7X_ATTR
-};
-
-constexpr uint32_t const_aliashash[] = {
-  #define E7X_NAME(x)
-  #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)  crc32(#y),
-  #define E7X_FLAG(x, y, z)
-  #define E7X_COMM(x)
-  #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
-  #undef E7X_NAME
-  #undef E7X_VERSION
-  #undef E7X_CONST
-  #undef E7X_FLAG
-  #undef E7X_COMM
-  #undef E7X_ATTR
-};
-
-// command enumeration (command 0 is not supported in netlink)
-enum {
-  ENL_COMM_UNSUPP,
-  #define E7X_NAME(x)
-  #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
-  #define E7X_FLAG(x, y, z)
-  #define E7X_COMM(x)     x,
-  #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
-  #undef E7X_NAME
-  #undef E7X_VERSION
-  #undef E7X_CONST
-  #undef E7X_FLAG
-  #undef E7X_COMM
-  #undef E7X_ATTR
-  __ENL_COMM_MAX,
-};
-#define ENL_COMM_MAX (__ENL_COMM_MAX-1)
-
-// attribute enumeration (attribute 0 is not supported in netlink)
-enum {
-  ENL_ATTR_UNSUPP,
-  #define E7X_NAME(x)
-  #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
-  #define E7X_FLAG(x, y, z)
-  #define E7X_COMM(x)
-  #define E7X_ATTR(x, t)  x,
-  #include "e7_netlink.x"
-  #undef E7X_NAME
-  #undef E7X_VERSION
-  #undef E7X_CONST
-  #undef E7X_FLAG
-  #undef E7X_COMM
-  #undef E7X_ATTR
-  __ENL_ATTR_MAX,
-};
-#define ENL_ATTR_MAX (__ENL_ATTR_MAX-1)
-
-// attribute policies and types (attribute 0 is not supported in netlink)
-static struct nla_policy enl_policy[] = {
-  /*ENL_ATTR_UNSUPP*/ { },
-  #define E7X_NAME(x)
-  #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
-  #define E7X_FLAG(x, y, z)
-  #define E7X_COMM(x)
-  #define E7X_ATTR(x, t)  { .type = t },
-  #include "e7_netlink.x"
-  #undef E7X_NAME
-  #undef E7X_VERSION
-  #undef E7X_CONST
-  #undef E7X_FLAG
-  #undef E7X_COMM
-  #undef E7X_ATTR
-};
-
-// command names (command 0 is not supported in netlink)
-static const char * enl_comm_name[] = {
-  "ENL_COMM_UNSUPP",
-  #define E7X_NAME(x)
-  #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
-  #define E7X_FLAG(x, y, z)
-  #define E7X_COMM(x)     #x ,
-  #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
-  #undef E7X_NAME
-  #undef E7X_VERSION
-  #undef E7X_CONST
-  #undef E7X_FLAG
-  #undef E7X_COMM
-  #undef E7X_ATTR
-};
-
-// attribute names (attribute 0 is not supported in netlink)
-static const char * enl_attr_name[] = {
-  "ENL_ATTR_UNSUPP" ,
-  #define E7X_NAME(x)
-  #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
-  #define E7X_FLAG(x, y, z)
-  #define E7X_COMM(x)
-  #define E7X_ATTR(x, t)  #x ,
-  #include "e7_netlink.x"
-  #undef E7X_NAME
-  #undef E7X_VERSION
-  #undef E7X_CONST
-  #undef E7X_FLAG
-  #undef E7X_COMM
-  #undef E7X_ATTR
-};
-
-// const enumeration
-enum {
-  #define E7X_NAME(x)
-  #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)     x,
-  #define E7X_FLAG(x, y, z)
-  #define E7X_COMM(x)
-  #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
-  #undef E7X_NAME
-  #undef E7X_VERSION
-  #undef E7X_CONST
-  #undef E7X_FLAG
-  #undef E7X_COMM
-  #undef E7X_ATTR
-};
-
-// flag enumeration
-enum {
-  #define E7X_NAME(x)
-  #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
-  #define E7X_FLAG(x, y, z)  x,
-  #define E7X_COMM(x)
-  #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
-  #undef E7X_NAME
-  #undef E7X_VERSION
-  #undef E7X_CONST
-  #undef E7X_FLAG
-  #undef E7X_COMM
-  #undef E7X_ATTR
-};
-
-uint32_t flag_value[] = {
-  #define E7X_NAME(x)
-  #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
-  #define E7X_FLAG(x, y, z)     z,
-  #define E7X_COMM(x)
-  #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
-  #undef E7X_NAME
-  #undef E7X_VERSION
-  #undef E7X_CONST
-  #undef E7X_FLAG
-  #undef E7X_COMM
-  #undef E7X_ATTR
-};
-
-const char * flag_alias[] = {
-  #define E7X_NAME(x)
-  #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
-  #define E7X_FLAG(x, y, z)  #z ,
-  #define E7X_COMM(x)
-  #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
-  #undef E7X_NAME
-  #undef E7X_VERSION
-  #undef E7X_CONST
-  #undef E7X_FLAG
-  #undef E7X_COMM
-  #undef E7X_ATTR
-};
-
-constexpr uint32_t flag_aliashash[] = {
-  #define E7X_NAME(x)
-  #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
-  #define E7X_FLAG(x, y, z)    crc32(#z),
-  #define E7X_COMM(x)
-  #define E7X_ATTR(x, t)
-  #include "e7_netlink.x"
-  #undef E7X_NAME
-  #undef E7X_VERSION
-  #undef E7X_CONST
-  #undef E7X_FLAG
-  #undef E7X_COMM
-  #undef E7X_ATTR
-};
-
-int flag_lookupalias(const char* alias)
-{
-  uint32_t h;
-  int i;
-
-  if(!alias) return -1;
-  h = crc32(alias);
-
-  for(i=0; i<(int)sizeof(flag_aliashash); i++)
-    if(h==flag_aliashash[i]) return i;
-  return -1;
-}
-
-int const_lookupalias(const char* alias)
-{
-  uint32_t h;
-  int i;
-
-  if(!alias) return -1;
-  h = crc32(alias);
-
-  for(i=0; i<(int)sizeof(const_aliashash); i++)
-    if(h==const_aliashash[i]) return i;
-  return -1;
-}
 
 //////////////////
 
@@ -368,44 +105,6 @@ static void e7_printrc(const char* cxt, int rc)
 #endif // DEBUG_BYTES_SENT
 }
 
-static const char * e7_constname(uint32_t state)
-{
-  if(state > sizeof(state)) return 0;
-  return enl_const_name[state];
-}
-
-static const char * e7_protname(uint32_t protocol)
-{
-  switch(protocol)
-  {
-    case IPPROTO_ICMP: return "ICMP";
-    case IPPROTO_IGMP: return "IGMP";
-    case IPPROTO_IPIP: return "IPIP";
-    case IPPROTO_TCP: return "TCP";
-    case IPPROTO_EGP: return "EGP";
-    case IPPROTO_PUP: return "PUP";
-    case IPPROTO_UDP: return "UDP";
-    case IPPROTO_IDP: return "IDP";
-    case IPPROTO_TP: return "TP";
-    case IPPROTO_DCCP: return "DCCP";
-    case IPPROTO_IPV6: return "IPV6";
-    case IPPROTO_RSVP: return "RSVP";
-    case IPPROTO_GRE: return "GRE";
-    case IPPROTO_ESP: return "ESP";
-    case IPPROTO_AH: return "AH";
-    case IPPROTO_MTP: return "MTP";
-    case IPPROTO_BEETPH: return "BEETPH";
-    case IPPROTO_ENCAP: return "ENCAP";
-    case IPPROTO_PIM: return "PIM";
-    case IPPROTO_COMP: return "COMP";
-    case IPPROTO_SCTP: return "SCTP";
-    case IPPROTO_UDPLITE: return "UDPLITE";
-    case IPPROTO_MPLS: return "MPLS";
-    case IPPROTO_RAW: return "RAW";
-    default: return 0;
-  }
-}
-
 static int e7_prep(MSGSTATE & ms, uint8_t comm) {
   ms.msg = nlmsg_alloc();
   if (ms.msg<0) return -1;
@@ -442,6 +141,14 @@ static int e7_compose_send(int comm, int attr) {
   return e7_send(ms);
 }
 
+static int e7_compose_send(int comm, int attr1, uint32_t u32a, int attr2, uint32_t u32b) {
+  MSGSTATE ms;
+  if(0>e7_prep(ms, comm)) return -1;
+  if(0>nla_put_u32(ms.msg, attr1, u32a)) return -1;
+  if(0>nla_put_u32(ms.msg, attr2, u32b)) return -1;
+  return e7_send(ms);
+}
+
 static int e7_compose_send(int comm, int attr, const char* sz) {
   MSGSTATE ms;
   if(0>e7_prep(ms, comm)) return -1;
@@ -456,19 +163,11 @@ static int e7_compose_send(int comm, int attr, uint32_t u32) {
   return e7_send(ms);
 }
 
-static int e7_compose_send(int comm, int attr1, uint32_t u32a, int attr2, uint32_t u32b) {
+static int e7_compose_send(int comm, int attr2, uint32_t u32, int attr1, const char* sz) {
   MSGSTATE ms;
   if(0>e7_prep(ms, comm)) return -1;
-  if(0>nla_put_u32(ms.msg, attr1, u32a)) return -1;
-  if(0>nla_put_u32(ms.msg, attr2, u32b)) return -1;
-  return e7_send(ms);
-}
-
-static int e7_compose_send(int comm, int attr1, const char* sz, int attr2, uint32_t u32) {
-  MSGSTATE ms;
-  if(0>e7_prep(ms, comm)) return -1;
-  if(0>nla_put_string(ms.msg, attr1, sz)) return -1;
   if(0>nla_put_u32(ms.msg, attr2, u32)) return -1;
+  if(0>nla_put_string(ms.msg, attr1, sz)) return -1;
   return e7_send(ms);
 }
 
@@ -480,7 +179,7 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
   struct genlmsghdr * gnlh = NULL;
   struct nlattr * gnlad = NULL;
   struct nlattr * a = NULL;
-  uint32_t value = ~0, prot = ~0, state = ~0;
+  uint32_t value = ~0;
   const char * szpath = 0, * szstate = 0, * szprot = 0, * szflag = 0;
   int gnlal = 0;
 
@@ -489,7 +188,7 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
   if(!(gnlh = (struct genlmsghdr *)nlmsg_data(nlh))) { E7_LOG("!gnlh"); return 0; }
   if(!(gnlad = genlmsg_attrdata(gnlh, 0))) { E7_LOG("!gnlad"); return 0; }
   if(!(gnlal = genlmsg_attrlen(gnlh, 0))) { E7_LOG("!gnlal"); return 0; }
-  nla_parse(attribs, ENL_ATTR_MAX, gnlad, gnlal, enl_policy);
+  nla_parse(attribs, ENL_ATTR_MAX, gnlad, gnlal, def_policy);
 
   switch(gnlh->cmd) {
   case ENL_COMM_ERROR:
@@ -499,30 +198,29 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
     stop = true;
     break;
   case ENL_COMM_GET:
-    if((a = attribs[ENL_ATTR_FLAG])) szflag = nla_get_string(a);
+    if((a = attribs[ENL_ATTR_FLAG])) szflag = def_flag_name_str(nla_get_u32(a));
     if((a = attribs[ENL_ATTR_VALUE])) value = nla_get_u32(a);
     E7_LOG("%s = %u", szflag ? szflag : "(null)", value);
     break;
   case ENL_COMM_EVENT:
-    if((a = attribs[ENL_ATTR_STATE])) szstate = e7_constname(nla_get_u32(a));
-    if((a = attribs[ENL_ATTR_PROT])) szprot = e7_protname(nla_get_u32(a));
+    if((a = attribs[ENL_ATTR_STATE])) szstate = def_const_name_str(nla_get_u32(a));
+    if((a = attribs[ENL_ATTR_PROT])) szprot = def_protname(nla_get_u32(a));
     if((a = attribs[ENL_ATTR_PATH])) szpath = nla_get_string(a);
-    E7_LOG("event state %s prot %s path %s", szstate, szprot, (szpath ? szpath : "-"));
+    E7_LOG("event state %s prot %s path %s", szstate, (szprot ? szprot : "-"), (szpath ? szpath : "-"));
     break;
   case ENL_COMM_QUERY:
     do {
-      if((a = attribs[ENL_ATTR_STATE])) szstate = e7_constname(nla_get_u32(a));
-      if((a = attribs[ENL_ATTR_PROT])) szprot = e7_protname(nla_get_u32(a));
+      if((a = attribs[ENL_ATTR_STATE])) szstate = def_const_name_str(nla_get_u32(a));
+      if((a = attribs[ENL_ATTR_PROT])) szprot = def_protname(nla_get_u32(a));
       if((a = attribs[ENL_ATTR_PATH])) szpath = nla_get_string(a);
-      E7_LOG("query state %s prot %s path %s", szstate, szprot, (szpath ? szpath : "-"));
+      E7_LOG("query state %s prot %s path %s", szstate, (szprot ? szprot : "-"), (szpath ? szpath : "-"));
 
       if(!attribs[ENL_ATTR_NESTED]) break; // end-of-list
-      int rc = nla_parse_nested(attribs, ENL_ATTR_MAX, attribs[ENL_ATTR_NESTED], enl_policy);
+      int rc = nla_parse_nested(attribs, ENL_ATTR_MAX, attribs[ENL_ATTR_NESTED], def_policy);
       if(rc!=0) { E7_LOG("!nla_parse_nested"); break; }
     } while(true);
     break;
   default:
-fail:
     E7_LOG("unrecognized message");
     break;
   }
@@ -594,6 +292,9 @@ void e7_parsecmd(CMDBUF & buf)
   int iflag, iconst;
   uint32_t u32;
 
+  // 0==incomplete, -ve==error, +ve==complete_length
+  if(0>=buf.appendln_noblock(fdstdin)) return;
+
   const char * sz = buf.identifyargs();
   if(sz) E7_LOG("%s", sz);
 
@@ -607,13 +308,13 @@ void e7_parsecmd(CMDBUF & buf)
       break;
     case crc32("get"):
       if(buf.argc!=2) goto help;
-      if(-1==(iflag = flag_lookupalias(buf.arg[1]))) goto help;
+      if(-1==(iflag = def_flag_alias_idx(buf.arg[1]))) goto help;
       e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_GET, ENL_ATTR_FLAG, (uint32_t)iflag) );
       break;
     case crc32("set"):
       if(buf.argc!=3) goto help;
-      if(-1==(iflag = flag_lookupalias(buf.arg[1]))) goto help;
-      iconst = flag_lookupalias(buf.arg[2]);
+      if(-1==(iflag = def_flag_alias_idx(buf.arg[1]))) goto help;
+      iconst = def_flag_alias_idx(buf.arg[2]);
       u32 = (-1 == iconst) ? (uint32_t)atoi(buf.arg[2]) : (uint32_t)iconst;
       e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_SET, ENL_ATTR_FLAG, (uint32_t)iflag, ENL_ATTR_VALUE, u32) );
       break;
@@ -732,6 +433,8 @@ int main(void)
 
   E7_LOG("begin console");
 
+  e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_QUERY));
+
   CMDBUF buf;
   while(!stop)
   {
@@ -741,25 +444,16 @@ int main(void)
     for (int n = 0; n < nfds; ++n)
     {
       if (epoll.events[n].data.fd == fdsig)
-      {
         stop = true;
-      }
       else if (epoll.events[n].data.fd == fdnl)
-      {
         e7_printrc( "nl_recvmsgs", nl_recvmsgs_default(nl_sk) ); // 0==EOF +ve==#bytes
-      }
       else if (epoll.events[n].data.fd == fdstdin)
-      {
-        if(0<buf.appendln_noblock(fdstdin)) // 0==incomplete, -ve==error, +ve==complete_length
-        {
-          e7_parsecmd(buf);
-        }
-      }
+        e7_parsecmd(buf);
     }
   }
 
   E7_LOG("Shutting down...");
-  e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_DISCONNECT) );
+  e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_DISCONNECT));
 
   return 0;
 }

@@ -66,9 +66,9 @@ static int __init mod_init(void)
   }
 #endif
 
-  if (flag_init() < 0)
+  if (def_init() < 0)
   {
-    LOG_ERR(0, "flag_init failed");
+    LOG_ERR(0, "def_init failed");
     return -1;
   }
 
@@ -133,7 +133,7 @@ static void __exit mod_exit(void)
 
   ksc_exit();
   asc_exit();
-  flag_exit();
+  def_exit();
 
   LOG_INFO(0, "module unloaded");
 }
