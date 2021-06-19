@@ -1,17 +1,12 @@
 E7X_NAME(eftirlit)
 E7X_VERSION(1)
 
-// The goal here is to trade off more command for fewer attributes
-// so that less space is wasted during transmission of a nested
-// query result.
-//
 // basic attribs:
 // NESTED
-// FLAG flagname
-// PATH processpath
-// PROT protocol = uint32
-// STATE statevalue = ERROR, BLOCK, ALLOW, PENDING, ENABLED, DISABLED, LOCKDOWN
-// VALUE flagvalue = uint32
+// string: PATH
+// E7F_ values: FLAG
+// E7C_ subset: STATE
+// uint32: PROT, VALUE
 //
 // * main firewall state commands
 // DISCONNECT - lkm shutting down
@@ -21,14 +16,22 @@ E7X_VERSION(1)
 // ALLOW [ PROT | PATH ]
 // QUERY [ STATE ] - returns QUERY STATE [ PROT ] [ PATH ] [ NESTED ]
 //
-// * outbound connection attempts that require auth
-// EVENT PROT PATH STATE
+// * outbound connection attempts
+// EVENT PROT PATH STATE - requires BLOCK or ALLOW reply
 //
 // * internal flag management commands
 // SET FLAG VALUE
 // GET FLAG - returns GET FLAG VALUE
 //
+// NB on aliases:
+// these are identifiers used in the daemon ui to represent a uint32 value
+// for the LKM. They have bnf prefixes:
+// a = action (E7C_ALLOW, E7C_BLOCK)
+// b = boolean (E7C_DISABLED, E7C_ENABLED)
+// c = constant (their own value)
+// e = enumerated (E7C_DISABLED, E7C_ENABLED, E7C_LOCKDOWN)
 
+// ID and e7d alias
 E7X_CONST(E7C_BLOCK,    "cblock")
 E7X_CONST(E7C_ALLOW,    "callow")
 E7X_CONST(E7C_PENDING,  "cpending")
@@ -36,7 +39,8 @@ E7X_CONST(E7C_ENABLED,  "cenabled")
 E7X_CONST(E7C_DISABLED, "cdisabled")
 E7X_CONST(E7C_LOCKDOWN, "clockdown")
 
-E7X_FLAG(E7F_MODE,                 "amode", E7C_DISABLED)        // enabled, disabled, lockdown
+// ID, e7d alias and default LKM value
+E7X_FLAG(E7F_MODE,                 "emode", E7C_DISABLED)        // enabled, disabled, lockdown
 E7X_FLAG(E7F_DEBUG,                "bdebug", E7C_ENABLED)
 E7X_FLAG(E7F_FAILPATH_ACTION,      "afail", E7C_ALLOW)
 E7X_FLAG(E7F_UNKN_PROCESS_ACTION,  "aunkproc", E7C_ALLOW)
