@@ -56,6 +56,20 @@ static struct nf_hook_ops netfilter_config = {
 
 ///////////////
 
+int get_mode_action(const char * message, uint32_t packet_id)
+{
+  switch(def_flag_value[E7F_MODE])
+  {
+    case E7C_LOCKDOWN: return NF_DROP;
+    case E7C_DISABLED: return NF_ACCEPT;
+    case E7C_ENABLED: return 0;
+    default:
+      LOG_ERR(packet_id, "%s - disabled", message);
+      def_flag_value[E7F_MODE] = E7C_DISABLED;
+      return NF_ACCEPT;
+  }
+}
+
 int get_action(int flag, const char * message, uint32_t packet_id)
 {
   switch(def_flag_value[flag])
@@ -98,18 +112,14 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
   const char * szprot = 0, * szaction = 0;
   uint32_t packet_id;
   struct psi psi;
+  int action = 0;
 
   memset(&psi, 0, sizeof(struct psi));
 
   get_random_bytes(&packet_id, sizeof(packet_id));
 
-  switch(def_flag_value[E7F_MODE])
-  {
-    case E7C_LOCKDOWN: return NF_DROP;
-    case E7C_DISABLED: return NF_ACCEPT;
-    case E7C_ENABLED: break;
-    default: break;
-  }
+  action = get_mode_action("firewall mode invalid state", packet_id);
+  if(action) return action;
 
   if (mod_isstopping())
   {
@@ -196,10 +206,13 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
 
 int douane_init(void)
 {
+  int action = 0;
+
   nf_register_net_hook(&init_net, &netfilter_config);
   prot_tcp_init();
 
-  LOG_INFO(0, "early filter action - %s", def_actionname(def_flag_value[E7F_MODE]));
+  action = get_mode_action("firewall mode invalid state", 0);
+  LOG_INFO(0, "early filter action - %s", def_actionname(action));
 
   return 0;
 }

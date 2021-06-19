@@ -274,18 +274,18 @@ int def_init(void)
 {
   int i = 0, j = 0;
 
-  for(i=0; i<(int)sizeof(def_flag_alias_hash); i++)
+  for(i=0; i<_E7F_COUNT; i++)
     def_flag_alias_hash[i] = crc32(def_flag_alias[i]);
 
-  for(i=0; i<(int)sizeof(def_flag_alias_hash); i++)
-    for(j=i+1; j<(int)sizeof(def_flag_alias_hash); j++)
+  for(i=0; i<_E7F_COUNT; i++)
+    for(j=i+1; j<_E7F_COUNT; j++)
       if(def_flag_alias_hash[i]==def_flag_alias_hash[j]) return -1;
 
-  for(i=0; i<(int)sizeof(def_const_alias_hash); i++)
+  for(i=0; i<_E7C_COUNT; i++)
     def_const_alias_hash[i] = crc32(def_const_alias[i]);
 
-  for(i=0; i<(int)sizeof(def_const_alias_hash); i++)
-    for(j=i+1; j<(int)sizeof(def_const_alias_hash); j++)
+  for(i=0; i<_E7C_COUNT; i++)
+    for(j=i+1; j<_E7C_COUNT; j++)
       if(def_const_alias_hash[i]==def_const_alias_hash[j]) return -1;
 
   return 0;

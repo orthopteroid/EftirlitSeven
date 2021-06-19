@@ -386,6 +386,8 @@ int main(void)
 {
   int rc = 0;
 
+  if(0!=(rc = def_init())) { E7_LOG("def_init failed"); return -1; }
+
   E7_LOG("nice");
 
   errno = 0;

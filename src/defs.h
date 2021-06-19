@@ -43,6 +43,7 @@ enum {
   #undef E7X_FLAG
   #undef E7X_COMM
   #undef E7X_ATTR
+  _E7C_COUNT,
 };
 
 // flag enumeration
@@ -60,6 +61,7 @@ enum {
   #undef E7X_FLAG
   #undef E7X_COMM
   #undef E7X_ATTR
+  _E7F_COUNT,
 };
 
 // command enumeration
