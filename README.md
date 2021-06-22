@@ -1,4 +1,5 @@
 *THIS KERNEL MODULE SHOULD BE CONSIDERED BARELY BETA - COMPILE AND USE AT YOUR OWN RISK*
+*May not even be safe inside a paravirtualized VM - still investigating*
 
 Development Details:
 - kernel 5.4.0-74 (ubuntu 18.04.1 x64) on a friendly old ssd-assisted Intel Atom 330 (dual cpu with HT)
@@ -11,7 +12,7 @@ Development Details:
 
 # EftirlitSeven
 
-E7 was originally a fork of douane (https://gitlab.com/douaneapp) with experimental changes. Code has shifted quite a bit so it's not easy to see the origins. Use `grep` to find attributions to douane code. Some of the features in E7 include...
+E7 was originally a fork of douane (https://gitlab.com/douaneapp) with experimental changes. Code has shifted quite a bit so it's not easy to find the origins. Use `grep` to find attributions to douane code and algorithims. Some of the features in E7 include...
 
 ## Known Socket Cache (ksc_ code prefix)
 
