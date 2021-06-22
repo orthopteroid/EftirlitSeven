@@ -194,8 +194,23 @@ void rules_remove(const unsigned char * process_path, const uint32_t packet_id)
   LOG_DEBUG(packet_id, "no rule to delete for %s", process_path);
 }
 
-int rules_search(struct rule_struct * rule_out, const unsigned char * process_path, const uint32_t packet_id)
+int rules_search(struct rule_struct * rule_out, uint32_t protocol, const unsigned char * process_path, const uint32_t packet_id)
 {
+  // todo: handle wildcards for protocol and pathroot
+  // for all rules, ensure any process_path entries that end with '/' set match_parentpath to true
+  // calc hashes for both process_path arg and the parent_path
+  // when searching each of accept_list or block_list:
+  // - pa1 match occurs when process_paths match
+  // - pr1 match occurs when protocols match
+  // - pa* match occurs when match_parentpath true and parent_path hash matches process_path hash
+  // - pr* match occurs when protocol is ~0
+  // - m1 match = pa1 and pr1
+  // - m2 match = pa1 and pr*
+  // - m3 match = pa* and pr1
+  // - accept when m1 or m2 or m3 in accept_list
+  // - block when m1 or m2 or m3 in block_list
+  // the personality_flag should control the comparison order, either search accept_list first or block_list first: tolerant or protective (default)
+
   struct rule_struct_rcu * rule;
 
   if (process_path == NULL)

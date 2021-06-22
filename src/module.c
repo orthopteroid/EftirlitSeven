@@ -28,6 +28,7 @@
 #include "asc.h"
 #include "rules.h"
 #include "netlink.h"
+#include "defs.h"
 
 #include "prot_udp.h"
 #include "prot_tcp.h"
@@ -50,47 +51,6 @@ bool mod_isstopping(void)
 
 //////////
 
-void mod_rule_add(const struct rule_struct * rule, const uint32_t stack_id)
-{
-  rules_append(rule->process_path, rule->allowed, stack_id);
-}
-
-void mod_rules_query(const uint32_t stack_id)
-{
-  struct ruleset_struct_rcu * ruleset = 0;
-
-  if(0>rules_get(&ruleset, stack_id))
-  {
-    LOG_ERR(stack_id, "rules_get failure");
-    return;
-  }
-
-  enl_send_rules(ruleset->count, ruleset->rules, stack_id);
-
-  kfree_rcu(ruleset, rcu);
-}
-
-void mod_send_echo(const char * message, const uint32_t stack_id)
-{
-  if(0>enl_send_echo(message, stack_id))
-  {
-    LOG_ERR(stack_id, "enl_send_echo failure");
-    return;
-  }
-}
-
-struct enl_recvfns mod_recvfns =
-{
-  .recv_echo = mod_send_echo,
-  .flag_set = douane_flag_set,
-  .flag_get = douane_flag_get,
-  .rule_add = mod_rule_add,
-  .rules_clear = rules_clear,
-  .rules_query = mod_rules_query,
-};
-
-//////////
-
 static int __init mod_init(void)
 {
   LOG_DEBUG(0, "initializing module");
@@ -105,6 +65,12 @@ static int __init mod_init(void)
     }
   }
 #endif
+
+  if (def_init() < 0)
+  {
+    LOG_ERR(0, "def_init failed");
+    return -1;
+  }
 
   if (ksc_init() < 0)
   {
@@ -129,7 +95,7 @@ static int __init mod_init(void)
     return -1;
   }
 
-  if (enl_init(&mod_recvfns) < 0)
+  if (enl_init() < 0)
   {
     LOG_ERR(0, "enl_init failed");
     return -1;
@@ -149,7 +115,7 @@ module_init(mod_init);
 static void __exit mod_exit(void)
 {
   // calls that are async or rely on rcu
-  enl_send_bye(0);
+  enl_send_disconnect(0);
 
   // set flag and wait until all rcu/softirq processing is done
   // synchronize_rcu waits for a grace period and rcu_barrier waits for all callbacks to complete
@@ -167,6 +133,7 @@ static void __exit mod_exit(void)
 
   ksc_exit();
   asc_exit();
+  def_exit();
 
   LOG_INFO(0, "module unloaded");
 }
