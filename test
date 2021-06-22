@@ -1,5 +1,5 @@
 trap "make uninstall; tail /var/log/kern.log" EXIT
-make clean ; make -j 4
+make -j 4
 > /var/log/kern.log
 make install
 #echo 'file kernel/douane +p' > /sys/kernel/debug/dynamic_debug/control

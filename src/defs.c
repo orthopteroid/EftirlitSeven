@@ -5,7 +5,7 @@
 
 #define E7X_NAME(x)       const char * ENL_NAME = #x;
 #define E7X_VERSION(x)    const int ENL_VERSION = x;
-#define E7X_CONST(x, y)
+#define E7X_CONST(x, y, z)
 #define E7X_FLAG(x, y, z)
 #define E7X_COMM(x)
 #define E7X_ATTR(x, t)
@@ -20,7 +20,7 @@
 uint32_t def_flag_value[] = {
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
+  #define E7X_CONST(x, y, z)
   #define E7X_FLAG(x, y, z)     z,
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
@@ -36,7 +36,7 @@ uint32_t def_flag_value[] = {
 const char * def_flag_name[] = {
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
+  #define E7X_CONST(x, y, z)
   #define E7X_FLAG(x, y, z)  #x ,
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
@@ -52,8 +52,8 @@ const char * def_flag_name[] = {
 const char * def_flag_alias[] = {
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
-  #define E7X_FLAG(x, y, z)  #y ,
+  #define E7X_CONST(x, y, z)
+  #define E7X_FLAG(x, y, z)  y ,
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
   #include "defs.x"
@@ -68,7 +68,7 @@ const char * def_flag_alias[] = {
 uint32_t def_flag_alias_hash[] = {
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
+  #define E7X_CONST(x, y, z)
   #define E7X_FLAG(x, y, z)     0,
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
@@ -84,7 +84,7 @@ uint32_t def_flag_alias_hash[] = {
 const char * def_const_name[] = {
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)  #x ,
+  #define E7X_CONST(x, y, z)  #x ,
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
@@ -100,7 +100,7 @@ const char * def_const_name[] = {
 const char * def_const_alias[] = {
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)  #y ,
+  #define E7X_CONST(x, y, z)  y ,
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
@@ -116,7 +116,7 @@ const char * def_const_alias[] = {
 uint32_t def_const_alias_hash[] = {
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)  0,
+  #define E7X_CONST(x, y, z)  0,
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
@@ -134,7 +134,7 @@ struct nla_policy def_policy[] = {
   /*ENL_ATTR_UNSUPP*/ { }, // attribute 0 is not supported in netlink
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
+  #define E7X_CONST(x, y, z)
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)  { .type = t },
@@ -152,7 +152,7 @@ const char * def_comm_name[] = {
   "ENL_COMM_UNSUPP", // command 0 is not supported in netlink
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
+  #define E7X_CONST(x, y, z)
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)     #x ,
   #define E7X_ATTR(x, t)
@@ -170,7 +170,7 @@ const char * def_attrib_name[] = {
   "ENL_ATTR_UNSUPP", // attribute 0 is not supported in netlink
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
+  #define E7X_CONST(x, y, z)
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)  #x ,
@@ -238,7 +238,7 @@ int def_flag_alias_idx(const char* alias)
   if(!alias) return -1;
   h = crc32(alias);
 
-  for(i=0; i<(int)sizeof(def_flag_alias_hash); i++)
+  for(i=0; i<_E7F_COUNT; i++)
     if(h==def_flag_alias_hash[i]) return i;
   return -1;
 }
@@ -265,7 +265,7 @@ int def_const_alias_idx(const char* alias)
   if(!alias) return -1;
   h = crc32(alias);
 
-  for(i=0; i<(int)sizeof(def_const_alias_hash); i++)
+  for(i=0; i<_E7C_COUNT; i++)
     if(h==def_const_alias_hash[i]) return i;
   return -1;
 }

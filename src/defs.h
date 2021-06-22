@@ -32,7 +32,7 @@
 enum {
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)     x,
+  #define E7X_CONST(x, y, z)     x = z,
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
@@ -50,7 +50,7 @@ enum {
 enum {
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
+  #define E7X_CONST(x, y, z)
   #define E7X_FLAG(x, y, z)  x,
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
@@ -69,7 +69,7 @@ enum {
   ENL_COMM_UNSUPP, // command 0 is not supported in netlink
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
+  #define E7X_CONST(x, y, z)
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)     x,
   #define E7X_ATTR(x, t)
@@ -89,7 +89,7 @@ enum {
   ENL_ATTR_UNSUPP, // attribute 0 is not supported in netlink
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
-  #define E7X_CONST(x, y)
+  #define E7X_CONST(x, y, z)
   #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)  x,

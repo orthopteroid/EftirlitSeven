@@ -60,7 +60,7 @@ int get_mode_action(const char * message, uint32_t packet_id)
 {
   switch(def_flag_value[E7F_MODE])
   {
-    case E7C_LOCKDOWN: return NF_DROP;
+    case E7C_BLOCK: return NF_DROP;
     case E7C_DISABLED: return NF_ACCEPT;
     case E7C_ENABLED: return 0;
     default:
@@ -169,23 +169,23 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
   {
     struct rule_struct rule;
 
-    if (0>rules_search(&rule, psi.process_path, packet_id))
+    if (0>rules_search(&rule, ip_header->protocol, psi.process_path, packet_id))
     {
-      szaction = def_actionname(def_flag_value[E7F_RULE_QUERY_ACTION]);
+      szaction = def_actionname(def_flag_value[E7F_RULE_NORULE_ACTION]);
       szaction = szaction ? szaction : "?";
       LOG_DEBUG(packet_id, "rules_search failed for %s - %s", psi.process_path, szaction);
 
-      if((def_flag_value[E7F_RULE_QUERY_EVENTS]==E7C_ENABLED) && enl_is_connected())
+      if((def_flag_value[E7F_RULE_NORULE]==E7C_ENABLED) && enl_is_connected())
         enl_send_event(E7C_PENDING, ip_header->protocol, psi.process_path, packet_id);
 
-      return get_action(E7F_RULE_QUERY_ACTION, "unhandled protocol failpath config invalid", packet_id);
+      return get_action(E7F_RULE_NORULE_ACTION, "unhandled protocol failpath config invalid", packet_id);
     }
 
     if (rule.allowed)
     {
       LOG_DEBUG(packet_id, "allowed %s - NF_ACCEPT", psi.process_path);
 
-      if((def_flag_value[E7F_RULE_ACCEPT_EVENTS]==E7C_ENABLED) && enl_is_connected())
+      if((def_flag_value[E7F_RULE_ACCEPTS]==E7C_ENABLED) && enl_is_connected())
         enl_send_event(E7C_ALLOW, ip_header->protocol, psi.process_path, packet_id);
 
       return NF_ACCEPT;
@@ -194,7 +194,7 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
     {
       LOG_DEBUG(packet_id, "blocked %s - NF_DROP", psi.process_path);
 
-      if((def_flag_value[E7F_RULE_DROP_EVENTS]==E7C_ENABLED) && enl_is_connected())
+      if((def_flag_value[E7F_RULE_DROPS]==E7C_ENABLED) && enl_is_connected())
         enl_send_event(E7C_BLOCK, ip_header->protocol, psi.process_path, packet_id);
 
       return NF_DROP;

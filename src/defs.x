@@ -3,10 +3,10 @@ E7X_VERSION(1)
 
 // basic attribs:
 // NESTED
-// string: PATH
-// E7F_ values: FLAG
-// E7C_ subset: STATE
-// uint32: PROT, VALUE
+// PATH: string
+// FLAG: E7F_...
+// STATE: E7C_BLOCK, E7C_ALLOW, E7C_PENDING
+// PROT, VALUE: uint32
 //
 // * main firewall state commands
 // DISCONNECT - lkm shutting down
@@ -14,6 +14,7 @@ E7X_VERSION(1)
 // * rule management commands
 // BLOCK [ PROT | PATH ]
 // ALLOW [ PROT | PATH ]
+// ENABLE
 // QUERY [ STATE ] - returns QUERY STATE [ PROT ] [ PATH ] [ NESTED ]
 //
 // * outbound connection attempts
@@ -27,33 +28,35 @@ E7X_VERSION(1)
 // these are identifiers used in the daemon ui to represent a uint32 value
 // for the LKM. They have bnf prefixes:
 // a = action (E7C_ALLOW, E7C_BLOCK)
-// b = boolean (E7C_DISABLED, E7C_ENABLED)
+// n = boolean for notification (E7C_DISABLED, E7C_ENABLED)
 // c = constant (their own value)
-// e = enumerated (E7C_DISABLED, E7C_ENABLED, E7C_LOCKDOWN)
+// e = enumeration of mulitple types of values
 
 // ID and e7d alias
-E7X_CONST(E7C_BLOCK,    "cblock")
-E7X_CONST(E7C_ALLOW,    "callow")
-E7X_CONST(E7C_PENDING,  "cpending")
-E7X_CONST(E7C_ENABLED,  "cenabled")
-E7X_CONST(E7C_DISABLED, "cdisabled")
-E7X_CONST(E7C_LOCKDOWN, "clockdown")
+E7X_CONST(E7C_IP_TCP,   "ctcp",      6)
+E7X_CONST(E7C_IP_UDP,   "cudp",      17)
+E7X_CONST(E7C_BLOCK,    "cblock",    0xFF00)
+E7X_CONST(E7C_ALLOW,    "callow",    0xFF01)
+E7X_CONST(E7C_PENDING,  "cpending",  0xFF02)
+E7X_CONST(E7C_ENABLED,  "cenabled",  0xFF03)
+E7X_CONST(E7C_DISABLED, "cdisabled", 0xFF04)
 
 // ID, e7d alias and default LKM value
-E7X_FLAG(E7F_MODE,                 "emode", E7C_DISABLED)        // enabled, disabled, lockdown
-E7X_FLAG(E7F_DEBUG,                "bdebug", E7C_ENABLED)
+E7X_FLAG(E7F_MODE,                 "emode", E7C_DISABLED)        // E7C_ENABLED, E7C_DISABLED, E7C_BLOCK
+E7X_FLAG(E7F_DEBUG,                "ndebug", E7C_ENABLED)
 E7X_FLAG(E7F_FAILPATH_ACTION,      "afail", E7C_ALLOW)
 E7X_FLAG(E7F_UNKN_PROCESS_ACTION,  "aunkproc", E7C_ALLOW)
 E7X_FLAG(E7F_UNKN_PROTOCOL_ACTION, "aunkprot", E7C_ALLOW)
-E7X_FLAG(E7F_RULE_QUERY_EVENTS,    "bnotifynorule", E7C_ENABLED)    // notify daemon of packets that have no rule
-E7X_FLAG(E7F_RULE_QUERY_ACTION,    "aunkrule", E7C_ALLOW)           // what to do with a packet that has no rule (ACCEPT) todo: QUEUE
-E7X_FLAG(E7F_RULE_DROP_EVENTS,     "bnotifydrops", E7C_DISABLED)    // notify daemon when a packet is DROPPED due to a rule
-E7X_FLAG(E7F_RULE_ACCEPT_EVENTS,   "bnotifyaccepts", E7C_DISABLED)  // notify daemon when a packet is ACCEPTED due to a rule
+E7X_FLAG(E7F_RULE_NORULE,          "nnorule", E7C_ENABLED)    // notify daemon of packets that have no rule
+E7X_FLAG(E7F_RULE_NORULE_ACTION,   "aunkrule", E7C_ALLOW)           // what to do with a packet that has no rule (ACCEPT) todo: QUEUE
+E7X_FLAG(E7F_RULE_DROPS,           "ndrops", E7C_DISABLED)    // notify daemon when a packet is DROPPED due to a rule
+E7X_FLAG(E7F_RULE_ACCEPTS,         "naccepts", E7C_DISABLED)  // notify daemon when a packet is ACCEPTED due to a rule
 
 E7X_COMM(ENL_COMM_ERROR)
 E7X_COMM(ENL_COMM_DISCONNECT)
 E7X_COMM(ENL_COMM_BLOCK)
-E7X_COMM(ENL_COMM_UNBLOCK)
+E7X_COMM(ENL_COMM_ALLOW)
+E7X_COMM(ENL_COMM_ENABLE)
 E7X_COMM(ENL_COMM_QUERY)
 E7X_COMM(ENL_COMM_EVENT)
 E7X_COMM(ENL_COMM_SET)
