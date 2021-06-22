@@ -1,5 +1,5 @@
-// eftirlit7 (gpl3) - orthopteroid@gmail.com
-// forked from douane-lkms (gpl3) - zedtux@zedroot.org
+// eftirlit7 (gpl2) - orthopteroid@gmail.com
+// forked from douane-lkms (gpl2) - zedtux@zedroot.org
 
 // all logic in this file comes from https://gitlab.com/douaneapp/douane-dkms
 // code-factoring and new bugs from orthopteroid@gmail.com
@@ -36,6 +36,8 @@ enum nf_ip_hook_priorities {
 #include "types.h"
 #include "ksc.h"
 #include "asc.h"
+
+// douane: has the concept of searching the process table but e7 added the ability of caching the results of this search.
 
 #define ALIGNED ____cacheline_aligned
 
@@ -262,6 +264,7 @@ bool asc_psi_from_ino_pid(struct psi * psi_out, unsigned long socket_ino, pid_t 
     goto out_fail;
   }
 
+  // douane: almost verbatim, but e7 streamlined and removed the heuristics
   fd_max = files_fdtable(task->files)->max_fds;
   for(fd_i = 0; fd_i < fd_max; fd_i++)
   {
@@ -298,6 +301,7 @@ out_found:
     goto out_fail;
   }
 
+  // douane: use of d_path to extract process name
   {
     // notes:
     // - d_path might return string with " (deleted)" suffix
@@ -320,6 +324,7 @@ out_found:
   put_task_struct(task);
   rcu_read_unlock();
 
+  // douane: need to strip " (deleted)" suffix but e7 streamlined this code
   {
     char * deleted_str = " (deleted)";
     int deleted_str_len = 10;
@@ -373,6 +378,7 @@ bool asc_pid_owns_ino(unsigned long socket_ino, pid_t pid, const uint32_t packet
   }
 
   {
+    // douane: almost verbatim, but e7 streamlined and removed the heuristics
     unsigned int fd_i = 0;
     unsigned int fd_max = files_fdtable(task->files)->max_fds;
     for(fd_i = 0; fd_i < fd_max; fd_i++)

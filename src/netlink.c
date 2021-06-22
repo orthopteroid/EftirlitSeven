@@ -1,5 +1,5 @@
-// eftirlit7 (gpl3) - orthopteroid@gmail.com
-// forked from douane-lkms (gpl3) - zedtux@zedroot.org
+// eftirlit7 (gpl2) - orthopteroid@gmail.com
+// forked from douane-lkms (gpl2) - zedtux@zedroot.org
 
 #include <linux/module.h>         // Needed by all modules
 #include <linux/kernel.h>         // Needed for KERN_INFO
@@ -31,7 +31,7 @@
 
 #include "module.h"
 #include "types.h"
-#include "douane.h"
+#include "netfilter.h"
 #include "rules.h"
 #include "netlink.h"
 #include "defs.h"

@@ -1,4 +1,4 @@
-// eftirlit7 (gpl3) - orthopteroid@gmail.com
+// eftirlit7 (gpl2) - orthopteroid@gmail.com
 
 #include "crc32.h"
 #include "defs.h"
@@ -16,6 +16,91 @@
 #undef E7X_FLAG
 #undef E7X_COMM
 #undef E7X_ATTR
+
+// const ordinals
+enum {
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_CONST(x, y, z)     _##x,
+  #define E7X_FLAG(x, y, z)
+  #define E7X_COMM(x)
+  #define E7X_ATTR(x, t)
+  #include "defs.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_CONST
+  #undef E7X_FLAG
+  #undef E7X_COMM
+  #undef E7X_ATTR
+  _E7C_COUNT,
+};
+
+const char * def_const_name[] = {
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_CONST(x, y, z)  #x ,
+  #define E7X_FLAG(x, y, z)
+  #define E7X_COMM(x)
+  #define E7X_ATTR(x, t)
+  #include "defs.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_CONST
+  #undef E7X_FLAG
+  #undef E7X_COMM
+  #undef E7X_ATTR
+};
+
+const char * def_const_alias[] = {
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_CONST(x, y, z)  y ,
+  #define E7X_FLAG(x, y, z)
+  #define E7X_COMM(x)
+  #define E7X_ATTR(x, t)
+  #include "defs.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_CONST
+  #undef E7X_FLAG
+  #undef E7X_COMM
+  #undef E7X_ATTR
+};
+
+uint32_t def_const_alias_hash[] = {
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_CONST(x, y, z)  0,
+  #define E7X_FLAG(x, y, z)
+  #define E7X_COMM(x)
+  #define E7X_ATTR(x, t)
+  #include "defs.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_CONST
+  #undef E7X_FLAG
+  #undef E7X_COMM
+  #undef E7X_ATTR
+};
+
+// flag ordinals
+enum {
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_CONST(x, y, z)
+  #define E7X_FLAG(x, y, z)  _##x,
+  #define E7X_COMM(x)
+  #define E7X_ATTR(x, t)
+  #include "defs.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_CONST
+  #undef E7X_FLAG
+  #undef E7X_COMM
+  #undef E7X_ATTR
+  _E7F_COUNT,
+};
+
 
 uint32_t def_flag_value[] = {
   #define E7X_NAME(x)
@@ -70,54 +155,6 @@ uint32_t def_flag_alias_hash[] = {
   #define E7X_VERSION(x)
   #define E7X_CONST(x, y, z)
   #define E7X_FLAG(x, y, z)     0,
-  #define E7X_COMM(x)
-  #define E7X_ATTR(x, t)
-  #include "defs.x"
-  #undef E7X_NAME
-  #undef E7X_VERSION
-  #undef E7X_CONST
-  #undef E7X_FLAG
-  #undef E7X_COMM
-  #undef E7X_ATTR
-};
-
-const char * def_const_name[] = {
-  #define E7X_NAME(x)
-  #define E7X_VERSION(x)
-  #define E7X_CONST(x, y, z)  #x ,
-  #define E7X_FLAG(x, y, z)
-  #define E7X_COMM(x)
-  #define E7X_ATTR(x, t)
-  #include "defs.x"
-  #undef E7X_NAME
-  #undef E7X_VERSION
-  #undef E7X_CONST
-  #undef E7X_FLAG
-  #undef E7X_COMM
-  #undef E7X_ATTR
-};
-
-const char * def_const_alias[] = {
-  #define E7X_NAME(x)
-  #define E7X_VERSION(x)
-  #define E7X_CONST(x, y, z)  y ,
-  #define E7X_FLAG(x, y, z)
-  #define E7X_COMM(x)
-  #define E7X_ATTR(x, t)
-  #include "defs.x"
-  #undef E7X_NAME
-  #undef E7X_VERSION
-  #undef E7X_CONST
-  #undef E7X_FLAG
-  #undef E7X_COMM
-  #undef E7X_ATTR
-};
-
-uint32_t def_const_alias_hash[] = {
-  #define E7X_NAME(x)
-  #define E7X_VERSION(x)
-  #define E7X_CONST(x, y, z)  0,
-  #define E7X_FLAG(x, y, z)
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
   #include "defs.x"

@@ -1,7 +1,7 @@
 #ifndef _ASC_H_
 #define _ASC_H_
 
-// eftirlit7 (gpl3) - orthopteroid@gmail.com
+// eftirlit7 (gpl2) - orthopteroid@gmail.com
 
 // lookup a socket from the process table (or possibly somewhere else) or a cache-of-thereof.
 // (this api is geared towards finding sockets we've never seen before so access is probably slower)
