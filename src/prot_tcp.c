@@ -1,5 +1,5 @@
-// eftirlit7 (gpl3) - orthopteroid@gmail.com
-// forked from douane-lkms (gpl3) - zedtux@zedroot.org
+// eftirlit7 (gpl2) - orthopteroid@gmail.com
+// forked from douane-lkms (gpl2) - zedtux@zedroot.org
 
 // all logic in this file comes from https://gitlab.com/douaneapp/douane-dkms
 // code-factoring and new bugs from orthopteroid@gmail.com
@@ -39,6 +39,7 @@ enum nf_ip_hook_priorities {
 #include "rules.h"
 #include "prot_tcp.h"
 
+// douane: code packet identification logic. e7 added tcp state checking and multiple levels of cache integration.
 bool prot_tcp_parse(struct psi *psi_out, uint32_t packet_id, void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
   struct tcphdr * tcp_header = NULL;
@@ -150,74 +151,6 @@ bool prot_tcp_parse(struct psi *psi_out, uint32_t packet_id, void *priv, struct 
   }
 
   return true;
-
-/*
-
-#define KIND_HAND_SHAKE   1
-#define KIND_SENDING_RULE 2
-#define KIND_GOODBYE      3
-#define KIND_DELETE_RULE  4
-
-// raw netlink-io packet to douane-daemon
-// nb: this revision has smaller process_path so-as to allow kfree_rcu usage
-struct douane_nlpacket {
-  int   kind;                         // Deamon -> LKM  | Define which kind of message it is
-  char  process_path[PATH_LENGTH +1]; // Bidirectional  | Related process path, +1 for \0
-  int   allowed;                      // Deamon -> LKM  | Define if the process is allowed to outgoing network traffic or not
-  char  device_name[16];              // Bidirectional  | Device name where the packet has been detected (IFNAMSIZ = 16)
-  int   protocol;                     // LKM -> Deamon  | Protocol id of the detected outgoing network activity
-  char  ip_source[16];                // LKM -> Deamon  | Outgoing network traffic ip source
-  int   port_source;                  // LKM -> Deamon  | Outgoing network traffic port source
-  char  ip_destination[16];           // LKM -> Deamon  | Outgoing network traffic ip destination
-  int   port_destination;             // LKM -> Deamon  | Outgoing network traffic port destination
-  int   size;                         // LKM -> Deamon  | Size of the packet
-};
-
-  if (daemon_socket == NULL || daemon_pid == 0)
-  {
-    LOG_DEBUG(packet_id, "NF_ACCEPT (no daemon)");
-    return NF_ACCEPT;
-  }
-
-  {
-    struct douane_nlpacket_rcu * activity_rcu = kzalloc(sizeof(struct douane_nlpacket_rcu), GFP_ATOMIC );
-    struct douane_nlpacket * activity = activity_rcu ? &activity_rcu->activity : NULL;
-    char ip_source[16];
-    char ip_destination[16];
-
-    if (activity == NULL)
-    {
-      LOG_ERR(packet_id, "NF_ACCEPT (kzalloc failed)");
-      return NF_ACCEPT;
-    }
-
-    snprintf(ip_source, 16, "%pI4", &ip_header->saddr);
-    snprintf(ip_destination, 16, "%pI4", &ip_header->daddr);
-
-    strcpy(activity->process_path, psi_out->process_path);
-    strcpy(activity->device_name, state->out->name);
-    activity->protocol = ip_header->protocol;
-    strcpy(activity->ip_source, ip_source);
-    activity->port_source = sport;
-    strcpy(activity->ip_destination, ip_destination);
-    activity->port_destination = dport;
-    activity->size = skb->len;
-
-    // synchronous
-    // as we're outside an rculock is this block-safe?
-    if (douane_send_nlpacket(activity, packet_id) < 0)
-    {
-      LOG_ERR(packet_id, "douane_send_nlpacket failed");
-    }
-    else
-    {
-      LOG_DEBUG(packet_id, "douane_send_nlpacket completed to PID %d", daemon_pid);
-    }
-
-    kfree_rcu(activity_rcu, rcu);
-  }
-*/
-
 }
 
 //////////////////

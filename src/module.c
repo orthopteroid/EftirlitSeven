@@ -1,5 +1,5 @@
-// eftirlit7 (gpl3) - orthopteroid@gmail.com
-// forked from douane-lkms (gpl3) - zedtux@zedroot.org
+// eftirlit7 (gpl2) - orthopteroid@gmail.com
+// forked from douane-lkms (gpl2) - zedtux@zedroot.org
 
 #include <linux/module.h>         // Needed by all modules
 #include <linux/kernel.h>         // Needed for KERN_INFO
@@ -23,7 +23,7 @@
 
 #include "module.h"
 #include "types.h"
-#include "douane.h"
+#include "netfilter.h"
 #include "ksc.h"
 #include "asc.h"
 #include "rules.h"
@@ -101,9 +101,9 @@ static int __init mod_init(void)
     return -1;
   }
 
-  if (douane_init() < 0)
+  if (enf_init() < 0)
   {
-    LOG_ERR(0, "douane_init failed");
+    LOG_ERR(0, "enf_init failed");
     return -1;
   }
 
@@ -123,7 +123,7 @@ static void __exit mod_exit(void)
   synchronize_rcu();
   rcu_barrier();
 
-  douane_exit();
+  enf_exit();
   enl_exit();
   ksc_clear(0);
   rules_clear(0);

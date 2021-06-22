@@ -1,6 +1,7 @@
 #ifndef __TYPES_H_
 #define __TYPES_H_
 
+// douane: a core type and the main structure used for remembering sockets in an rcu_list
 // used to cache and associate: process-name X process-id X tcp-sequence-no X inode
 struct psi
 {

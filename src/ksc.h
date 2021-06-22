@@ -1,7 +1,7 @@
 #ifndef _KSC_H_
 #define _KSC_H_
 
-// eftirlit7 (gpl3) - orthopteroid@gmail.com
+// eftirlit7 (gpl2) - orthopteroid@gmail.com
 
 // lookup a socket in a known-socket-cache
 

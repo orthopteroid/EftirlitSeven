@@ -1,8 +1,8 @@
 #ifndef _RULES_H_
 #define _RULES_H_
 
-// eftirlit7 (gpl3) - orthopteroid@gmail.com
-// forked from douane-lkms (gpl3) - zedtux@zedroot.org
+// eftirlit7 (gpl2) - orthopteroid@gmail.com
+// forked from douane-lkms (gpl2) - zedtux@zedroot.org
 
 struct rule_struct
 {

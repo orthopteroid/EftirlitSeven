@@ -1,5 +1,5 @@
-// eftirlit7 (gpl3) - orthopteroid@gmail.com
-// forked from douane-lkms (gpl3) - zedtux@zedroot.org
+// eftirlit7 (gpl2) - orthopteroid@gmail.com
+// forked from douane-lkms (gpl2) - zedtux@zedroot.org
 
 // all logic in this file comes from https://gitlab.com/douaneapp/douane-dkms
 // code-factoring and new bugs from orthopteroid@gmail.com

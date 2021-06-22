@@ -1,5 +1,5 @@
-// eftirlit7 (gpl3) - orthopteroid@gmail.com
-// forked from douane-lkms (gpl3) - zedtux@zedroot.org
+// eftirlit7 (gpl2) - orthopteroid@gmail.com
+// forked from douane-lkms (gpl2) - zedtux@zedroot.org
 
 #include <linux/module.h>         // Needed by all modules
 #include <linux/kernel.h>         // Needed for KERN_INFO
@@ -25,6 +25,10 @@
 #include "types.h"
 #include "crc32.h"
 #include "ksc.h"
+
+// douane: the concept of a cache of known sockets were kept in an rcu_list
+// of psi_struct. In e7 the concept was kept but changed to a struct-of-array
+// style cache for better searching performance.
 
 //#define DEBUG_KSC_ASYNC
 

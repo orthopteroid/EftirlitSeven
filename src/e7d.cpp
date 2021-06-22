@@ -1,4 +1,4 @@
-// eftirlit7 (gpl3) - orthopteroid@gmail.com
+// eftirlit7 (gpl2) - orthopteroid@gmail.com
 
 #include <assert.h>
 #include <stdio.h>

@@ -1,5 +1,5 @@
-// eftirlit7 (gpl3) - orthopteroid@gmail.com
-// forked from douane-lkms (gpl3) - zedtux@zedroot.org
+// eftirlit7 (gpl2) - orthopteroid@gmail.com
+// forked from douane-lkms (gpl2) - zedtux@zedroot.org
 
 // all logic in this file comes from https://gitlab.com/douaneapp/douane-dkms
 // code-factoring and new bugs from orthopteroid@gmail.com
@@ -34,7 +34,7 @@ enum nf_ip_hook_priorities {
 
 #include "module.h"
 #include "types.h"
-#include "douane.h"
+#include "netfilter.h"
 #include "ksc.h"
 #include "asc.h"
 #include "rules.h"
@@ -45,10 +45,10 @@ enum nf_ip_hook_priorities {
 #include "prot_udp.h"
 
 // fwd decls
-static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
 
 static struct nf_hook_ops netfilter_config = {
-  .hook     = douane__nfhandler,
+  .hook     = enf__nfhandler,
   .hooknum  = NF_IP_LOCAL_OUT,
   .pf       = NFPROTO_IPV4,
   .priority = NF_IP_PRI_LAST,
@@ -83,7 +83,7 @@ int get_action(int flag, const char * message, uint32_t packet_id)
   }
 }
 
-static void douane__parse_protocol(
+static void enf__parse_protocol(
   bool * prot_out, bool * proc_out, struct iphdr * ip_header,
   struct psi *psi_out, uint32_t packet_id, void *priv, struct sk_buff *skb, const struct nf_hook_state *state
 )
@@ -106,7 +106,8 @@ static void douane__parse_protocol(
 
 ///////////////
 
-static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
+// douane: basic nfhandler structure has been factored and protocols broken out
+static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
   struct iphdr * ip_header = NULL;
   const char * szprot = 0, * szaction = 0;
@@ -147,7 +148,7 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
     bool process_identified = false;
     bool protocol_identified = false;
 
-    douane__parse_protocol(&protocol_identified, &process_identified, ip_header, &psi, packet_id, priv, skb, state);
+    enf__parse_protocol(&protocol_identified, &process_identified, ip_header, &psi, packet_id, priv, skb, state);
 
     if (!protocol_identified)
     {
@@ -204,7 +205,7 @@ static unsigned int douane__nfhandler(void *priv, struct sk_buff *skb, const str
 
 //////////////////
 
-int douane_init(void)
+int enf_init(void)
 {
   int action = 0;
 
@@ -217,7 +218,7 @@ int douane_init(void)
   return 0;
 }
 
-void douane_exit(void)
+void enf_exit(void)
 {
   prot_tcp_exit();
   nf_unregister_net_hook(&init_net, &netfilter_config);
