@@ -38,7 +38,7 @@ Userspace-bound netlink packets are transmitted asynchronously from a work-queue
 
 ## Single file Control Daemon (e7d)
 
-The control daemon in E7 is a console app with streamlined use of epoll to handle singals, netlink and stdin commands. The daemon also uses some command-string parsing tricks (C++11 constexpr string hash calculation) that hopefully aren't too clever.
+The control daemon in E7 is a console app with streamlined use of epoll to handle singals, netlink and stdin commands. The daemon also uses some command-string parsing tricks (C++ constexpr string hash calculation) that hopefully aren't too clever.
 
 ## Firewall State Control (defs.x)
 
