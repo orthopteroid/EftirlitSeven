@@ -21,7 +21,7 @@ struct ruleset_struct_rcu
 };
 
 void rules_clear(const uint32_t packet_id);
-void rules_clear2(const bool is_allowed, const uint32_t packet_id);
+void rules_clear_state(const bool is_allowed, const uint32_t packet_id);
 
 bool rules_add(uint32_t protocol, const char * process_path, const bool is_allowed, const uint32_t packet_id);
 bool rules_remove(uint32_t protocol, const char * process_path, const uint32_t packet_id);

@@ -413,8 +413,8 @@ static int enl__comm_block(struct sk_buff *skb_in, struct genl_info *info)
   if(!connected)
     LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
 
-  if((pa = info->attrs[ENL_ATTR_PATH])) sz = (char*)nla_data(pa); // sz = nla_get_string(a);
   if((pr = info->attrs[ENL_ATTR_PROT])) u32 = nla_get_u32(pr);
+  if((pa = info->attrs[ENL_ATTR_PATH])) sz = (char*)nla_data(pa); // sz = nla_get_string(a);
 
   if(!pa && !pr)     def_flag_value[E7F_MODE] = E7C_BLOCK; // fw drop all
   else if(!pa && pr) ok = rules_add(u32, "", false, stack_id);
@@ -446,8 +446,8 @@ static int enl__comm_allow(struct sk_buff *skb_in, struct genl_info *info)
   if(!connected)
     LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
 
-  if((pa = info->attrs[ENL_ATTR_PATH])) sz = (char*)nla_data(pa); // sz = nla_get_string(a);
   if((pr = info->attrs[ENL_ATTR_PROT])) u32 = nla_get_u32(pr);
+  if((pa = info->attrs[ENL_ATTR_PATH])) sz = (char*)nla_data(pa); // sz = nla_get_string(a);
 
   if(!pa && !pr)     def_flag_value[E7F_MODE] = E7C_DISABLED; // fw off
   else if(!pa && pr) ok = rules_add(u32, "", true, stack_id);
@@ -480,29 +480,34 @@ static int enl__comm_clear(struct sk_buff *skb_in, struct genl_info *info)
 {
   uint32_t stack_id = enl__stackid();
   bool connected = enl_is_connected();
-  struct nlattr * a = NULL;
-  bool ok = true;
+  struct nlattr *pa = NULL, *pr = NULL, *st = NULL;
+  uint32_t u32 = 0, state = 0;
+  char * sz = NULL;
 
   // todo: check for connection theft
   enl__set_connect(genl_info_net(info), info->snd_portid);
   if(!connected)
     LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
 
-  if((a = info->attrs[ENL_ATTR_STATE]))
+  if((st = info->attrs[ENL_ATTR_STATE])) state = nla_get_u32(st);
+  if((pr = info->attrs[ENL_ATTR_PROT])) u32 = nla_get_u32(pr);
+  if((pa = info->attrs[ENL_ATTR_PATH])) sz = (char*)nla_data(pa); // sz = nla_get_string(a);
+
+  if(st)
   {
-    switch(nla_get_u32(a)) // with an arg, queries a particular list
+    switch(state) // with an arg, queries a particular list
     {
-      case E7C_BLOCK: rules_clear2(false, stack_id); break;
-      case E7C_ALLOW: rules_clear2(true, stack_id); break;
-      default:        ok = false;
+      case E7C_BLOCK: rules_clear_state(false, stack_id); break;
+      case E7C_ALLOW: rules_clear_state(true, stack_id); break;
+      default:        enl__send_error(stack_id);
     }
   }
-  else
-    rules_clear(stack_id); // no args clears all rules
+  else if(!pa && !pr) rules_clear(stack_id); // no args clears all rules
+  else if(!pa && pr)  rules_remove(u32, "", stack_id);
+  else if(pa && !pr)  rules_remove(E7C_IP_ANY, sz, stack_id);
+  else if(pa && pr)   rules_remove(u32, sz, stack_id);
 
-  if(!ok)
-    enl__send_error(stack_id);
-  else if(def_flag_value[E7F_RULE_CHANGE_QUERY] == E7C_ENABLED)
+  if(def_flag_value[E7F_RULE_CHANGE_QUERY] == E7C_ENABLED)
     enl__send_query(stack_id);
 
   return 0;

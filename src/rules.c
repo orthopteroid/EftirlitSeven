@@ -94,7 +94,7 @@ void rules_clear(const uint32_t packet_id)
   queued_write_unlock(&rules_rwlock);
 }
 
-void rules_clear2(const bool is_allowed, const uint32_t packet_id)
+void rules_clear_state(const bool is_allowed, const uint32_t packet_id)
 {
   int i, k;
 
