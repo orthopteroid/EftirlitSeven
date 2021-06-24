@@ -72,6 +72,12 @@ static int __init mod_init(void)
     return -1;
   }
 
+  if (rules_init() < 0)
+  {
+    LOG_ERR(0, "rules_init failed");
+    return -1;
+  }
+
   if (ksc_init() < 0)
   {
     LOG_ERR(0, "ksc_init failed");
@@ -131,8 +137,9 @@ static void __exit mod_exit(void)
   prot_udp_exit();
   prot_tcp_exit();
 
-  ksc_exit();
   asc_exit();
+  ksc_exit();
+  rules_exit();
   def_exit();
 
   LOG_INFO(0, "module unloaded");

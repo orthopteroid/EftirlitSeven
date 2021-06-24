@@ -5,17 +5,18 @@ E7X_VERSION(1)
 // NESTED
 // PATH: string
 // FLAG: E7F_...
-// STATE: E7C_BLOCK, E7C_ALLOW, E7C_PENDING
+// STATE: E7C_BLOCK, E7C_ALLOW, E7C_PENDING*  (*unimplemented)
 // PROT, VALUE: uint32
 //
 // * main firewall state commands
 // DISCONNECT - lkm shutting down
 //
 // * rule management commands
-// BLOCK [ PROT | PATH ]
-// ALLOW [ PROT | PATH ]
+// BLOCK [ PROT ] [ PATH ]
+// ALLOW [ PROT ] [ PATH ]
 // ENABLE
-// QUERY [ STATE ] - returns QUERY STATE [ PROT ] [ PATH ] [ NESTED ]
+// CLEAR [ STATE ] | ( [ PROT ] [ PATH ] )
+// QUERY - returns QUERY STATE [ PROT ] [ PATH ] [ NESTED ]
 //
 // * outbound connection attempts
 // EVENT PROT PATH STATE - requires BLOCK or ALLOW reply
@@ -33,8 +34,10 @@ E7X_VERSION(1)
 // e = enumeration of mulitple types of values
 
 // ID, e7d alias and constant value
-E7X_CONST(E7C_IP_TCP,   "ctcp",      6)
-E7X_CONST(E7C_IP_UDP,   "cudp",      17)
+E7X_CONST(E7C_IP_ICMP,  "cicmp",     IPPROTO_ICMP)
+E7X_CONST(E7C_IP_TCP,   "ctcp",      IPPROTO_TCP)
+E7X_CONST(E7C_IP_UDP,   "cudp",      IPPROTO_UDP)
+E7X_CONST(E7C_IP_ANY,   "cany",      ~0)
 E7X_CONST(E7C_BLOCK,    "cblock",    0xFF00)
 E7X_CONST(E7C_ALLOW,    "callow",    0xFF01)
 E7X_CONST(E7C_PENDING,  "cpending",  0xFF02)
@@ -51,12 +54,14 @@ E7X_FLAG(E7F_RULE_NORULE,          "nnorule",  E7C_ENABLED)   // notify daemon o
 E7X_FLAG(E7F_RULE_NORULE_ACTION,   "aunkrule", E7C_ALLOW)     // what to do with a packet that has no rule (ACCEPT) todo: QUEUE
 E7X_FLAG(E7F_RULE_DROPS,           "ndrops",   E7C_DISABLED)  // notify daemon when a packet is DROPPED due to a rule
 E7X_FLAG(E7F_RULE_ACCEPTS,         "naccepts", E7C_DISABLED)  // notify daemon when a packet is ACCEPTED due to a rule
+E7X_FLAG(E7F_RULE_CHANGE_QUERY,    "nrchngq",  E7C_ENABLED)   // notify daemon with full query when rules are added/removed
 
 E7X_COMM(ENL_COMM_ERROR)
 E7X_COMM(ENL_COMM_DISCONNECT)
 E7X_COMM(ENL_COMM_BLOCK)
 E7X_COMM(ENL_COMM_ALLOW)
 E7X_COMM(ENL_COMM_ENABLE)
+E7X_COMM(ENL_COMM_CLEAR)
 E7X_COMM(ENL_COMM_QUERY)
 E7X_COMM(ENL_COMM_EVENT)
 E7X_COMM(ENL_COMM_SET)

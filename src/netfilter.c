@@ -170,7 +170,7 @@ static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct
   {
     struct rule_struct rule;
 
-    if (0>rules_search(&rule, ip_header->protocol, psi.process_path, packet_id))
+    if (!rules_search(&rule, ip_header->protocol, psi.process_path, packet_id))
     {
       szaction = def_actionname(def_flag_value[E7F_RULE_NORULE_ACTION]);
       szaction = szaction ? szaction : "?";
