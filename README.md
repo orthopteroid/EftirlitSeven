@@ -5,9 +5,10 @@
 Development Details:
 - kernel 5.4.0-74 (ubuntu 18.04.1 x64) on a friendly old ssd-assisted Intel Atom 330 (dual cpu with HT)
 - libnl 3.2.29+ is needed to accomodate problems with attribute nesting
-- `make_e7d` builds the C++11 daemon, `make` will build the LKM on unsecure kernels
+- `make` will build the LKM on unsecure kernels
 - `make dkms` builds the LKM on secure kernels but if debugfs support is missing kernel log output is limited
-- launch LKM for a test run with `./test` or `./test-dkms`. NB: these commands clobber your kernel.log
+- `./test` or `./test-dkms` will launch LKM for a test run. NB: these commands clobber your kernel.log
+- `make_e7d` builds the C++11 daemon which can be run with `sudo ./e7d`
 - additional component debugging supported. `grep "define DEBUG_" src/*.c` for details.
 - douaneapp source attributions included. `grep "douane" src/*` for details.
 
