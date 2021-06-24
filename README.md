@@ -8,7 +8,7 @@ Development Details:
 - `make` will build the LKM on unsecure kernels
 - `make dkms` builds the LKM on secure kernels but if debugfs support is missing kernel log output is limited
 - `./test` or `./test-dkms` will launch LKM for a test run. NB: these commands clobber your kernel.log
-- `make_e7d` builds the C++11 daemon which can be run with `sudo ./e7d`
+- `make_e7d` builds the C++ daemon which can be run with `sudo ./e7d`
 - additional component debugging supported. `grep "define DEBUG_" src/*.c` for details.
 - douaneapp source attributions included. `grep "douane" src/*` for details.
 
