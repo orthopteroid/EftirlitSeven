@@ -67,13 +67,13 @@ allow cany /bin/
 block ctcp /usr/bin/
 ```
 
-## Stats tracker
-
-Future work: Process, protocol, user, destination stats
-
 ## LKM log output
 
 For typical LKM log output on a low-end machine (around the time of commit ab016a2439e9b96b335fbaf1124f9f08164f25fc), see the file typical-log-output.txt
+
+## Future Work
+
+Monitoring or stats tracking for other parameters, including specific process-instances, users or destinations. Additionally, it would be useful to take kernel parmaters for the module so module flags can be manipulated at boot-time to prevent packet leakage.
 
 # Provenance
 
