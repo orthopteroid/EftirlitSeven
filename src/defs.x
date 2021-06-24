@@ -33,8 +33,10 @@ E7X_VERSION(1)
 // e = enumeration of mulitple types of values
 
 // ID, e7d alias and constant value
-E7X_CONST(E7C_IP_TCP,   "ctcp",      6)
-E7X_CONST(E7C_IP_UDP,   "cudp",      17)
+E7X_CONST(E7C_IP_ICMP,  "cicmp",     IPPROTO_ICMP)
+E7X_CONST(E7C_IP_TCP,   "ctcp",      IPPROTO_TCP)
+E7X_CONST(E7C_IP_UDP,   "cudp",      IPPROTO_UDP)
+E7X_CONST(E7C_IP_ANY,   "cany",      ~0)
 E7X_CONST(E7C_BLOCK,    "cblock",    0xFF00)
 E7X_CONST(E7C_ALLOW,    "callow",    0xFF01)
 E7X_CONST(E7C_PENDING,  "cpending",  0xFF02)

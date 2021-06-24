@@ -277,6 +277,22 @@ fail:
 
 #endif // ENL_ASYNC_SEND
 
+int enl__send_error(const uint32_t stack_id)
+{
+  struct MSGSTATE ms = { 0, 0, 0 };
+
+  if(!enl__prep(&ms, ENL_COMM_ERROR)) goto fail;
+  if(!enl__send(&ms, stack_id)) goto fail;
+
+  return ms.err;
+
+fail:
+  enl__prep_reclaim(&ms);
+
+  LOG_ERR(stack_id, "error %d", ms.err);
+  return ms.err;
+}
+
 /////////////////
 
 int enl_send_disconnect(const uint32_t stack_id)
@@ -340,6 +356,7 @@ static int enl__comm_block(struct sk_buff *skb_in, struct genl_info *info)
   uint32_t stack_id = enl__stackid();
   bool connected = enl_is_connected();
   struct nlattr *pa, *pr;
+  bool err = false;
   uint32_t u32;
   char * sz;
 
@@ -354,10 +371,16 @@ static int enl__comm_block(struct sk_buff *skb_in, struct genl_info *info)
   if((pa = info->attrs[ENL_ATTR_PATH])) sz = (char*)nla_data(pa); // sz = nla_get_string(a);
   if((pr = info->attrs[ENL_ATTR_PROT])) u32 = nla_get_u32(pr);
 
+  LOG_DEBUG_PROTO(stack_id, "(%u:%s)",u32,sz);
+  return 0;
+
   if(!pa && !pr)     def_flag_value[E7F_MODE] = E7C_BLOCK; // fw drop all
-  else if(!pa && pr) ; //rules_append(block, szany, u32, stack_id);
-  else if(pa && !pr) ; //rules_append(block, sz, u32any, stack_id);
-  else if(pa && pr)  ; //rules_append(block, sz, u32, stack_id);
+  else if(!pa && pr) err = rules_add(u32, "", false, stack_id);
+  else if(pa && !pr) err = rules_add(E7C_IP_ANY, sz, false, stack_id);
+  else if(pa && pr)  err = rules_add(u32, sz, false, stack_id);
+
+  if(err) enl__send_error(stack_id);
+
   return 0;
 }
 
@@ -366,6 +389,7 @@ static int enl__comm_allow(struct sk_buff *skb_in, struct genl_info *info)
   uint32_t stack_id = enl__stackid();
   bool connected = enl_is_connected();
   struct nlattr *pa, *pr;
+  bool err = false;
   uint32_t u32;
   char * sz;
 
@@ -380,10 +404,16 @@ static int enl__comm_allow(struct sk_buff *skb_in, struct genl_info *info)
   if((pa = info->attrs[ENL_ATTR_PATH])) sz = (char*)nla_data(pa); // sz = nla_get_string(a);
   if((pr = info->attrs[ENL_ATTR_PROT])) u32 = nla_get_u32(pr);
 
+  LOG_DEBUG_PROTO(stack_id, "(%u:%s)",u32,sz);
+  return 0;
+
   if(!pa && !pr)     def_flag_value[E7F_MODE] = E7C_DISABLED; // fw off
-  else if(!pa && pr) ; //rules_append(allow, szany, u32, stack_id);
-  else if(pa && !pr) ; //rules_append(allow, sz, u32any, stack_id);
-  else if(pa && pr)  ; //rules_append(allow, sz, u32, stack_id);
+  else if(!pa && pr) err = rules_add(u32, "", true, stack_id);
+  else if(pa && !pr) err = rules_add(E7C_IP_ANY, sz, true, stack_id);
+  else if(pa && pr)  err = rules_add(u32, sz, true, stack_id);
+
+  if(err) enl__send_error(stack_id);
+
   return 0;
 }
 
@@ -440,16 +470,14 @@ static int enl__comm_query(struct sk_buff *skb_in, struct genl_info *info)
       case E7C_BLOCK:    test = testB; break;
       case E7C_ALLOW:    test = testA; break;
       case E7C_PENDING:  test = testP; break;
-      default:
-        if(!enl__prep(&ms, ENL_COMM_ERROR)) goto fail;
-        if(!enl__send(&ms, stack_id)) goto fail;
+      default:           enl__send_error(stack_id);
     }
 
     //struct ruleset_struct_rcu * ruleset = 0;
     //if(0>rules_get(&ruleset, stack_id)) { LOG_ERR(stack_id, "rules_get failure"); return; }
     //kfree_rcu(ruleset, rcu);
 
-    LOG_DEBUG(stack_id, "%s", test ? "test" : "!test");
+    LOG_DEBUG(stack_id, "%X %s", state, test ? "test" : "!test");
 
     if(test)
     {

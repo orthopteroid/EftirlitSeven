@@ -122,10 +122,10 @@ extern const char * def_protname(uint32_t protocol);
 extern const char * def_actionname(uint32_t action);
 
 int def_flag_alias_idx(const char* alias);
-int def_const_alias_idx(const char* alias);
+uint32_t def_const_alias_value(const char* alias);
 
 const char* def_flag_name_str(int f);
-const char* def_const_name_str(int c);
+const char* def_const_name_str(uint32_t c);
 
 int def_init(void);
 void def_exit(void);

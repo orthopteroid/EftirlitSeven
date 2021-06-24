@@ -51,6 +51,22 @@ const char * def_const_name[] = {
   #undef E7X_ATTR
 };
 
+uint32_t def_const_value[] = {
+  #define E7X_NAME(x)
+  #define E7X_VERSION(x)
+  #define E7X_CONST(x, y, z)  (uint32_t)z ,
+  #define E7X_FLAG(x, y, z)
+  #define E7X_COMM(x)
+  #define E7X_ATTR(x, t)
+  #include "defs.x"
+  #undef E7X_NAME
+  #undef E7X_VERSION
+  #undef E7X_CONST
+  #undef E7X_FLAG
+  #undef E7X_COMM
+  #undef E7X_ATTR
+};
+
 const char * def_const_alias[] = {
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
@@ -106,7 +122,7 @@ uint32_t def_flag_value[] = {
   #define E7X_NAME(x)
   #define E7X_VERSION(x)
   #define E7X_CONST(x, y, z)
-  #define E7X_FLAG(x, y, z)     z,
+  #define E7X_FLAG(x, y, z)     (uint32_t)z,
   #define E7X_COMM(x)
   #define E7X_ATTR(x, t)
   #include "defs.x"
@@ -282,19 +298,20 @@ int def_flag_alias_idx(const char* alias)
 
 const char* def_flag_name_str(int f)
 {
-  if(f<(int)sizeof(def_flag_name))
+  if(f<_E7F_COUNT)
     return def_flag_name[f];
   return 0;
 }
 
-const char* def_const_name_str(int f)
+const char* def_const_name_str(uint32_t c)
 {
-  if(f<(int)sizeof(def_const_name))
-    return def_const_name[f];
+  int i;
+  for(i=0; i<_E7C_COUNT; i++)
+    if(c==def_const_value[i]) return def_const_name[i];
   return 0;
 }
 
-int def_const_alias_idx(const char* alias)
+uint32_t def_const_alias_value(const char* alias)
 {
   uint32_t h;
   int i;
@@ -303,7 +320,7 @@ int def_const_alias_idx(const char* alias)
   h = crc32(alias);
 
   for(i=0; i<_E7C_COUNT; i++)
-    if(h==def_const_alias_hash[i]) return i;
+    if(h==def_const_alias_hash[i]) return def_const_value[i];
   return -1;
 }
 

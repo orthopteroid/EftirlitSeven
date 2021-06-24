@@ -187,7 +187,7 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
 
   switch(gnlh->cmd) {
   case ENL_COMM_ERROR:
-    E7_LOG("command error");
+    E7_LOG("error returned");
     break;
   case ENL_COMM_DISCONNECT:
     stop = true;
@@ -300,9 +300,9 @@ void e7_parsecmd(CMDBUF & buf)
     int j;
     char *p = sz;
     if(!sz) return false;
-    j = def_const_alias_idx(sz);
+    j = def_const_alias_value(sz); // cast?
     if(-1 != j) { i = j; return true; }
-    while(p) if(!isdigit(*(p++))) return false;
+    while(*p) if(!isdigit(*(p++))) return false;
     i = atoi(sz);
     return true;
   };
@@ -362,7 +362,7 @@ help_set:
       break;
     case crc32("query"):
       if(ac==1) e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_QUERY) );
-      else if(ac==2 && -1!=(iconst = def_const_alias_idx(a1)))
+      else if(ac==2 && -1!=(iconst = def_const_alias_value(a1)))
         e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_QUERY, ENL_ATTR_STATE, (uint32_t)iconst) );
       else printf("query [ <state> ]\n");
       break;
