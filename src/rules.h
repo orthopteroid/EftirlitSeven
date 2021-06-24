@@ -20,14 +20,15 @@ struct ruleset_struct_rcu
   struct rule_struct rules[];
 };
 
-void rules_print(const uint32_t packet_id);
 void rules_clear(const uint32_t packet_id);
+void rules_clear2(const bool is_allowed, const uint32_t packet_id);
 
 bool rules_add(uint32_t protocol, const char * process_path, const bool is_allowed, const uint32_t packet_id);
 bool rules_remove(uint32_t protocol, const char * process_path, const uint32_t packet_id);
 
 bool rules_search(struct rule_struct * rule_out, uint32_t protocol, const char * process_path, const uint32_t packet_id);
-bool rules_get(struct ruleset_struct_rcu ** ruleset_out_rcufree, const uint32_t packet_id);
+
+int rules_get(struct ruleset_struct_rcu ** ruleset_out_rcufree, const uint32_t packet_id);
 
 int rules_init(void);
 void rules_exit(void);

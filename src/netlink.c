@@ -281,6 +281,8 @@ int enl__send_error(const uint32_t stack_id)
 {
   struct MSGSTATE ms = { 0, 0, 0 };
 
+  LOG_DEBUG(stack_id, "sending error");
+
   if(!enl__prep(&ms, ENL_COMM_ERROR)) goto fail;
   if(!enl__send(&ms, stack_id)) goto fail;
 
@@ -290,6 +292,48 @@ fail:
   enl__prep_reclaim(&ms);
 
   LOG_ERR(stack_id, "error %d", ms.err);
+  return ms.err;
+}
+
+int enl__send_query(const uint32_t stack_id)
+{
+  struct MSGSTATE ms = { 0, 0, 0 };
+  struct nlattrptr_stack_rcu * stack = 0;
+  struct ruleset_struct_rcu * ruleset = 0;
+  int count, s, r;
+
+  if(0>(ms.err=rules_get(&ruleset, stack_id))) goto out;
+
+  count = ruleset->count +1; // +1 for fw-state
+  stack = kzalloc(sizeof(struct nlattrptr_stack_rcu) + sizeof(struct nlattr *) * count, GFP_ATOMIC );
+  if(stack == NULL) { ms.err=-1; goto out; }
+
+  if(!enl__prep(&ms, ENL_COMM_QUERY)) goto out;
+
+  // fw mode then other entries
+  s = 0;
+  if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_STATE, def_flag_value[E7F_MODE]))) goto out;
+  if(0<ruleset->count) stack->a[s++] = nla_nest_start(ms.msg, ENL_ATTR_NESTED | NLA_F_NESTED); // | NESTED required with ubuntu libnl 3.2.29
+  for(r=0; r<ruleset->count; s++, r++)
+  {
+    if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_STATE, (ruleset->rules[r].allowed) ? E7C_ALLOW : E7C_BLOCK))) goto out;
+    if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_PROT, ruleset->rules[r].protocol))) goto out;
+    if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_PATH, ruleset->rules[r].process_path))) goto out;
+
+    // nesting on all but last entry
+    if(s+1<count) stack->a[s] = nla_nest_start(ms.msg, ENL_ATTR_NESTED | NLA_F_NESTED); // | NESTED required with ubuntu libnl 3.2.29
+  }
+  for(s=count -2; s>=0; s--) nla_nest_end(ms.msg, stack->a[ s ]); // start at -2 because last entry is not nested
+  if(!enl__send(&ms, stack_id)) goto out;
+
+out:
+  if(ruleset) kfree_rcu(ruleset, rcu);
+  if(stack) kfree_rcu(stack, rcu);
+  if(ms.err)
+  {
+    enl__prep_reclaim(&ms);
+    LOG_ERR(stack_id, "error %d", ms.err);
+  }
   return ms.err;
 }
 
@@ -337,6 +381,7 @@ static int enl__comm_error(struct sk_buff *skb_in, struct genl_info *info)
   uint32_t stack_id = enl__stackid();
 
   LOG_DEBUG_PROTO(stack_id, "unexpected");
+  enl__send_error(stack_id);
 
   return 0;
 }
@@ -356,30 +401,30 @@ static int enl__comm_block(struct sk_buff *skb_in, struct genl_info *info)
   uint32_t stack_id = enl__stackid();
   bool connected = enl_is_connected();
   struct nlattr *pa, *pr;
-  bool err = false;
+  bool ok = false;
   uint32_t u32;
   char * sz;
 
-  LOG_DEBUG_PROTO(stack_id, "start");
-
-  if(!netlink_capable(skb_in, CAP_NET_ADMIN)) { LOG_ERR(stack_id, "rejected from unprivileged process"); return 0; }
+  if(!netlink_capable(skb_in, CAP_NET_ADMIN))
+    { LOG_ERR(stack_id, "rejected from unprivileged process"); return 0; }
 
   // todo: check for connection theft
   enl__set_connect(genl_info_net(info), info->snd_portid);
-  if(!connected) LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
+  if(!connected)
+    LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
 
   if((pa = info->attrs[ENL_ATTR_PATH])) sz = (char*)nla_data(pa); // sz = nla_get_string(a);
   if((pr = info->attrs[ENL_ATTR_PROT])) u32 = nla_get_u32(pr);
 
-  LOG_DEBUG_PROTO(stack_id, "(%u:%s)",u32,sz);
-  return 0;
-
   if(!pa && !pr)     def_flag_value[E7F_MODE] = E7C_BLOCK; // fw drop all
-  else if(!pa && pr) err = rules_add(u32, "", false, stack_id);
-  else if(pa && !pr) err = rules_add(E7C_IP_ANY, sz, false, stack_id);
-  else if(pa && pr)  err = rules_add(u32, sz, false, stack_id);
+  else if(!pa && pr) ok = rules_add(u32, "", false, stack_id);
+  else if(pa && !pr) ok = rules_add(E7C_IP_ANY, sz, false, stack_id);
+  else if(pa && pr)  ok = rules_add(u32, sz, false, stack_id);
 
-  if(err) enl__send_error(stack_id);
+  if(!ok)
+    enl__send_error(stack_id);
+  else if(def_flag_value[E7F_RULE_CHANGE_QUERY] == E7C_ENABLED)
+    enl__send_query(stack_id);
 
   return 0;
 }
@@ -389,30 +434,30 @@ static int enl__comm_allow(struct sk_buff *skb_in, struct genl_info *info)
   uint32_t stack_id = enl__stackid();
   bool connected = enl_is_connected();
   struct nlattr *pa, *pr;
-  bool err = false;
+  bool ok = false;
   uint32_t u32;
   char * sz;
 
-  LOG_DEBUG_PROTO(stack_id, "start");
-
-  if(!netlink_capable(skb_in, CAP_NET_ADMIN)) { LOG_ERR(stack_id, "rejected from unprivileged process"); return 0; }
+  if(!netlink_capable(skb_in, CAP_NET_ADMIN))
+    { LOG_ERR(stack_id, "rejected from unprivileged process"); return 0; }
 
   // todo: check for connection theft
   enl__set_connect(genl_info_net(info), info->snd_portid);
-  if(!connected) LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
+  if(!connected)
+    LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
 
   if((pa = info->attrs[ENL_ATTR_PATH])) sz = (char*)nla_data(pa); // sz = nla_get_string(a);
   if((pr = info->attrs[ENL_ATTR_PROT])) u32 = nla_get_u32(pr);
 
-  LOG_DEBUG_PROTO(stack_id, "(%u:%s)",u32,sz);
-  return 0;
-
   if(!pa && !pr)     def_flag_value[E7F_MODE] = E7C_DISABLED; // fw off
-  else if(!pa && pr) err = rules_add(u32, "", true, stack_id);
-  else if(pa && !pr) err = rules_add(E7C_IP_ANY, sz, true, stack_id);
-  else if(pa && pr)  err = rules_add(u32, sz, true, stack_id);
+  else if(!pa && pr) ok = rules_add(u32, "", true, stack_id);
+  else if(pa && !pr) ok = rules_add(E7C_IP_ANY, sz, true, stack_id);
+  else if(pa && pr)  ok = rules_add(u32, sz, true, stack_id);
 
-  if(err) enl__send_error(stack_id);
+  if(!ok)
+    enl__send_error(stack_id);
+  else if(def_flag_value[E7F_RULE_CHANGE_QUERY] == E7C_ENABLED)
+    enl__send_query(stack_id);
 
   return 0;
 }
@@ -422,13 +467,44 @@ static int enl__comm_enable(struct sk_buff *skb_in, struct genl_info *info)
   uint32_t stack_id = enl__stackid();
   bool connected = enl_is_connected();
 
-  LOG_DEBUG_PROTO(stack_id, "start");
+  // todo: check for connection theft
+  enl__set_connect(genl_info_net(info), info->snd_portid);
+  if(!connected)
+    LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
+
+  def_flag_value[E7F_MODE] = E7C_ENABLED;
+  return 0;
+}
+
+static int enl__comm_clear(struct sk_buff *skb_in, struct genl_info *info)
+{
+  uint32_t stack_id = enl__stackid();
+  bool connected = enl_is_connected();
+  struct nlattr * a = NULL;
+  bool ok = true;
 
   // todo: check for connection theft
   enl__set_connect(genl_info_net(info), info->snd_portid);
-  if(!connected) LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
+  if(!connected)
+    LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
 
-  def_flag_value[E7F_MODE] = E7C_ENABLED;
+  if((a = info->attrs[ENL_ATTR_STATE]))
+  {
+    switch(nla_get_u32(a)) // with an arg, queries a particular list
+    {
+      case E7C_BLOCK: rules_clear2(false, stack_id); break;
+      case E7C_ALLOW: rules_clear2(true, stack_id); break;
+      default:        ok = false;
+    }
+  }
+  else
+    rules_clear(stack_id); // no args clears all rules
+
+  if(!ok)
+    enl__send_error(stack_id);
+  else if(def_flag_value[E7F_RULE_CHANGE_QUERY] == E7C_ENABLED)
+    enl__send_query(stack_id);
+
   return 0;
 }
 
@@ -436,77 +512,12 @@ static int enl__comm_query(struct sk_buff *skb_in, struct genl_info *info)
 {
   uint32_t stack_id = enl__stackid();
   bool connected = enl_is_connected();
-  struct MSGSTATE ms = { 0, 0, 0 };
-  struct nlattrptr_stack_rcu * stack = 0;
-  struct nlattr * a = NULL;
-  int count, i;
-  uint32_t state = 0;
-  const char ** test = 0;
-  const char * testB[] = { "oneB", "twoB", "threeB" };
-  const char * testA[] = { "oneA", "twoA", "threeA" };
-  const char * testP[] = { "oneP", "twoP", "threeP" };
-
-  LOG_DEBUG_PROTO(stack_id, "start");
 
   // todo: check for connection theft
   enl__set_connect(genl_info_net(info), info->snd_portid);
   if(!connected) LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
 
-  if(!info->attrs[ENL_ATTR_STATE])
-  {
-    // no args queries main fw state
-    if(!enl__prep(&ms, ENL_COMM_QUERY)) goto fail;
-    if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_STATE, def_flag_value[E7F_MODE]))) goto fail;
-    if(!enl__send(&ms, stack_id)) goto fail;
-  }
-  else
-  {
-    // with an arg, queries a particular list
-    if((a = info->attrs[ENL_ATTR_STATE])) state = nla_get_u32(a);
-
-    count = 3;
-    switch(state)
-    {
-      case E7C_BLOCK:    test = testB; break;
-      case E7C_ALLOW:    test = testA; break;
-      case E7C_PENDING:  test = testP; break;
-      default:           enl__send_error(stack_id);
-    }
-
-    //struct ruleset_struct_rcu * ruleset = 0;
-    //if(0>rules_get(&ruleset, stack_id)) { LOG_ERR(stack_id, "rules_get failure"); return; }
-    //kfree_rcu(ruleset, rcu);
-
-    LOG_DEBUG(stack_id, "%X %s", state, test ? "test" : "!test");
-
-    if(test)
-    {
-      stack = kzalloc(sizeof(struct nlattrptr_stack_rcu) + sizeof(struct nlattr *) * count, GFP_ATOMIC );
-      if(stack == NULL) { ms.err=-1; goto fail; }
-
-      if(!enl__prep(&ms, ENL_COMM_QUERY)) goto fail;
-      for(i=0; i<count; i++)
-      {
-        if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_STATE, state))) goto fail;
-        if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_PROT, 999))) goto fail;
-        if(0>(ms.err=nla_put_string(ms.msg, ENL_ATTR_PATH, (const char*) (*(test++))))) goto fail;
-
-        // nesting on all but last entry
-        if(i+1<count) stack->a[i] = nla_nest_start(ms.msg, ENL_ATTR_NESTED | NLA_F_NESTED); // | NESTED required with ubuntu libnl 3.2.29
-      }
-      for(i=1; i<count; i++) nla_nest_end(ms.msg, stack->a[ count -i -1 ]); // start at i=1 because last entry is not nested
-      if(!enl__send(&ms, stack_id)) goto fail;
-    }
-  }
-
-  if(stack) kfree_rcu(stack, rcu);
-  LOG_DEBUG(stack_id, "complete");
-  return 0;
-
-fail:
-  if(stack) kfree_rcu(stack, rcu);
-  enl__prep_reclaim(&ms);
-  LOG_ERR(stack_id, "error %d", ms.err);
+  enl__send_query(stack_id);
   return 0;
 }
 
@@ -526,23 +537,19 @@ static int enl__comm_set(struct sk_buff *skb_in, struct genl_info *info)
   const char * sz = 0;
   int flag = 0;
 
-  LOG_DEBUG_PROTO(stack_id, "start");
-
-  if(!netlink_capable(skb_in, CAP_NET_ADMIN)) { LOG_ERR(stack_id, "rejected from unprivileged process"); return 0; }
+  if(!netlink_capable(skb_in, CAP_NET_ADMIN))
+    { LOG_ERR(stack_id, "rejected from unprivileged process"); return 0; }
 
   // todo: check for connection theft
   enl__set_connect(genl_info_net(info), info->snd_portid);
-  if(!connected) LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
+  if(!connected)
+    LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
 
   if((a = info->attrs[ENL_ATTR_FLAG])) flag = nla_get_u32(a);
   if((a = info->attrs[ENL_ATTR_VALUE])) u32 = nla_get_u32(a);
 
   if(!(sz=def_flag_name_str(flag)))
-  {
-    LOG_ERR(stack_id, "bad flag id %d", flag);
-    return 0;
-  }
-  LOG_DEBUG(stack_id, "set %s %u", sz, u32);
+    { LOG_ERR(stack_id, "bad flag id %d", flag); return 0; }
 
   def_flag_value[flag] = u32;
 
@@ -558,11 +565,10 @@ static int enl__comm_get(struct sk_buff *skb_in, struct genl_info *info)
   const char * sz = 0;
   int flag = 0;
 
-  LOG_DEBUG_PROTO(stack_id, "start");
-
   // todo: check for connection theft
   enl__set_connect(genl_info_net(info), info->snd_portid);
-  if(!connected) LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
+  if(!connected)
+    LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
 
   if((a = info->attrs[ENL_ATTR_FLAG])) flag = nla_get_u32(a);
 
@@ -571,7 +577,6 @@ static int enl__comm_get(struct sk_buff *skb_in, struct genl_info *info)
     LOG_ERR(stack_id, "bad flag id %d", flag);
     return 0;
   }
-  LOG_DEBUG(stack_id, "get %s", sz);
 
   if(!enl__prep(&ms, ENL_COMM_GET)) goto fail;
   if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_FLAG, flag))) goto fail;
@@ -596,6 +601,7 @@ struct genl_ops enl_ops[] = {
   { .cmd = ENL_COMM_BLOCK, .doit = enl__comm_block, .flags = GENL_ADMIN_PERM, },
   { .cmd = ENL_COMM_ALLOW, .doit = enl__comm_allow, .flags = GENL_ADMIN_PERM, },
   { .cmd = ENL_COMM_ENABLE, .doit = enl__comm_enable, .flags = GENL_ADMIN_PERM, },
+  { .cmd = ENL_COMM_CLEAR, .doit = enl__comm_clear, .flags = GENL_ADMIN_PERM, },
   { .cmd = ENL_COMM_QUERY, .doit = enl__comm_query, },
   { .cmd = ENL_COMM_EVENT, .doit = enl__comm_event, },
   { .cmd = ENL_COMM_SET, .doit = enl__comm_set, .flags = GENL_ADMIN_PERM, },

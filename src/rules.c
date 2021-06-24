@@ -94,17 +94,43 @@ void rules_clear(const uint32_t packet_id)
   queued_write_unlock(&rules_rwlock);
 }
 
-bool rules_get(struct ruleset_struct_rcu ** ruleset_out_rcufree, const uint32_t packet_id)
+void rules_clear2(const bool is_allowed, const uint32_t packet_id)
+{
+  int i, k;
+
+  queued_write_lock(&rules_rwlock);
+
+  for(i=0, k=rules_circq_front; i<rules_circq_size; i++, k++)
+  {
+    if (k == CIRCQ_SLOTS) k = 0;
+    if (rule_data->allowed[k] != is_allowed) continue;
+
+    rules_circq_size--;
+    if(0==rules_circq_size) return;
+
+    rule_data->allowed[k] = rule_data->allowed[rules_circq_front];
+    rule_data->protocol[k] = rule_data->protocol[rules_circq_front];
+    rule_data->path_hash[k] = rule_data->path_hash[rules_circq_front];
+    strncpy(rule_data->path[k], rule_data->path[rules_circq_front], PATH_LENGTH);
+
+    rules_circq_front++;
+    if (rules_circq_front == CIRCQ_SLOTS) rules_circq_front = 0;
+  }
+
+  queued_write_unlock(&rules_rwlock);
+}
+
+int rules_get(struct ruleset_struct_rcu ** ruleset_out_rcufree, const uint32_t packet_id)
 {
   struct rule_struct * rule;
   size_t allocsize = 0;
   int i, k;
-  bool rc = true;
+  int rc = 0;
 
-  if(ruleset_out_rcufree == NULL)
+  if(!ruleset_out_rcufree)
   {
     LOG_ERR(packet_id, "!ruleset_out_rcufree");
-    return false;
+    return -1;
   }
 
   queued_read_lock(&rules_rwlock);
@@ -115,10 +141,10 @@ bool rules_get(struct ruleset_struct_rcu ** ruleset_out_rcufree, const uint32_t 
   allocsize = sizeof(struct ruleset_struct_rcu) + sizeof(struct rule_struct) * rules_circq_size;
 
   *ruleset_out_rcufree = kzalloc(allocsize, GFP_ATOMIC);
-  if(*ruleset_out_rcufree != NULL)
+  if(!(*ruleset_out_rcufree))
   {
-    LOG_ERR(packet_id, "kzalloc failure");
-    rc = false;
+    LOG_ERR(packet_id, "kzalloc failure %lu %p", allocsize, *ruleset_out_rcufree);
+    rc = -ENOMEM;
     goto out;
   }
 
@@ -141,22 +167,21 @@ out:
 bool rules_add(uint32_t protocol, const char * process_path, const bool is_allowed, const uint32_t packet_id)
 {
   uint32_t path_hash = 0;
+  const char *szprot0 = 0, *szprot1 = 0;
+  bool dupl = false, full = false;
   int i, k;
-  bool rc = true;
 
   if(!rules__check_path(process_path, packet_id)) return false;
+
+#ifdef DEBUG
+  szprot0 = def_protname(protocol);
+  szprot0 = szprot0 ? szprot0 : "?";
+#endif // DEBUG
 
   queued_write_lock(&rules_rwlock);
 
   if(rules_circq_size==CIRCQ_SLOTS)
-  {
-    LOG_DEBUG(packet_id, "unable to add (%u:%s) - table full", protocol, process_path);
-
-    rc = false;
-    goto out;
-  }
-
-  LOG_DEBUG(packet_id, "searching for (%u:%s)", protocol, process_path);
+    { full = true; goto out; }
 
   // exact match search
   path_hash = crc32(process_path);
@@ -167,17 +192,13 @@ bool rules_add(uint32_t protocol, const char * process_path, const bool is_allow
     if (strncmp(rule_data->path[k], process_path, PATH_LENGTH) != 0) continue;
     if (rule_data->protocol[k] != protocol) continue;
 
-    LOG_DEBUG(packet_id, "searching for (%u:%s) - match (%u:%s) in slot %d, not adding", protocol, process_path, rule_data->protocol[k], rule_data->path[k], k);
-
-    rc = false;
+    dupl = true;
     goto out;
   }
 
-  LOG_DEBUG(packet_id, "searching for (%u:%s) - not found, adding", protocol, process_path);
-
-  rules_circq_size++;
   k = rules_circq_front + rules_circq_size;
   if (k >= CIRCQ_SLOTS) k -= CIRCQ_SLOTS;
+  rules_circq_size++;
 
   rule_data->allowed[k] = is_allowed;
   rule_data->protocol[k] = protocol;
@@ -186,18 +207,36 @@ bool rules_add(uint32_t protocol, const char * process_path, const bool is_allow
 
 out:
   queued_write_unlock(&rules_rwlock);
-  return rc;
+
+  if(full)
+    LOG_DEBUG(packet_id, "unable to add (%u:%s) - table full", protocol, process_path);
+  else if(dupl)
+  {
+#ifdef DEBUG
+    szprot1 = def_protname(rule_data->protocol[k]);
+    szprot1 = szprot1 ? szprot1 : "?";
+    LOG_DEBUG(packet_id, "searching for (%s:%s) - match (%s:%s) in slot %d, not adding", szprot0, process_path, szprot1, rule_data->path[k], k);
+#endif // DEBUG
+  }
+  else
+    LOG_DEBUG(packet_id, "searching for (%s:%s) - not found, added", szprot0, process_path);
+
+  return !(full | dupl);
 }
 
 bool rules_remove(uint32_t protocol, const char * process_path, const uint32_t packet_id)
 {
   uint32_t path_hash = 0;
+  const char *szprot0 = 0, *szprot1 = 0;
+  bool found = true;
   int i, k;
-  bool rc = true;
 
   if(!rules__check_path(process_path, packet_id)) return false;
 
-  LOG_DEBUG(packet_id, "searching for (%u:%s)", protocol, process_path);
+#ifdef DEBUG
+  szprot0 = def_protname(protocol);
+  szprot0 = szprot0 ? szprot0 : "?";
+#endif // DEBUG
 
   queued_write_lock(&rules_rwlock);
 
@@ -210,28 +249,36 @@ bool rules_remove(uint32_t protocol, const char * process_path, const uint32_t p
     if (strncmp(rule_data->path[k], process_path, PATH_LENGTH) != 0) continue;
     if (rule_data->protocol[k] != protocol) continue;
 
-    LOG_DEBUG(packet_id, "searching for (%u:%s) - match (%u:%s) in slot %d", protocol, process_path, rule_data->protocol[k], rule_data->path[k], k);
-    goto found;
+    rules_circq_size--;
+    if(0==rules_circq_size) return true;
+
+    rule_data->allowed[k] = rule_data->allowed[rules_circq_front];
+    rule_data->protocol[k] = rule_data->protocol[rules_circq_front];
+    rule_data->path_hash[k] = rule_data->path_hash[rules_circq_front];
+    strncpy(rule_data->path[k], rule_data->path[rules_circq_front], PATH_LENGTH);
+
+    rules_circq_front++;
+    if (rules_circq_front == CIRCQ_SLOTS) rules_circq_front = 0;
+
+    found = true;
+    goto out;
   }
-  LOG_DEBUG(packet_id, "searching for (%u:%s) - not found", protocol, process_path);
-  rc = false;
-  goto out;
-
-found:
-  rules_circq_size--;
-  if(0==rules_circq_size) return true;
-
-  rule_data->allowed[k] = rule_data->allowed[rules_circq_front];
-  rule_data->protocol[k] = rule_data->protocol[rules_circq_front];
-  rule_data->path_hash[k] = rule_data->path_hash[rules_circq_front];
-  strncpy(rule_data->path[k], rule_data->path[rules_circq_front], PATH_LENGTH);
-
-  rules_circq_front++;
-  if (rules_circq_front == CIRCQ_SLOTS) rules_circq_front = 0;
 
 out:
   queued_write_unlock(&rules_rwlock);
-  return rc;
+
+  if(found)
+  {
+#ifdef DEBUG
+    szprot1 = def_protname(rule_data->protocol[k]);
+    szprot1 = szprot1 ? szprot1 : "?";
+    LOG_DEBUG(packet_id, "searching for (%s:%s) - match (%s:%s) in slot %d", szprot0, process_path, szprot1, rule_data->path[k], k);
+#endif // DEBUG
+  }
+  else
+    LOG_DEBUG(packet_id, "searching for (%s:%s) - not found", szprot0, process_path);
+
+  return found;
 }
 
 bool rules_search(struct rule_struct * rule_out, uint32_t protocol, const char * process_path, const uint32_t packet_id)
@@ -239,17 +286,19 @@ bool rules_search(struct rule_struct * rule_out, uint32_t protocol, const char *
   uint32_t path_hash = 0;
   uint32_t parent_hash = 0;
   uint32_t parent_len = 0; // length incl last '/'
-  bool rc = true;
+  const char *szprot0 = 0, *szprot1 = 0;
+  int matchlevel = 0;
   int i, k;
 
   if(!rule_out)
-  {
-    LOG_ERR(packet_id, "!rule_out");
-    return false;
-  }
+    { LOG_ERR(packet_id, "!rule_out"); return false; }
+
   if(!rules__check_path(process_path, packet_id)) return false;
 
-  LOG_DEBUG(packet_id, "searching for (%u:%s)", protocol, process_path);
+#ifdef DEBUG
+  szprot0 = def_protname(protocol);
+  szprot0 = szprot0 ? szprot0 : "?";
+#endif // DEBUG
 
   queued_read_lock(&rules_rwlock);
 
@@ -262,7 +311,8 @@ bool rules_search(struct rule_struct * rule_out, uint32_t protocol, const char *
     if (strncmp(rule_data->path[k], process_path, PATH_LENGTH) != 0) continue;
     if ((rule_data->protocol[k] != E7C_IP_ANY) && (rule_data->protocol[k] != protocol)) continue;
 
-    goto found;
+    matchlevel = 1;
+    goto out;
   }
 
   // wildcard protocol of ~0 allowed
@@ -278,23 +328,29 @@ bool rules_search(struct rule_struct * rule_out, uint32_t protocol, const char *
       if (strncmp(rule_data->path[k], process_path, parent_len) != 0) continue;
       if ((rule_data->protocol[k] != E7C_IP_ANY) && (rule_data->protocol[k] != protocol)) continue;
 
-      goto found;
+      matchlevel = 2;
+      goto out;
     }
   }
-  LOG_DEBUG(packet_id, "searching for (%u:%s) - not found", protocol, process_path);
-
-  rc = false;
-  goto out;
-
-found:
-  LOG_DEBUG(packet_id, "searching for (%u:%s) - match (%u:%s) in slot %d", protocol, process_path, rule_data->protocol[k], rule_data->path[k], k);
-  rule_out->allowed = rule_data->allowed[k];
-  rule_out->protocol = rule_data->protocol[k];
-  strncpy(rule_out->process_path, rule_data->path[k], PATH_LENGTH);
 
 out:
   queued_read_unlock(&rules_rwlock);
-  return rc;
+
+  if(matchlevel==0)
+    LOG_DEBUG(packet_id, "searching for (%u:%s) - not found", protocol, process_path);
+  else
+  {
+#ifdef DEBUG
+    szprot1 = def_protname(rule_data->protocol[k]);
+    szprot1 = szprot1 ? szprot1 : "?";
+    LOG_DEBUG(packet_id, "searching for (%s:%s) - match code %d for (%s:%s) in slot %d", szprot0, process_path, matchlevel, szprot1, rule_data->path[k], k);
+#endif // DEBUG
+    rule_out->allowed = rule_data->allowed[k];
+    rule_out->protocol = rule_data->protocol[k];
+    strncpy(rule_out->process_path, rule_data->path[k], PATH_LENGTH);
+  }
+
+  return matchlevel > 0;
 }
 
 int rules_init(void)

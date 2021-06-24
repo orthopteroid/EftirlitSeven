@@ -264,6 +264,7 @@ const char * def_protname(uint32_t protocol)
     case IPPROTO_UDPLITE: return "UDPLITE";
     case IPPROTO_MPLS: return "MPLS";
     case IPPROTO_RAW: return "RAW";
+    case E7C_IP_ANY: return "ANY";
     default: return 0;
   }
 }

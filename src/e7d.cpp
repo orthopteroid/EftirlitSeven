@@ -173,15 +173,17 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
   struct nlattr * gnlad = NULL;
   struct nlattr *a = NULL, *apr = NULL, *apa = NULL;
   uint32_t value = ~0, upr;
-  const char * szpath = 0, * szstate = 0, * szprot = 0, * szflag = 0;
+  const char * szpath = 0, * szstate = 0, * szprot = 0, * szflag = 0, * szconst = 0;
   int gnlal = 0;
 
   if(!msg) { E7_LOG("!msg"); return 0; }
   if(!(nlh = nlmsg_hdr(msg))) { E7_LOG("!nlh"); return 0; }
   if(!(gnlh = (struct genlmsghdr *)nlmsg_data(nlh))) { E7_LOG("!gnlh"); return 0; }
+
   if(gnlh->cmd==ENL_COMM_DISCONNECT) { stop = true; return NL_OK; } // check for fast shutdown
+
   if(!(gnlad = genlmsg_attrdata(gnlh, 0))) { E7_LOG("!gnlad"); return 0; }
-  if(!(gnlal = genlmsg_attrlen(gnlh, 0))) { E7_LOG("no data returned"); return NL_OK; }
+  if(!(gnlal = genlmsg_attrlen(gnlh, 0))) { E7_LOG("empty packet received"); return NL_OK; }
 
   nla_parse(attribs, ENL_ATTR_MAX, gnlad, gnlal, def_policy);
 
@@ -194,8 +196,8 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
     break;
   case ENL_COMM_GET:
     if((a = attribs[ENL_ATTR_FLAG])) szflag = def_flag_name_str(nla_get_u32(a));
-    if((a = attribs[ENL_ATTR_VALUE])) value = nla_get_u32(a);
-    E7_LOG("%s = %u", szflag ? szflag : "(null)", value);
+    if((a = attribs[ENL_ATTR_VALUE])) { value = nla_get_u32(a); szconst = def_const_name_str((int)value); }
+    E7_LOG("%s = %s (%u)", szflag ? szflag : "(null)", szconst ? szconst : "?", value);
     break;
   case ENL_COMM_EVENT:
     if((a = attribs[ENL_ATTR_STATE])) szstate = def_const_name_str(nla_get_u32(a));
@@ -360,14 +362,19 @@ help_set:
       if(ac==1) e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_ENABLE) );
       else printf("enable\n");
       break;
+    case crc32("clear"):
+      if(ac==1) e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_CLEAR) );
+      else if(ac==2 && -1!=(iconst = def_const_alias_value(a1)))
+        e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_CLEAR, ENL_ATTR_STATE, (uint32_t)iconst) );
+      else printf("clear [ <state> ]\n");
+      //printf("clear [ <state> ] | ( [ <protocolnum> | <protocolname> ] [ <path/app> | <path/> ] )\n");
+      break;
     case crc32("query"):
       if(ac==1) e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_QUERY) );
-      else if(ac==2 && -1!=(iconst = def_const_alias_value(a1)))
-        e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_QUERY, ENL_ATTR_STATE, (uint32_t)iconst) );
-      else printf("query [ <state> ]\n");
+      else printf("query\n");
       break;
     default:
-      printf("quit, bye, get, set, block, allow, enable, query\n");
+      printf("quit, bye, get, set, block, allow, enable, clear, query\n");
   }
 }
 
