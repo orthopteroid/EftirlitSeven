@@ -50,6 +50,23 @@ In addition to E7's netlink schema in `defs.x` this file also contains identifie
 
 `defs.x` is also commented to indicate how the netlink command grammar and the use of the flags and constants all fit together. For more information see `e7d.c` and `netlink.c` for how these packets are sent and received.
 
+Launching `./e7d` will launch the interactive control daemon. Commands that take constant or flag parameters can use numeric values or the alias (per the defs.x file). Examples are (notice that constants begin with a 'c'):
+```
+allow cudp /bin/ping
+allow ctcp /bin/netcat
+allow ctcp /usr/bin/socat
+clear ctcp /usr/bin/socat
+clear callow
+block cudp /usr/bin/socat
+clear cblock
+```
+
+Partial protocol and path matches (experimental!) are supported with the cany psuedo-protocol and by a trailing / in the path. like:
+```
+allow cany /bin/
+block ctcp /usr/bin/
+```
+
 ## Stats tracker
 
 Future work: Process, protocol, user, destination stats
