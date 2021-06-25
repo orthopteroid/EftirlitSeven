@@ -14,17 +14,19 @@ Development Details:
 
 # EftirlitSeven
 
-E7 was originally a fork of douane (https://gitlab.com/douaneapp) with experimental changes. Code has shifted quite a bit so it's not easy to find the origins. Use `grep` to find attributions to douane code and algorithims. Some of the features in E7 include...
+E7 was originally a fork of douane (https://gitlab.com/douaneapp) with experimental changes. Some of the features in E7 include...
 
 ## Known Socket Cache (ksc_ code prefix)
 
-E7 tries to make searching for a previously seen socket fast by using an array-of-fields cache-friendly memory organization. This assumes that the arrays are small enough to fit into a processor's data cache and given the bus-width of the cpu-memory channel can be transferred efficiently to show some significant speed gains. Hopefully not too much to assume.
-
-Another goal for E7 has been that this caching will work properly on SMP (were processor-cache peek, snoop or mirroring might not work as expected) by serializing cache updates through a kernel work queue. Atomic LRU bookeeping is used to identify old cache entries for overwrite using wrap-safe arithmetic on entry age. Giving the work queue affinity to a particular core/processor may be important to making this strategy work, additional testing and instrumentation needs to be done to determine this.
+E7 does lookups on known-sockets using a fixed-size cache-friendly memory organization. Sockets are hash-indexed by inode and writes are serialized using a work queue to be hopefully more SMP friendly (although switching to use the rcu subsystem might work better). LRU cache-entry bookeeping is done with a wrap-safe age calculation. Additional testing and instrumentation needs to be done to determine if this works properly.
 
 ## Active Socket Cache (asc_ code prefix)
 
-When a search of the known-socket-cache fails E7 searches another cache for the inode in the netfilter packet. This cache is made from the active sockets in the process table, and if a cache lookup fails the cache is regenerated. In testing so far, this cache appears to provide 10x to 100x lookup improvement during connection-storms. Additional investigations into how to use this cache effectively will continue.
+When a search of the known-socket-cache fails, E7 does another inode hash-lookup for the socket in a secondary fixed-size cache. This cache is filled from the active sockets in the process table when a search here fails. So far, this cache appears to provide 10x to 100x lookup improvement during connection-storms. Additional investigations into how to use this cache effectively will continue.
+
+## Rule Lookup Table (rule_ code prefix)
+
+E7 uses another data structure for rules that determine if a (process,protocol) tuple can use the network interface. File hashes are used here prior to strncpy comparison for faster comparison. These rules are stored in a fixed-size circular queue to facilitate fast lookup and easy addition and removal but for very large rulesets something other than linear searching might need to be investigated. This queue is protected using a qrwlock, a type of spinlock that gives preference to updating the table over reading from it.
 
 ## Submodules for iNet protocols (prot_ file prefix)
 
@@ -74,6 +76,12 @@ For typical LKM log output on a low-end machine (around the time of commit ab016
 ## Future Work
 
 Monitoring or stats tracking for other parameters, including specific process-instances, users or destinations. Additionally, it would be useful to take kernel parmaters for the module so module flags can be manipulated at boot-time to prevent packet leakage.
+
+# Security Considerations
+
+The LKM uses netlink to allow non-root connections to query the firewall state, but not change any of the firewall state.
+
+One of the obvious problems that comes to mind is that only filenames are in the ruleset, not hashes of the files themselves.
 
 # Provenance
 
