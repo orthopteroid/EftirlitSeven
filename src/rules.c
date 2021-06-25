@@ -173,10 +173,7 @@ bool rules_add(uint32_t protocol, const char * process_path, const bool is_allow
 
   if(!rules__check_path(process_path, packet_id)) return false;
 
-#ifdef DEBUG
-  szprot0 = def_protname(protocol);
-  szprot0 = szprot0 ? szprot0 : "?";
-#endif // DEBUG
+  path_hash = crc32(process_path);
 
   queued_write_lock(&rules_rwlock);
 
@@ -184,13 +181,12 @@ bool rules_add(uint32_t protocol, const char * process_path, const bool is_allow
     { full = true; goto out; }
 
   // exact match search
-  path_hash = crc32(process_path);
   for(i=0, k=rules_circq_front; i<rules_circq_size; i++, k++)
   {
     if (k == CIRCQ_SLOTS) k = 0;
+    if (rule_data->protocol[k] != protocol) continue;
     if (rule_data->path_hash[k] != path_hash) continue;
     if (strncmp(rule_data->path[k], process_path, PATH_LENGTH) != 0) continue;
-    if (rule_data->protocol[k] != protocol) continue;
 
     dupl = true;
     goto out;
@@ -208,18 +204,21 @@ bool rules_add(uint32_t protocol, const char * process_path, const bool is_allow
 out:
   queued_write_unlock(&rules_rwlock);
 
+#ifdef DEBUG
+  szprot0 = def_protname(protocol);
+  szprot0 = szprot0 ? szprot0 : "?";
+
   if(full)
-    LOG_DEBUG(packet_id, "unable to add (%u:%s) - table full", protocol, process_path);
+    LOG_DEBUG(packet_id, "unable to add (%s:%s) - table full", szprot0, process_path);
   else if(dupl)
   {
-#ifdef DEBUG
     szprot1 = def_protname(rule_data->protocol[k]);
     szprot1 = szprot1 ? szprot1 : "?";
     LOG_DEBUG(packet_id, "searching for (%s:%s) - match (%s:%s) in slot %d, not adding", szprot0, process_path, szprot1, rule_data->path[k], k);
-#endif // DEBUG
   }
   else
     LOG_DEBUG(packet_id, "searching for (%s:%s) - not found, added", szprot0, process_path);
+#endif // DEBUG
 
   return !(full | dupl);
 }
@@ -233,21 +232,17 @@ bool rules_remove(uint32_t protocol, const char * process_path, const uint32_t p
 
   if(!rules__check_path(process_path, packet_id)) return false;
 
-#ifdef DEBUG
-  szprot0 = def_protname(protocol);
-  szprot0 = szprot0 ? szprot0 : "?";
-#endif // DEBUG
+  path_hash = crc32(process_path);
 
   queued_write_lock(&rules_rwlock);
 
   // exact match search
-  path_hash = crc32(process_path);
   for(i=0, k=rules_circq_front; i<rules_circq_size; i++, k++)
   {
     if (k == CIRCQ_SLOTS) k = 0;
+    if (rule_data->protocol[k] != protocol) continue;
     if (rule_data->path_hash[k] != path_hash) continue;
     if (strncmp(rule_data->path[k], process_path, PATH_LENGTH) != 0) continue;
-    if (rule_data->protocol[k] != protocol) continue;
 
     rules_circq_size--;
     if(0==rules_circq_size) return true;
@@ -267,16 +262,19 @@ bool rules_remove(uint32_t protocol, const char * process_path, const uint32_t p
 out:
   queued_write_unlock(&rules_rwlock);
 
+#ifdef DEBUG
+  szprot0 = def_protname(protocol);
+  szprot0 = szprot0 ? szprot0 : "?";
+
   if(found)
   {
-#ifdef DEBUG
     szprot1 = def_protname(rule_data->protocol[k]);
     szprot1 = szprot1 ? szprot1 : "?";
     LOG_DEBUG(packet_id, "searching for (%s:%s) - match (%s:%s) in slot %d", szprot0, process_path, szprot1, rule_data->path[k], k);
-#endif // DEBUG
   }
   else
     LOG_DEBUG(packet_id, "searching for (%s:%s) - not found", szprot0, process_path);
+#endif // DEBUG
 
   return found;
 }
@@ -295,21 +293,23 @@ bool rules_search(struct rule_struct * rule_out, uint32_t protocol, const char *
 
   if(!rules__check_path(process_path, packet_id)) return false;
 
-#ifdef DEBUG
-  szprot0 = def_protname(protocol);
-  szprot0 = szprot0 ? szprot0 : "?";
-#endif // DEBUG
+  path_hash = crc32(process_path);
+
+  // todo: parse path to resolve escapes?
+  for(i=0; process_path[i]; i++) { if(process_path[i]=='/') parent_len = i; }
+
+  if(parent_len)
+    parent_hash = crc32_continued(0, process_path, parent_len);
 
   queued_read_lock(&rules_rwlock);
 
   // wildcard protocol of ~0 allowed
-  path_hash = crc32(process_path);
   for(i=0, k=rules_circq_front; i<rules_circq_size; i++, k++)
   {
     if (k == CIRCQ_SLOTS) k = 0;
+    if ((rule_data->protocol[k] != E7C_IP_ANY) && (rule_data->protocol[k] != protocol)) continue;
     if (rule_data->path_hash[k] != path_hash) continue;
     if (strncmp(rule_data->path[k], process_path, PATH_LENGTH) != 0) continue;
-    if ((rule_data->protocol[k] != E7C_IP_ANY) && (rule_data->protocol[k] != protocol)) continue;
 
     matchlevel = 1;
     goto out;
@@ -317,16 +317,14 @@ bool rules_search(struct rule_struct * rule_out, uint32_t protocol, const char *
 
   // wildcard protocol of ~0 allowed
   // wildcard parent path allowed if ending in '/'
-  for(i=0; process_path[i]; i++) { if(process_path[i]=='/') parent_len = i; }
   if(parent_len)
   {
-    parent_hash = crc32_continued(0, process_path, parent_len);
     for(i=0, k=rules_circq_front; i<rules_circq_size; i++, k++)
     {
       if (k == CIRCQ_SLOTS) k = 0;
+      if ((rule_data->protocol[k] != E7C_IP_ANY) && (rule_data->protocol[k] != protocol)) continue;
       if (rule_data->path_hash[k] != parent_hash) continue;
       if (strncmp(rule_data->path[k], process_path, parent_len) != 0) continue;
-      if ((rule_data->protocol[k] != E7C_IP_ANY) && (rule_data->protocol[k] != protocol)) continue;
 
       matchlevel = 2;
       goto out;
@@ -336,15 +334,22 @@ bool rules_search(struct rule_struct * rule_out, uint32_t protocol, const char *
 out:
   queued_read_unlock(&rules_rwlock);
 
-  if(matchlevel==0)
-    LOG_DEBUG(packet_id, "searching for (%u:%s) - not found", protocol, process_path);
-  else
-  {
 #ifdef DEBUG
+  szprot0 = def_protname(protocol);
+  szprot0 = szprot0 ? szprot0 : "?";
+
+  if(matchlevel)
+  {
     szprot1 = def_protname(rule_data->protocol[k]);
     szprot1 = szprot1 ? szprot1 : "?";
     LOG_DEBUG(packet_id, "searching for (%s:%s) - match code %d for (%s:%s) in slot %d", szprot0, process_path, matchlevel, szprot1, rule_data->path[k], k);
+  }
+  else
+    LOG_DEBUG(packet_id, "searching for (%s:%s) - not found", szprot0, process_path);
 #endif // DEBUG
+
+  if(matchlevel)
+  {
     rule_out->allowed = rule_data->allowed[k];
     rule_out->protocol = rule_data->protocol[k];
     strncpy(rule_out->process_path, rule_data->path[k], PATH_LENGTH);
