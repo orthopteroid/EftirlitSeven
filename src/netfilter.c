@@ -110,8 +110,8 @@ static void enf__parse_protocol(
 static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
   struct iphdr * ip_header = NULL;
-  const char * szprot = 0, * szaction = 0;
   int nfoperation = NF_DROP; // 0
+  const char * szprot = 0;
   uint32_t packet_id;
   struct psi psi;
   int action = 0;
@@ -140,9 +140,12 @@ static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct
     return get_action(E7F_FAILPATH_ACTION, "ip_header failpath config invalid", packet_id);
   }
 
+#ifdef DEBUG
   szprot = def_protname(ip_header->protocol);
+  if(!szprot) szprot = "IPPROTO_?";
 
-  LOG_DEBUG(packet_id, "~~~ new %s packet", szprot ? szprot : "?");
+  LOG_DEBUG(packet_id, "~~~ new %s packet", szprot);
+#endif // DEBUG
 
   {
     bool process_identified = false;
@@ -153,16 +156,14 @@ static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct
     if (!protocol_identified)
     {
       nfoperation = get_action(E7F_UNKN_PROTOCOL_ACTION, "unhandled protocol failpath config invalid", packet_id);
-      szaction = def_actionname(nfoperation);
-      LOG_DEBUG(packet_id, "unhandled protocol %s - %s", szprot ? szprot : "?", szaction ? szaction : "?");
+      LOG_DEBUG(packet_id, "unhandled protocol %s - %s", szprot, def_actionname(nfoperation));
       return nfoperation;
     }
 
     if (!process_identified)
     {
       nfoperation = get_action(E7F_UNKN_PROCESS_ACTION, "unhandled protocol failpath config invalid", packet_id);
-      szaction = def_actionname(nfoperation);
-      LOG_DEBUG(packet_id, "unidentfied process PID %d '%s' - %s", psi.pid, psi.process_path, szaction ? szaction : "?");
+      LOG_DEBUG(packet_id, "unidentfied process PID %d '%s' - %s", psi.pid, psi.process_path, def_actionname(nfoperation));
       return nfoperation;
     }
   }
@@ -173,8 +174,7 @@ static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct
     if (!rules_search(&rule, ip_header->protocol, psi.process_path, packet_id))
     {
       nfoperation = get_action(E7F_RULE_NORULE_ACTION, "unhandled protocol failpath config invalid", packet_id);
-      szaction = def_actionname(nfoperation);
-      LOG_DEBUG(packet_id, "rules_search failed for %s - %s", psi.process_path, szaction ? szaction : "?");
+      LOG_DEBUG(packet_id, "rules_search failed for %s - %s", psi.process_path, def_actionname(nfoperation));
 
       if((def_flag_value[E7F_RULE_NORULE]==E7C_ENABLED) && enl_is_connected())
         enl_send_event(E7C_PENDING, ip_header->protocol, psi.process_path, packet_id);

@@ -278,7 +278,7 @@ const char * def_actionname(uint32_t action)
     case 2/*NF_STOLEN*/: return "NF_STOLEN";
     case 3/*NF_QUEUE*/: return "NF_QUEUE";
     case 4/*NF_REPEAT*/: return "NF_REPEAT";
-    default: return 0;
+    default: return "NF_?";
   }
 }
 
