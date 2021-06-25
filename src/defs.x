@@ -50,8 +50,9 @@ E7X_FLAG(E7F_DEBUG,                "ndebug",   E7C_ENABLED)
 E7X_FLAG(E7F_FAILPATH_ACTION,      "afail",    E7C_ALLOW)
 E7X_FLAG(E7F_UNKN_PROCESS_ACTION,  "aunkproc", E7C_ALLOW)
 E7X_FLAG(E7F_UNKN_PROTOCOL_ACTION, "aunkprot", E7C_ALLOW)
-E7X_FLAG(E7F_RULE_NORULE,          "nnorule",  E7C_ENABLED)   // notify daemon of packets that have no rule
-E7X_FLAG(E7F_RULE_NORULE_ACTION,   "aunkrule", E7C_ALLOW)     // what to do with a packet that has no rule (ACCEPT) todo: QUEUE
+E7X_FLAG(E7F_NORULE_NOTIFY,        "nnorule",  E7C_ENABLED)   // notify daemon of packets that have no rule
+E7X_FLAG(E7F_NORULE_SQUELCH,       "nsquelch", E7C_ENABLED)   // squelch between E7F_NORULE_NOTIFY for each (proto,path) pair
+E7X_FLAG(E7F_NORULE_ACTION,        "aunkrule", E7C_ALLOW)     // what to do with a packet that has no rule (ACCEPT) todo: QUEUE
 E7X_FLAG(E7F_RULE_DROPS,           "ndrops",   E7C_DISABLED)  // notify daemon when a packet is DROPPED due to a rule
 E7X_FLAG(E7F_RULE_ACCEPTS,         "naccepts", E7C_DISABLED)  // notify daemon when a packet is ACCEPTED due to a rule
 E7X_FLAG(E7F_RULE_CHANGE_QUERY,    "nrchngq",  E7C_ENABLED)   // notify daemon with full query when rules are added/removed
