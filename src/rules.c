@@ -205,15 +205,13 @@ out:
   queued_write_unlock(&rules_rwlock);
 
 #ifdef DEBUG
-  szprot0 = def_protname(protocol);
-  szprot0 = szprot0 ? szprot0 : "?";
+  if(!def_protname(&szprot0, protocol)) szprot0 = "?";
 
   if(full)
     LOG_DEBUG(packet_id, "unable to add (%s:%s) - table full", szprot0, process_path);
   else if(dupl)
   {
-    szprot1 = def_protname(rule_data->protocol[k]);
-    szprot1 = szprot1 ? szprot1 : "?";
+    if(!def_protname(&szprot1, rule_data->protocol[k])) szprot1 = "?";
     LOG_DEBUG(packet_id, "searching for (%s:%s) - match (%s:%s) in slot %d, not adding", szprot0, process_path, szprot1, rule_data->path[k], k);
   }
   else
@@ -263,13 +261,11 @@ out:
   queued_write_unlock(&rules_rwlock);
 
 #ifdef DEBUG
-  szprot0 = def_protname(protocol);
-  szprot0 = szprot0 ? szprot0 : "?";
+  if(!def_protname(&szprot0, protocol)) szprot0 = "?";
 
   if(found)
   {
-    szprot1 = def_protname(rule_data->protocol[k]);
-    szprot1 = szprot1 ? szprot1 : "?";
+    if(!def_protname(&szprot1, rule_data->protocol[k])) szprot1 = "?";
     LOG_DEBUG(packet_id, "searching for (%s:%s) - match (%s:%s) in slot %d", szprot0, process_path, szprot1, rule_data->path[k], k);
   }
   else
@@ -335,13 +331,11 @@ out:
   queued_read_unlock(&rules_rwlock);
 
 #ifdef DEBUG
-  szprot0 = def_protname(protocol);
-  szprot0 = szprot0 ? szprot0 : "?";
+  if(!def_protname(&szprot0, protocol)) szprot0 = "?";
 
   if(matchlevel)
   {
-    szprot1 = def_protname(rule_data->protocol[k]);
-    szprot1 = szprot1 ? szprot1 : "?";
+    if(!def_protname(&szprot1, rule_data->protocol[k])) szprot1 = "?";
     LOG_DEBUG(packet_id, "searching for (%s:%s) - match code %d for (%s:%s) in slot %d", szprot0, process_path, matchlevel, szprot1, rule_data->path[k], k);
   }
   else

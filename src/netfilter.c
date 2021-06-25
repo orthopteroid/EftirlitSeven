@@ -115,6 +115,7 @@ static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct
   struct iphdr * ip_header = NULL;
   int nfoperation = NF_DROP; // 0
   const char * szprot = 0;
+  const char* szaction = 0;
   uint32_t packet_id;
   struct psi psi;
   int action = 0;
@@ -144,8 +145,7 @@ static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct
   }
 
 #ifdef DEBUG
-  szprot = def_protname(ip_header->protocol);
-  if(!szprot) szprot = "IPPROTO_?";
+  if(!def_protname(&szprot, ip_header->protocol)) szprot = "IPPROTO_?";
 
   LOG_DEBUG(packet_id, "~~~ new %s packet", szprot);
 #endif // DEBUG
@@ -159,14 +159,14 @@ static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct
     if (!protocol_identified)
     {
       nfoperation = enf__get_action(E7F_UNKN_PROTOCOL_ACTION, "unhandled protocol failpath config invalid", packet_id);
-      LOG_DEBUG(packet_id, "unhandled protocol %s - %s", szprot, def_actionname(nfoperation));
+      LOG_DEBUG(packet_id, "unhandled protocol %s - %s", szprot, def_actionname(&szaction, nfoperation) ? szaction : "?");
       return nfoperation;
     }
 
     if (!process_identified)
     {
       nfoperation = enf__get_action(E7F_UNKN_PROCESS_ACTION, "unhandled protocol failpath config invalid", packet_id);
-      LOG_DEBUG(packet_id, "unidentfied process PID %d '%s' - %s", psi.pid, psi.process_path, def_actionname(nfoperation));
+      LOG_DEBUG(packet_id, "unidentfied process PID %d '%s' - %s", psi.pid, psi.process_path, def_actionname(&szaction, nfoperation) ? szaction : "?");
       return nfoperation;
     }
   }
@@ -176,10 +176,10 @@ static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct
 
     if (!rules_search(&rule, ip_header->protocol, psi.process_path, packet_id))
     {
-      nfoperation = enf__get_action(E7F_NORULE_ACTION, "unhandled protocol failpath config invalid", packet_id);
       bool squelched = false;
+      nfoperation = enf__get_action(E7F_NORULE_ACTION, "unhandled protocol failpath config invalid", packet_id);
 
-      LOG_DEBUG(packet_id, "rules_search failed for %s - %s", psi.process_path, def_actionname(nfoperation));
+      LOG_DEBUG(packet_id, "rules_search failed for %s - %s", psi.process_path, def_actionname(&szaction, nfoperation) ? szaction : "?");
 
       if((def_flag_value[E7F_NORULE_SQUELCH]==E7C_ENABLED))
       {
@@ -222,12 +222,13 @@ static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct
 int enf_init(void)
 {
   int action = 0;
+  const char * szaction = 0;
 
   nf_register_net_hook(&init_net, &netfilter_config);
   prot_tcp_init();
 
   action = enf__get_mode_action("firewall mode invalid state", 0);
-  LOG_INFO(0, "early filter action - %s", def_actionname(action));
+  LOG_INFO(0, "firewall mode - %s", def_actionname(&szaction, action) ? szaction : "?");
 
   return 0;
 }

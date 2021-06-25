@@ -484,6 +484,9 @@ static int enl__comm_clear(struct sk_buff *skb_in, struct genl_info *info)
   uint32_t u32 = 0, state = 0;
   char * sz = NULL;
 
+  if(!netlink_capable(skb_in, CAP_NET_ADMIN))
+    { LOG_ERR(stack_id, "rejected from unprivileged process"); return 0; }
+
   // todo: check for connection theft
   enl__set_connect(genl_info_net(info), info->snd_portid);
   if(!connected)
@@ -553,7 +556,7 @@ static int enl__comm_set(struct sk_buff *skb_in, struct genl_info *info)
   if((a = info->attrs[ENL_ATTR_FLAG])) flag = nla_get_u32(a);
   if((a = info->attrs[ENL_ATTR_VALUE])) u32 = nla_get_u32(a);
 
-  if(!(sz=def_flag_name_str(flag)))
+  if(!def_flag_name_str(&sz,flag))
     { LOG_ERR(stack_id, "bad flag id %d", flag); return 0; }
 
   def_flag_value[flag] = u32;
@@ -577,7 +580,7 @@ static int enl__comm_get(struct sk_buff *skb_in, struct genl_info *info)
 
   if((a = info->attrs[ENL_ATTR_FLAG])) flag = nla_get_u32(a);
 
-  if(!(sz=def_flag_name_str(flag)))
+  if(!def_flag_name_str(&sz, flag))
   {
     LOG_ERR(stack_id, "bad flag id %d", flag);
     return 0;

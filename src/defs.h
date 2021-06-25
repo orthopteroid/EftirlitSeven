@@ -118,14 +118,14 @@ extern struct nla_policy def_policy[];
 extern const char * def_attrib_name[];
 extern const char * def_comm_name[];
 
-extern const char * def_protname(uint32_t protocol);
-extern const char * def_actionname(uint32_t action);
+bool def_protname(const char **sz_out, uint32_t protocol);
+bool def_actionname(const char **sz_out, uint32_t action);
 
-int def_flag_alias_idx(const char* alias);
-uint32_t def_const_alias_value(const char* alias);
+bool def_flag_alias_idx(uint32_t* i_out, const char* alias);
+bool def_const_alias_value(uint32_t* v_out, const char* alias);
 
-const char* def_flag_name_str(int f);
-const char* def_const_name_str(uint32_t c);
+bool def_flag_name_str(const char** sz_out, uint32_t f);
+bool def_const_name_str(const char** sz_out, uint32_t c);
 
 int def_init(void);
 void def_exit(void);

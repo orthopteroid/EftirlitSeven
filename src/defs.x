@@ -1,20 +1,13 @@
 E7X_NAME(eftirlit)
 E7X_VERSION(1)
 
-// basic attribs:
-// NESTED
-// PATH: string
-// FLAG: E7F_...
-// STATE: E7C_BLOCK, E7C_ALLOW, E7C_PENDING*  (*unimplemented)
-// PROT, VALUE: uint32
-//
 // * main firewall state commands
 // DISCONNECT - lkm shutting down
 //
 // * rule management commands
-// BLOCK [ PROT ] [ PATH ]
-// ALLOW [ PROT ] [ PATH ]
-// ENABLE
+// BLOCK [ PROT ] [ PATH ] - with no args is a command alias for 'set mode block'
+// ALLOW [ PROT ] [ PATH ] - with no args is a command alias for 'set mode disabled'
+// ENABLE - a command alias for 'set mode enabled'
 // CLEAR [ STATE ] | ( [ PROT ] [ PATH ] )
 // QUERY - returns QUERY STATE [ PROT ] [ PATH ] [ NESTED ]
 //
@@ -25,37 +18,40 @@ E7X_VERSION(1)
 // SET FLAG VALUE
 // GET FLAG - returns GET FLAG VALUE
 //
-// NB on aliases:
-// these are identifiers used in the daemon ui to represent a uint32 value
-// for the LKM. They have bnf prefixes:
-// a = action (E7C_ALLOW, E7C_BLOCK)
-// n = boolean for notification (E7C_DISABLED, E7C_ENABLED)
-// c = constant (their own value)
-// e = enumeration of mulitple types of values
+// NB: aliases are identifiers used in the daemon ui to represent
+// a uint32 value for the LKM.
+//
+// PATH - a string, always starting with / and in the case of a folder, ending with /
+// PROT - can be an alias from the constant table or a uint
+// STATE - any of E7C_BLOCK, E7C_ALLOW, E7C_PENDING*  (*unimplemented)
+// NESTED - netlink grammar sugar (internal attribute)
+// action flags should either be allow or block (E7C_ALLOW, E7C_BLOCK)
+// boolean flags should be either disabled or enabled (E7C_DISABLED, E7C_ENABLED)
+// numeric flags should be a uint but an alias from the constant table can be specified
 
 // ID, e7d alias and constant value
-E7X_CONST(E7C_IP_ICMP,  "cicmp",     IPPROTO_ICMP)
-E7X_CONST(E7C_IP_TCP,   "ctcp",      IPPROTO_TCP)
-E7X_CONST(E7C_IP_UDP,   "cudp",      IPPROTO_UDP)
-E7X_CONST(E7C_IP_ANY,   "cany",      ~0)
-E7X_CONST(E7C_BLOCK,    "cblock",    0xFF00)
-E7X_CONST(E7C_ALLOW,    "callow",    0xFF01)
-E7X_CONST(E7C_PENDING,  "cpending",  0xFF02)
-E7X_CONST(E7C_ENABLED,  "cenabled",  0xFF03)
-E7X_CONST(E7C_DISABLED, "cdisabled", 0xFF04)
+E7X_CONST(E7C_IP_ICMP,  "icmp",     IPPROTO_ICMP)
+E7X_CONST(E7C_IP_TCP,   "tcp",      IPPROTO_TCP)
+E7X_CONST(E7C_IP_UDP,   "udp",      IPPROTO_UDP)
+E7X_CONST(E7C_IP_ANY,   "any",      ~0)
+E7X_CONST(E7C_BLOCK,    "block",    0xFF00)
+E7X_CONST(E7C_ALLOW,    "allow",    0xFF01)
+E7X_CONST(E7C_PENDING,  "pending",  0xFF02)
+E7X_CONST(E7C_ENABLED,  "enabled",  0xFF03)
+E7X_CONST(E7C_DISABLED, "disabled", 0xFF04)
 
 // ID, e7d alias and default LKM value
-E7X_FLAG(E7F_MODE,                 "emode",    E7C_DISABLED)  // E7C_ENABLED, E7C_DISABLED, E7C_BLOCK
-E7X_FLAG(E7F_DEBUG,                "ndebug",   E7C_ENABLED)
-E7X_FLAG(E7F_FAILPATH_ACTION,      "afail",    E7C_ALLOW)
-E7X_FLAG(E7F_UNKN_PROCESS_ACTION,  "aunkproc", E7C_ALLOW)
-E7X_FLAG(E7F_UNKN_PROTOCOL_ACTION, "aunkprot", E7C_ALLOW)
-E7X_FLAG(E7F_NORULE_NOTIFY,        "nnorule",  E7C_ENABLED)   // notify daemon of packets that have no rule
-E7X_FLAG(E7F_NORULE_SQUELCH,       "nsquelch", E7C_ENABLED)   // squelch between E7F_NORULE_NOTIFY for each (proto,path) pair
-E7X_FLAG(E7F_NORULE_ACTION,        "aunkrule", E7C_ALLOW)     // what to do with a packet that has no rule (ACCEPT) todo: QUEUE
-E7X_FLAG(E7F_RULE_DROPS,           "ndrops",   E7C_DISABLED)  // notify daemon when a packet is DROPPED due to a rule
-E7X_FLAG(E7F_RULE_ACCEPTS,         "naccepts", E7C_DISABLED)  // notify daemon when a packet is ACCEPTED due to a rule
-E7X_FLAG(E7F_RULE_CHANGE_QUERY,    "nrchngq",  E7C_ENABLED)   // notify daemon with full query when rules are added/removed
+E7X_FLAG(E7F_MODE,                 "mode",    E7C_DISABLED)  // E7C_ENABLED, E7C_DISABLED, E7C_BLOCK
+E7X_FLAG(E7F_DEBUG,                "debug",   E7C_ENABLED)
+E7X_FLAG(E7F_FAILPATH_ACTION,      "fail",    E7C_ALLOW)
+E7X_FLAG(E7F_UNKN_PROCESS_ACTION,  "unkproc", E7C_ALLOW)
+E7X_FLAG(E7F_UNKN_PROTOCOL_ACTION, "unkprot", E7C_ALLOW)
+E7X_FLAG(E7F_NORULE_NOTIFY,        "norule",  E7C_ENABLED)   // notify daemon of packets that have no rule
+E7X_FLAG(E7F_NORULE_SQUELCH,       "squelch", E7C_ENABLED)   // squelch between E7F_NORULE_NOTIFY for each (proto,path) pair
+E7X_FLAG(E7F_NORULE_ACTION,        "unkrule", E7C_ALLOW)     // what to do with a packet that has no rule (ACCEPT) todo: QUEUE
+E7X_FLAG(E7F_RULE_DROPS,           "drops",   E7C_DISABLED)  // notify daemon when a packet is DROPPED due to a rule
+E7X_FLAG(E7F_RULE_ACCEPTS,         "accepts", E7C_DISABLED)  // notify daemon when a packet is ACCEPTED due to a rule
+E7X_FLAG(E7F_RULE_CHANGE_QUERY,    "rchngq",  E7C_ENABLED)   // notify daemon with full query when rules are added/removed
 
 E7X_COMM(ENL_COMM_ERROR)
 E7X_COMM(ENL_COMM_DISCONNECT)

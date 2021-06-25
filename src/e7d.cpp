@@ -195,20 +195,20 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
     stop = true;
     break;
   case ENL_COMM_GET:
-    if((a = attribs[ENL_ATTR_FLAG])) szflag = def_flag_name_str(nla_get_u32(a));
-    if((a = attribs[ENL_ATTR_VALUE])) { value = nla_get_u32(a); szconst = def_const_name_str((int)value); }
+    if((a = attribs[ENL_ATTR_FLAG])) def_flag_name_str(&szflag, nla_get_u32(a));
+    if((a = attribs[ENL_ATTR_VALUE])) { value = nla_get_u32(a); def_const_name_str(&szconst, value); }
     E7_LOG("%s = %s (%u)", szflag ? szflag : "(null)", szconst ? szconst : "?", value);
     break;
   case ENL_COMM_EVENT:
-    if((a = attribs[ENL_ATTR_STATE])) szstate = def_const_name_str(nla_get_u32(a));
-    if((a = attribs[ENL_ATTR_PROT])) szprot = def_protname(nla_get_u32(a));
+    if((a = attribs[ENL_ATTR_STATE])) def_const_name_str(&szstate, nla_get_u32(a));
+    if((a = attribs[ENL_ATTR_PROT])) def_protname(&szprot, nla_get_u32(a));
     if((a = attribs[ENL_ATTR_PATH])) szpath = nla_get_string(a);
     E7_LOG("event state %s prot %s path %s", szstate, (szprot ? szprot : "-"), (szpath ? szpath : "-"));
     break;
   case ENL_COMM_QUERY:
     do {
-      if((a = attribs[ENL_ATTR_STATE])) szstate = def_const_name_str(nla_get_u32(a));
-      if((apr = attribs[ENL_ATTR_PROT])) szprot = def_protname(upr = nla_get_u32(apr));
+      if((a = attribs[ENL_ATTR_STATE])) def_const_name_str(&szstate, nla_get_u32(a));
+      if((apr = attribs[ENL_ATTR_PROT])) { upr = nla_get_u32(apr); def_protname(&szprot, upr); }
       if((apa = attribs[ENL_ATTR_PATH])) szpath = nla_get_string(apa);
 
       if(!apr && !apa)                E7_LOG("query state %s", szstate);
@@ -292,28 +292,27 @@ struct CMDBUF
 
 void e7_parsecmd(CMDBUF & buf)
 {
-  int iflag, iconst, ivalue;
+  uint32_t iflag, iconst, ivalue;
 
   // 0==incomplete, -ve==error, +ve==complete_length
   if(0>=buf.appendln_noblock(fdstdin)) return;
 
-  auto is_int_or_const = [](char* sz, int& i) -> bool
+  auto is_int_or_const = [](char* sz, uint32_t& u) -> bool
   {
-    int j;
+    uint32_t j;
     char *p = sz;
     if(!sz) return false;
-    j = def_const_alias_value(sz); // cast?
-    if(-1 != j) { i = j; return true; }
+    if(def_const_alias_value(&j, sz)) { u = j; return true; }
     while(*p) if(!isdigit(*(p++))) return false;
-    i = atoi(sz);
+    u = atoi(sz);
     return true;
   };
 
-  auto is_state = [](char* sz, int& i) -> bool
+  auto is_state = [](char* sz, uint32_t& u) -> bool
   {
     if(!sz) return false;
-    int j = def_const_alias_value(sz); // cast?
-    return (j == E7C_BLOCK) || (j == E7C_ALLOW);
+    if(!def_const_alias_value(&u, sz)) return false;
+    return (u == E7C_BLOCK) || (u == E7C_ALLOW);
   };
 
   auto is_path = [](char* sz) -> bool
@@ -336,17 +335,17 @@ void e7_parsecmd(CMDBUF & buf)
       break;
     case crc32("get"):
       if(ac!=2) goto help_get;
-      if(-1==(iflag = def_flag_alias_idx(a1))) goto help_get;
-      e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_GET, ENL_ATTR_FLAG, (uint32_t)iflag) );
+      if(!def_flag_alias_idx(&iflag, a1)) goto help_get;
+      e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_GET, ENL_ATTR_FLAG, iflag) );
       break;
 help_get:
         printf("get <flagname>\n");
       break;
     case crc32("set"):
       if(ac!=3) goto help_set;
-      if(-1==(iflag = def_flag_alias_idx(a1))) goto help_set;
+      if(!def_flag_alias_idx(&iflag, a1)) goto help_set;
       if(!is_int_or_const(a2, iconst)) goto help_set;
-      e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_SET, ENL_ATTR_FLAG, (uint32_t)iflag, ENL_ATTR_VALUE, (uint32_t)iconst) );
+      e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_SET, ENL_ATTR_FLAG, iflag, ENL_ATTR_VALUE, iconst) );
       break;
 help_set:
         printf("set <flagname> ( <constnum> | <constname> )\n");
