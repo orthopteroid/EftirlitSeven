@@ -11,6 +11,7 @@ Development Details:
 - `make_e7d` builds the C++ daemon which can be run with `sudo ./e7d`
 - additional component debugging supported. `grep "define DEBUG_" src/*.c` for details.
 - douaneapp source attributions included. `grep "douane" src/*` for details.
+- reliance on crc32 in the LKM (for hashing filenames) and in the daemon (for hashing commands and constant-aliases in the control grammar).
 
 # EftirlitSeven
 
@@ -52,23 +53,32 @@ In addition to E7's netlink schema in `defs.x` this file also contains identifie
 
 `defs.x` is also commented to indicate how the netlink command grammar and the use of the flags and constants all fit together. For more information see `e7d.c` and `netlink.c` for how these packets are sent and received.
 
-Launching `./e7d` will launch the interactive control daemon. Commands that take constant or flag parameters can use numeric values or the alias (per the defs.x file). Examples are (notice that constants begin with a 'c'):
+Launching `./e7d` will launch the interactive control daemon. Commands that take constant or flag parameters can use numeric values or the alias (per the defs.x file). The aliases are only used in the daemon to help in communicating with the LKM - the daemon uses a simple syntax to convert the aliases into the numerical constants that are sent over netlink to the LKM. Examples are:
 ```
-allow cudp /bin/ping
-allow ctcp /bin/netcat
-allow ctcp /usr/bin/socat
-clear ctcp /usr/bin/socat
-clear callow
-block cudp /usr/bin/socat
-clear cblock
+allow udp /bin/ping
+allow tcp /bin/netcat
+allow tcp /usr/bin/socat
+clear tcp /usr/bin/socat
+clear allow
+block udp /usr/bin/socat
+clear block
+set mode disable
+get mode
+query
+query allow
+query block
+quit
+disconnect
 ```
 
-Partial protocol and path matches (experimental!) are supported with the cany psuedo-protocol and by a trailing / in the path. like:
+Partial protocol and path matches (both experimental!) are supported with the `any` psuedo-protocol or with a trailing / in the path. like:
 ```
-allow cany /bin/
-block ctcp /usr/bin/
+allow any /bin/
+block tcp /usr/bin/
 ```
 
+Of course, all the actual constants for interacting with the LKM are also in the defs.x file and could be used by any other daemon implementation without needing the aliases.
+  
 ## LKM log output
 
 For typical LKM log output on a low-end machine (around the time of commit ab016a2439e9b96b335fbaf1124f9f08164f25fc), see the file typical-log-output.txt
@@ -79,10 +89,9 @@ Monitoring or stats tracking for other parameters, including specific process-in
 
 # Security Considerations
 
-The LKM uses netlink to allow non-root connections to query the firewall state, but not change any of the firewall state.
-
-One of the obvious problems that comes to mind is that only filenames are in the ruleset, not hashes of the files themselves.
+- The LKM uses netlink to allow non-root connections to query the firewall state, but not change any of the firewall state.
+- Only filenames are in the ruleset, not hashes of the files themselves.
 
 # Provenance
 
-E7 is a fork of the linux internet application firewall douane from https://gitlab.com/douaneapp (I was a contributor in early 2021). Douane contains lots of great logic and infrastructure that can be leveraged to learn and experiment, as I have at https://gitlab.com/Orthopteroid/douane-dkms/ where I was testing smp-friendly cache-experiments. I've relocated those experiments to have most of my work under one roof here at github. I've tried to properly give credit to douane with grep-friendly code annotations to help ensure compliance of douane's gpl based license. It is not my intention to misrepresent the hard work of any authors of douane as my own work for this project.
+E7 is an extensive fork of the linux internet application firewall douane from https://gitlab.com/douaneapp (I was a contributor in early 2021). Douane contains lots of great logic and infrastructure that can be leveraged to learn and experiment, as I have at https://gitlab.com/Orthopteroid/douane-dkms/ where I was testing smp-friendly cache-experiments. I've relocated those experiments to have most of my work under one roof here at github. I've tried to properly give credit to douane with grep-friendly code annotations to help ensure compliance of douane's gpl based license. It is not my intention to misrepresent the hard work of any authors of douane as my own work for this project.
