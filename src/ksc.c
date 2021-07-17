@@ -30,7 +30,7 @@
 // of psi_struct. In e7 the concept was kept but changed to a struct-of-array
 // style cache for better searching performance.
 
-//#define DEBUG_KSC_ASYNC
+#define DEBUG_KSC_ASYNC
 
 #ifdef DEBUG_KSC_ASYNC
 #define LOG_DEBUG_ASYNC LOG_DEBUG
@@ -89,9 +89,9 @@ struct workqueue_struct * ksc_change_workq;
 
 ////////////
 
-static void ksc_async_remember(struct work_struct *work)
+static void ksc_async_remember(struct rcu_head *work)
 {
-  struct change_work * change = container_of(work, struct change_work, worker);
+  struct change_work * change = container_of(work, struct change_work, rcu);
   int rnd = change->packet_id % CACHE_SLOTS;
   uint8_t era = ksc_data->era;
   uint16_t era0, era1;
@@ -142,14 +142,14 @@ out:
 
   ksc_data->era++;
 
-  kfree_rcu(change, rcu);
+  kfree(change);
 
   LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
 }
 
-static void ksc_async_forget(struct work_struct *work)
+static void ksc_async_forget(struct rcu_head *work)
 {
-  struct change_work * change = container_of(work, struct change_work, worker);
+  struct change_work * change = container_of(work, struct change_work, rcu);
   int i, k;
 
   for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
@@ -161,14 +161,14 @@ static void ksc_async_forget(struct work_struct *work)
     break;
   }
 
-  kfree_rcu(change, rcu);
+  kfree(change);
 
   LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
 }
 
-static void ksc_async_update_all(struct work_struct *work)
+static void ksc_async_update_all(struct rcu_head *work)
 {
-  struct change_work * change = container_of(work, struct change_work, worker);
+  struct change_work * change = container_of(work, struct change_work, rcu);
   int i, k;
 
   for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
@@ -190,14 +190,14 @@ static void ksc_async_update_all(struct work_struct *work)
     break;
   }
 
-  kfree_rcu(change, rcu);
+  kfree(change);
 
   LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
 }
 
-static void ksc_async_update_seq(struct work_struct *work)
+static void ksc_async_update_seq(struct rcu_head *work)
 {
-  struct change_work * change = container_of(work, struct change_work, worker);
+  struct change_work * change = container_of(work, struct change_work, rcu);
   int i, k;
 
   for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
@@ -211,14 +211,14 @@ static void ksc_async_update_seq(struct work_struct *work)
     break;
   }
 
-  kfree_rcu(change, rcu);
+  kfree(change);
 
   LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
 }
 
-static void ksc_async_update_age(struct work_struct *work)
+static void ksc_async_update_age(struct rcu_head *work)
 {
-  struct change_work * change = container_of(work, struct change_work, worker);
+  struct change_work * change = container_of(work, struct change_work, rcu);
   int i, k;
 
   for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
@@ -230,18 +230,18 @@ static void ksc_async_update_age(struct work_struct *work)
     break;
   }
 
-  kfree_rcu(change, rcu);
+  kfree(change);
 
   LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
 }
 
-static void ksc_async_clearcache(struct work_struct *work)
+static void ksc_async_clearcache(struct rcu_head *work)
 {
-  struct change_work * change = container_of(work, struct change_work, worker);
+  struct change_work * change = container_of(work, struct change_work, rcu);
 
   memset(ksc_data, 0, sizeof(struct ksc_data));
 
-  kfree_rcu(change, rcu);
+  kfree(change);
 
   LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
 }
@@ -336,11 +336,7 @@ void ksc_forget(const unsigned long i_ino, const uint32_t packet_id)
   new_work->packet_id = packet_id;
   new_work->i_ino = i_ino;
   //
-  INIT_WORK(&new_work->worker, ksc_async_forget);
-
-  spin_lock_bh(&ksc_workq_lock);
-  queue_work(ksc_change_workq, &new_work->worker);
-  spin_unlock_bh(&ksc_workq_lock);
+  call_rcu(&new_work->rcu, ksc_async_forget);
 }
 
 void ksc_clear(const uint32_t packet_id)
@@ -367,11 +363,7 @@ void ksc_clear(const uint32_t packet_id)
 
   new_work->packet_id = packet_id;
   //
-  INIT_WORK(&new_work->worker, ksc_async_clearcache);
-
-  spin_lock_bh(&ksc_workq_lock);
-  queue_work(ksc_change_workq, &new_work->worker);
-  spin_unlock_bh(&ksc_workq_lock);
+  call_rcu(&new_work->rcu, ksc_async_clearcache);
 }
 
 void ksc_remember(const unsigned long i_ino, const uint32_t sequence, const pid_t pid, const char * path, const uint32_t packet_id)
@@ -404,11 +396,7 @@ void ksc_remember(const unsigned long i_ino, const uint32_t sequence, const pid_
   new_work->path_hash = e7_crc32(path);
   new_work->age = ksc_data->era;
   //
-  INIT_WORK(&new_work->worker, ksc_async_remember);
-
-  spin_lock_bh(&ksc_workq_lock);
-  queue_work(ksc_change_workq, &new_work->worker);
-  spin_unlock_bh(&ksc_workq_lock);
+  call_rcu(&new_work->rcu, ksc_async_remember);
 }
 
 void ksc_update_all(const unsigned long i_ino, const uint32_t sequence, const pid_t pid, const char * path, const uint32_t packet_id)
@@ -441,11 +429,7 @@ void ksc_update_all(const unsigned long i_ino, const uint32_t sequence, const pi
   new_work->path_hash = e7_crc32(path);
   new_work->age = ksc_data->era;
   //
-  INIT_WORK(&new_work->worker, ksc_async_update_all);
-
-  spin_lock_bh(&ksc_workq_lock);
-  queue_work(ksc_change_workq, &new_work->worker);
-  spin_unlock_bh(&ksc_workq_lock);
+  call_rcu(&new_work->rcu, ksc_async_update_all);
 }
 
 void ksc_update_seq(const unsigned long i_ino, const uint32_t sequence, const uint32_t packet_id)
@@ -475,11 +459,7 @@ void ksc_update_seq(const unsigned long i_ino, const uint32_t sequence, const ui
   new_work->sequence = sequence;
   new_work->age = ksc_data->era;
   //
-  INIT_WORK(&new_work->worker, ksc_async_update_seq);
-
-  spin_lock_bh(&ksc_workq_lock);
-  queue_work(ksc_change_workq, &new_work->worker);
-  spin_unlock_bh(&ksc_workq_lock);
+  call_rcu(&new_work->rcu, ksc_async_update_seq);
 }
 
 void ksc_update_age(const unsigned long i_ino, const uint32_t packet_id)
@@ -508,11 +488,7 @@ void ksc_update_age(const unsigned long i_ino, const uint32_t packet_id)
   new_work->i_ino = i_ino;
   new_work->age = ksc_data->era;
   //
-  INIT_WORK(&new_work->worker, ksc_async_update_age);
-
-  spin_lock_bh(&ksc_workq_lock);
-  queue_work(ksc_change_workq, &new_work->worker);
-  spin_unlock_bh(&ksc_workq_lock);
+  call_rcu(&new_work->rcu, ksc_async_update_age);
 }
 
 int ksc_init(void)
