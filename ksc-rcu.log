@@ -1,0 +1,60 @@
+Jul 17 15:13:12 AspireR3610 kernel: [ 5296.430103] D eftirlit7(00000000):mod_init:56: initializing module
+Jul 17 15:13:12 AspireR3610 kernel: [ 5296.430111] D eftirlit7(00000000):mod_init:63: net_device found: name: lo - ifindex: 1
+Jul 17 15:13:12 AspireR3610 kernel: [ 5296.430115] D eftirlit7(00000000):mod_init:63: net_device found: name: enp0s10 - ifindex: 2
+Jul 17 15:13:12 AspireR3610 kernel: [ 5296.430124] I eftirlit7(00000000):rules_init:357: queue 128 entries 17 kb
+Jul 17 15:13:12 AspireR3610 kernel: [ 5296.430146] I eftirlit7(00000000):ksc_init:501: cache 512 entries 77 kb
+Jul 17 15:13:12 AspireR3610 kernel: [ 5296.430229] I eftirlit7(00000000):asc_init:412: cache 512 entries 6 kb
+Jul 17 15:13:12 AspireR3610 kernel: [ 5296.430373] I eftirlit7(00000000):enf_init:231: firewall mode - NF_ACCEPT
+Jul 17 15:13:12 AspireR3610 kernel: [ 5296.430376] I eftirlit7(00000000):mod_init:116: module loaded
+Jul 17 15:13:57 AspireR3610 kernel: [ 5341.966193] D eftirlit7(C6CB7E61):enl__comm_query:526: connected to daemon NET 000000004656058b PORT 3883937403
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.099641] D eftirlit7(95EDC996):enf__nfhandler:150: ~~~ new UDP packet
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.099657] D eftirlit7(95EDC996):ksc_from_inode:282: searching for INO 72306 - not found
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.099794] D eftirlit7(95EDC996):asc_psi_from_ino_pid:344: searching for INO 72306 in PID 10208 - found
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.099806] D eftirlit7(95EDC996):ksc_remember:394: queueing async call to remember entry INO 72306 PID 10208 SEQ 0 PATH /usr/lib/firefox/firefox
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.099817] D eftirlit7(95EDC996):prot_udp_parse:86: caching new socket INODE 72306 for PID 10208 and process '/usr/lib/firefox/firefox'
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.099826] D eftirlit7(95EDC996):rules_search:342: searching for (UDP:/usr/lib/firefox/firefox) - not found
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.099832] D eftirlit7(95EDC996):enf__nfhandler:182: rules_search failed for /usr/lib/firefox/firefox - NF_ACCEPT
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.101217] D eftirlit7(20EECDA5):enf__nfhandler:150: ~~~ new UDP packet
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.101234] D eftirlit7(20EECDA5):ksc_from_inode:282: searching for INO 15230 - not found
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.101258] D eftirlit7(20EECDA5):asc_psi_from_ino_pid:344: searching for INO 15230 in PID 407 - found
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.101269] D eftirlit7(20EECDA5):ksc_remember:394: queueing async call to remember entry INO 15230 PID 407 SEQ 0 PATH /lib/systemd/systemd-resolved
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.101282] D eftirlit7(20EECDA5):prot_udp_parse:86: caching new socket INODE 15230 for PID 407 and process '/lib/systemd/systemd-resolved'
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.101290] D eftirlit7(20EECDA5):rules_search:342: searching for (UDP:/lib/systemd/systemd-resolved) - not found
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.101295] D eftirlit7(20EECDA5):enf__nfhandler:182: rules_search failed for /lib/systemd/systemd-resolved - NF_ACCEPT
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.103697] D eftirlit7(84588E5F):enf__nfhandler:150: ~~~ new TCP packet
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.103713] D eftirlit7(84588E5F):ksc_from_inode:282: searching for INO 73385 - not found
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.103863] D eftirlit7(84588E5F):asc_psi_from_ino_pid:344: searching for INO 73385 in PID 8233 - found
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.103873] D eftirlit7(84588E5F):ksc_remember:394: queueing async call to remember entry INO 73385 PID 8233 SEQ 4269712651 PATH /usr/lib/firefox/firefox
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.103885] D eftirlit7(84588E5F):prot_tcp_parse:123: caching new socket INODE 73385 SEQ 4269712651 for PID 8233 and process '/usr/lib/firefox/firefox'
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.103893] D eftirlit7(84588E5F):rules_search:342: searching for (TCP:/usr/lib/firefox/firefox) - not found
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.103898] D eftirlit7(84588E5F):enf__nfhandler:182: rules_search failed for /usr/lib/firefox/firefox - NF_ACCEPT
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.124686] D eftirlit7(95EDC996):ksc_async_remember:121: free cache slot selected
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.124698] D eftirlit7(95EDC996):ksc_async_remember:129: writing to slot 406
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.124711] D eftirlit7(95EDC996):ksc_async_remember:147: async work complete
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.132640] D eftirlit7(20EECDA5):ksc_async_remember:121: free cache slot selected
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.132649] D eftirlit7(20EECDA5):ksc_async_remember:129: writing to slot 421
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.132661] D eftirlit7(20EECDA5):ksc_async_remember:147: async work complete
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.132739] D eftirlit7(84588E5F):ksc_async_remember:121: free cache slot selected
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.132750] D eftirlit7(84588E5F):ksc_async_remember:129: writing to slot 95
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.132761] D eftirlit7(84588E5F):ksc_async_remember:147: async work complete
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.264233] D eftirlit7(AF550D56):enf__nfhandler:150: ~~~ new TCP packet
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.264245] D eftirlit7(AF550D56):ksc_from_inode:278: found INO 73385 in slot 95
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.264389] D eftirlit7(AF550D56):asc_pid_owns_ino:390: searching PID 8233 for INO 73385 - found
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.264395] D eftirlit7(AF550D56):ksc_update_age:490: queueing async call to update_age INO 73385
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.264402] D eftirlit7(AF550D56):prot_tcp_parse:107: hit for INODE 73385 SEQ 4269712652 for PID 8233 and process '/usr/lib/firefox/firefox'
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.264409] D eftirlit7(AF550D56):rules_search:342: searching for (TCP:/usr/lib/firefox/firefox) - not found
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.264413] D eftirlit7(AF550D56):enf__nfhandler:182: rules_search failed for /usr/lib/firefox/firefox - NF_ACCEPT
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.284612] D eftirlit7(AF550D56):ksc_async_update_age:238: async work complete
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.295357] D eftirlit7(09711304):enf__nfhandler:150: ~~~ new TCP packet
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.295369] D eftirlit7(09711304):ksc_from_inode:278: found INO 73385 in slot 95
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.295509] D eftirlit7(09711304):asc_pid_owns_ino:390: searching PID 8233 for INO 73385 - found
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.295516] D eftirlit7(09711304):ksc_update_age:490: queueing async call to update_age INO 73385
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.295523] D eftirlit7(09711304):prot_tcp_parse:107: hit for INODE 73385 SEQ 4269712652 for PID 8233 and process '/usr/lib/firefox/firefox'
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.295531] D eftirlit7(09711304):rules_search:342: searching for (TCP:/usr/lib/firefox/firefox) - not found
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.295534] D eftirlit7(09711304):enf__nfhandler:182: rules_search failed for /usr/lib/firefox/firefox - NF_ACCEPT
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.320631] D eftirlit7(09711304):ksc_async_update_age:238: async work complete
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.461800] D eftirlit7(EA4A580B):enf__nfhandler:150: ~~~ new TCP packet
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.461814] D eftirlit7(EA4A580B):ksc_from_inode:278: found INO 73385 in slot 95
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.461994] D eftirlit7(EA4A580B):asc_pid_owns_ino:390: searching PID 8233 for INO 73385 - found
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.462004] D eftirlit7(EA4A580B):ksc_update_age:490: queueing async call to update_age INO 73385
+Jul 17 15:14:45 AspireR3610 kernel: [ 5389.462013] D eftirlit7(EA4A580B):prot_tcp_parse:107: hit for INODE 73385 SEQ 4269713286 for PID 8233 and process '/usr/lib/firefox/firefox'
