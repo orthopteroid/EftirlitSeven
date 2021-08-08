@@ -37,6 +37,26 @@ enum nf_ip_hook_priorities {
 #include "ksc.h"
 #include "asc.h"
 
+// related to lockup problems?
+//#define DEBUG_TASKREF
+#ifdef DEBUG_TASKREF
+#define TASK_REFINC(t) get_task_struct(t)
+#define TASK_REFDEC(t) put_task_struct(t)
+#else
+#define TASK_REFINC(t) do { } while(0)
+#define TASK_REFDEC(t) do { } while(0)
+#endif
+
+// related to lockup problems?
+//#define DEBUG_TASKLOCK
+#ifdef DEBUG_TASKLOCK
+#define TASK_LOCK(t) task_lock(t)
+#define TASK_UNLOCK(t) task_unlock(t)
+#else
+#define TASK_LOCK(t) do { } while(0)
+#define TASK_UNLOCK(t) do { } while(0)
+#endif
+
 // douane: has the concept of searching the process table but e7 added the ability of caching the results of this search.
 
 #define ALIGNED ____cacheline_aligned
@@ -95,7 +115,8 @@ bool asc_psi_from_ino(struct psi * psi_out, unsigned long socket_ino, const uint
         goto refresh_cache;
       }
 
-      found_task = get_task_struct(task);
+      TASK_REFINC(task);
+      found_task = task;
       found_pid = asc_data->pid[j];
 
       LOG_DEBUG(packet_id, "searching for INO %ld - found in cache with PID %d", socket_ino, found_pid);
@@ -111,7 +132,8 @@ refresh_cache:
   // refresh
   for_each_process(task)
   {
-    task = get_task_struct(task);
+    TASK_REFINC(task);
+    TASK_LOCK(task);
     if (task->files)
     {
       unsigned int fd_i = 0;
@@ -128,7 +150,7 @@ refresh_cache:
 
         if (!found_task && !found_pid && (inode->i_ino == socket_ino))
         {
-          found_task = get_task_struct(task); // nb: inc ref to 2
+          found_task = task; // nb: don't refinc, already ref'd
           found_pid = task->pid;
 
           LOG_DEBUG(packet_id, "searching for INO %ld - found in process table with PID %d", socket_ino, found_pid);
@@ -152,33 +174,44 @@ refresh_cache:
         }
       }
     }
-    put_task_struct(task);
+    TASK_UNLOCK(task);
+    TASK_REFDEC(task);
   }
   LOG_DEBUG(packet_id, "cache refreshed - %d entries", k);
 
 out_found:
+  // if (found_task) then it will be ref'd
   if(!found_task)
   {
+    rcu_read_unlock();
+    spin_unlock_bh(&asc_lock);
+
     if(psi_out->process_path[0]!=0)
     {
       LOG_DEBUG(packet_id, "searching for INO %ld - not found. fallback to %s", socket_ino, psi_out->process_path);
-      goto out_fallback;
+      return true;
     }
 
     LOG_DEBUG(packet_id, "searching for INO %ld - not found", socket_ino);
-    goto out_fail;
+    return false;
   }
 
+  TASK_LOCK(found_task);
   if(!(found_task->mm) || !(found_task->mm->exe_file))
   {
+    TASK_UNLOCK(found_task);
+    TASK_REFDEC(found_task);
+    rcu_read_unlock();
+    spin_unlock_bh(&asc_lock);
+
     if(psi_out->process_path[0]!=0)
     {
       LOG_DEBUG(packet_id, "searching for INO %ld - mm error. fallback to %s", socket_ino, psi_out->process_path);
-      goto out_fallback;
+      return true;
     }
 
     LOG_ERR(packet_id, "mm ERROR");
-    goto out_fail;
+    return false;
   }
 
   {
@@ -186,10 +219,16 @@ out_found:
     // - d_path might return string with " (deleted)" suffix
     // - d_path might return string with garbage prefix
     char * p = d_path(&found_task->mm->exe_file->f_path, psi_out->process_path, PATH_LENGTH);
+
+    TASK_UNLOCK(found_task);
+    TASK_REFDEC(found_task);
+    rcu_read_unlock();
+    spin_unlock_bh(&asc_lock);
+
     if (IS_ERR(p))
     {
       LOG_ERR(packet_id, "d_path returned ERROR");
-      goto out_fail;
+      return false;
     }
 
     psi_out->pid = found_pid;
@@ -199,10 +238,6 @@ out_found:
       strncpy(psi_out->process_path, p, PATH_LENGTH - (p - psi_out->process_path) +1); // +1 includes \0
     }
   }
-
-  put_task_struct(found_task);
-  rcu_read_unlock();
-  spin_unlock_bh(&asc_lock);
 
   // check for " (deleted)" suffix and strip it
   name_str_len = strnlen(psi_out->process_path, PATH_LENGTH);
@@ -216,17 +251,6 @@ out_found:
     }
   }
 
-  return true;
-
-out_fail:
-  rcu_read_unlock();
-  spin_unlock_bh(&asc_lock);
-  return false;
-
-out_fallback:
-  if(found_task) put_task_struct(found_task);
-  rcu_read_unlock();
-  spin_unlock_bh(&asc_lock);
   return true;
 }
 
@@ -257,11 +281,15 @@ bool asc_psi_from_ino_pid(struct psi * psi_out, unsigned long socket_ino, pid_t 
     return false;
   }
 
-  task = get_task_struct(task);
+  TASK_REFINC(task);
+  TASK_LOCK(task);
   if(!(task->files))
   {
     LOG_DEBUG(packet_id, "searching for INO %ld in PID %d - no files", socket_ino, pid);
-    goto out_fail;
+    TASK_UNLOCK(task);
+    TASK_REFDEC(task);
+    rcu_read_unlock();
+    return false;
   }
 
   // douane: almost verbatim, but e7 streamlined and removed the heuristics
@@ -278,27 +306,26 @@ bool asc_psi_from_ino_pid(struct psi * psi_out, unsigned long socket_ino, pid_t 
 
   LOG_DEBUG(packet_id, "searching for INO %ld in PID %d - not found", socket_ino, pid);
 
-out_fail:
-  if(task) put_task_struct(task);
+  TASK_UNLOCK(task);
+  TASK_REFDEC(task);
   rcu_read_unlock();
   return false;
-
-out_fallback:
-  if(task) put_task_struct(task);
-  rcu_read_unlock();
-  return true;
 
 out_found:
   if(!(task->mm) || !(task->mm->exe_file))
   {
+    TASK_UNLOCK(task);
+    TASK_REFDEC(task);
+    rcu_read_unlock();
+
     if(psi_out->process_path[0]!=0)
     {
       LOG_DEBUG(packet_id, "searching for INO %ld - mm error. fallback to %s", socket_ino, psi_out->process_path);
-      goto out_fallback;
+      return true;
     }
 
     LOG_ERR(packet_id, "mm ERROR");
-    goto out_fail;
+    return false;
   }
 
   // douane: use of d_path to extract process name
@@ -307,10 +334,15 @@ out_found:
     // - d_path might return string with " (deleted)" suffix
     // - d_path might return string with garbage prefix
     char * p = d_path(&task->mm->exe_file->f_path, psi_out->process_path, PATH_LENGTH);
+
+    TASK_UNLOCK(task);
+    TASK_REFDEC(task);
+    rcu_read_unlock();
+
     if (IS_ERR(p))
     {
       LOG_ERR(packet_id, "d_path returned ERROR");
-      goto out_fail;
+      return false;
     }
 
     psi_out->pid = pid;
@@ -320,9 +352,6 @@ out_found:
       strncpy(psi_out->process_path, p, PATH_LENGTH - (p - psi_out->process_path) +1); // +1 includes \0
     }
   }
-
-  put_task_struct(task);
-  rcu_read_unlock();
 
   // douane: need to strip " (deleted)" suffix but e7 streamlined this code
   {
@@ -351,6 +380,7 @@ bool asc_pid_owns_ino(unsigned long socket_ino, pid_t pid, const uint32_t packet
   struct pid * pid_struct = NULL;
   struct task_struct * task = NULL;
   struct file * file = NULL;
+  bool rc = false;
 
   rcu_read_lock();
 
@@ -370,11 +400,12 @@ bool asc_pid_owns_ino(unsigned long socket_ino, pid_t pid, const uint32_t packet
     return false;
   }
 
-  task = get_task_struct(task);
+  TASK_REFINC(task);
+  TASK_LOCK(task);
   if(!(task->files))
   {
     LOG_DEBUG(packet_id, "searching for INO %ld in PID %d - no files", socket_ino, pid);
-    goto out_fail;
+    goto out;
   }
 
   {
@@ -389,20 +420,17 @@ bool asc_pid_owns_ino(unsigned long socket_ino, pid_t pid, const uint32_t packet
 
       LOG_DEBUG(packet_id, "searching PID %d for INO %ld - found", pid, socket_ino);
 
-      goto out_found;
+      rc = true;
+      goto out;
     }
   }
   LOG_DEBUG(packet_id, "searching PID %d for INO %ld - not found", pid, socket_ino);
 
-out_fail:
-  put_task_struct(task);
+out:
+  TASK_UNLOCK(task);
+  TASK_REFDEC(task);
   rcu_read_unlock();
-  return false;
-
-out_found:
-  put_task_struct(task);
-  rcu_read_unlock();
-  return true;
+  return rc;
 }
 
 //////////////////
