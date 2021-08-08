@@ -1,7 +1,5 @@
 *THIS KERNEL MODULE SHOULD BE CONSIDERED BARELY BETA - COMPILE AND USE AT YOUR OWN RISK*
 
-*May not even be safe inside a paravirtualized VM - still investigating*
-
 Development Details:
 - kernel 5.4.0-74 (ubuntu 18.04.1 x64) on a friendly old ssd-assisted Intel Atom 330 (dual cpu with HT)
 - libnl 3.2.29+ is needed to accomodate problems with attribute nesting
@@ -59,6 +57,7 @@ allow udp /bin/ping
 allow tcp /bin/netcat
 allow tcp /usr/bin/socat
 clear tcp /usr/bin/socat
+allow /usr/lib/firefox/firefox
 clear allow
 block udp /usr/bin/socat
 clear block
