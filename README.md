@@ -2,7 +2,7 @@
 
 Development Details:
 - kernel 5.4.0-74 (ubuntu 18.04.1 x64) on a friendly old ssd-assisted Intel Atom 330 (dual cpu with HT)
-- libnl 3.2.29+ is needed to accomodate problems with attribute nesting
+- libnl 3.2.29+ is needed to accommodate problems with attribute nesting
 - `make` will build the LKM on unsecure kernels
 - `make dkms` builds the LKM on secure kernels but if debugfs support is missing kernel log output is limited
 - `./test` or `./test-dkms` will launch LKM for a test run. NB: these commands clobber your kernel.log
