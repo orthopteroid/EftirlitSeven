@@ -41,7 +41,7 @@
 #define ALIGNED ____cacheline_aligned
 
 #define CACHE_KEY_MASK 0b11111111
-#define KEY_CUTTER(v) (v ^ (v >> 8) ^ (v >> 16) ^ (v >> 24))
+#define KEY_CUTTER(v) (v * 65437) // 2^16-99, per https://primes.utm.edu/lists/2small/0bit.html
 
 #define CACHE_FACTOR 2
 #define CACHE_SLOTS (CACHE_FACTOR * (CACHE_KEY_MASK +1))
@@ -152,7 +152,7 @@ static void ksc_async_forget(struct work_struct *work)
   struct change_work * change = container_of(work, struct change_work, worker);
   int i, k;
 
-  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; i++, k++)
+  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
   {
     if (ksc_data->i_ino[k] != change->i_ino) continue;
     if (!ksc_data->inuse[k]) continue;
@@ -171,9 +171,8 @@ static void ksc_async_update_all(struct work_struct *work)
   struct change_work * change = container_of(work, struct change_work, worker);
   int i, k;
 
-  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; i++, k++)
+  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
   {
-    if (k == CACHE_SLOTS) k = 0;
     if (ksc_data->i_ino[k] != change->i_ino) continue;
     if (!ksc_data->inuse[k]) continue;
 
@@ -201,9 +200,8 @@ static void ksc_async_update_seq(struct work_struct *work)
   struct change_work * change = container_of(work, struct change_work, worker);
   int i, k;
 
-  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; i++, k++)
+  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
   {
-    if (k == CACHE_SLOTS) k = 0;
     if (ksc_data->i_ino[k] != change->i_ino) continue;
     if (!ksc_data->inuse[k]) continue;
     if (ksc_data->sequence[k] == change->sequence) break; // no change needed
@@ -223,9 +221,8 @@ static void ksc_async_update_age(struct work_struct *work)
   struct change_work * change = container_of(work, struct change_work, worker);
   int i, k;
 
-  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; i++, k++)
+  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
   {
-    if (k == CACHE_SLOTS) k = 0;
     if (ksc_data->i_ino[k] != change->i_ino) continue;
     if (!ksc_data->inuse[k]) continue;
 
@@ -264,9 +261,8 @@ bool ksc_from_inode(struct psi * psi_out, const unsigned long i_ino, const uint3
   // log-squash
   //LOG_DEBUG(packet_id, "searching for INO %lu", i_ino);
 
-  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(i_ino) ]; i<CACHE_SLOTS; i++, k++)
+  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(i_ino) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
   {
-    if (k == CACHE_SLOTS) k = 0;
     if (ksc_data->i_ino[k] != i_ino) continue;
     if (!ksc_data->inuse[k]) continue;
 
@@ -296,9 +292,8 @@ bool ksc_from_sequence(struct psi * psi_out, const uint32_t sequence, const uint
   // log-squash
   //LOG_DEBUG(packet_id, "searching for SEQ %u", sequence);
 
-  for(i=0, k = ksc_data->key_seq[ KEY_TO_SLOT(sequence) ]; i<CACHE_SLOTS; i++, k++)
+  for(i=0, k = ksc_data->key_seq[ KEY_TO_SLOT(sequence) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
   {
-    if (k == CACHE_SLOTS) k = 0;
     if (!ksc_data->sequence[k]) continue;
     if ((ksc_data->sequence[k] != sequence) && ((ksc_data->sequence[k] + 1) != sequence)) continue;
     if (!ksc_data->inuse[k]) continue;

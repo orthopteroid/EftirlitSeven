@@ -62,7 +62,7 @@ enum nf_ip_hook_priorities {
 #define ALIGNED ____cacheline_aligned
 
 #define CACHE_KEY_MASK 0b11111111
-#define KEY_CUTTER(v) (v ^ (v >> 8) ^ (v >> 16) ^ (v >> 24))
+#define KEY_CUTTER(v) (v * 65437) // 2^16-99, per https://primes.utm.edu/lists/2small/0bit.html
 
 #define CACHE_FACTOR 2
 #define CACHE_SLOTS (CACHE_FACTOR * (CACHE_KEY_MASK +1))
@@ -96,10 +96,8 @@ bool asc_psi_from_ino(struct psi * psi_out, unsigned long socket_ino, const uint
   spin_lock_bh(&asc_lock);
   rcu_read_lock();
 
-  j = KEY_TO_SLOT(socket_ino);
-  for(i=0; i<CACHE_SLOTS; i++, j++)
+  for(i=0, j = KEY_TO_SLOT(socket_ino); i<CACHE_SLOTS; ++i, j = (++j < CACHE_SLOTS) ? j : 0)
   {
-    if(j == CACHE_SLOTS) j = 0;
     if(asc_data->ino[j] == socket_ino)
     {
       struct pid * pid_struct = find_get_pid(asc_data->pid[j]);
@@ -156,10 +154,8 @@ refresh_cache:
           LOG_DEBUG(packet_id, "searching for INO %ld - found in process table with PID %d", socket_ino, found_pid);
         }
 
-        j = KEY_TO_SLOT(inode->i_ino);
-        for(i=0; i<CACHE_SLOTS; i++, j++)
+        for(i=0, j = KEY_TO_SLOT(inode->i_ino); i<CACHE_SLOTS; ++i, j = (++j < CACHE_SLOTS) ? j : 0)
         {
-          if(j == CACHE_SLOTS) j = 0;
           if(asc_data->ino[j] == 0)
           {
             asc_data->ino[j] = inode->i_ino;
