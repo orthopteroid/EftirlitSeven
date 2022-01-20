@@ -62,7 +62,7 @@ enum nf_ip_hook_priorities {
 #define ALIGNED ____cacheline_aligned
 
 #define CACHE_KEY_MASK 0b11111111
-#define KEY_CUTTER(v) (v * 65437) // 2^16-99, per https://primes.utm.edu/lists/2small/0bit.html
+#define KEY_CUTTER(v) ((v * 65437) + (v >> 6) + (v >> 13)) // 2^16-99, per https://primes.utm.edu/lists/2small/0bit.html
 
 #define CACHE_FACTOR 2
 #define CACHE_SLOTS (CACHE_FACTOR * (CACHE_KEY_MASK +1))
