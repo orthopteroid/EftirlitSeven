@@ -86,6 +86,7 @@ bool asc_psi_from_ino(struct psi * psi_out, unsigned long socket_ino, const uint
   struct sock * sock_ = NULL;
   struct task_struct * task = NULL;
   struct task_struct * found_task = NULL; // refcounted when found
+  struct pid * pid_struct = NULL;
   pid_t found_pid = 0;
   int name_str_len;
   int i = 0, j = 0, k = 0;
@@ -98,28 +99,31 @@ bool asc_psi_from_ino(struct psi * psi_out, unsigned long socket_ino, const uint
 
   for(i=0, j = KEY_TO_SLOT(socket_ino); i<CACHE_SLOTS; ++i, j = (++j < CACHE_SLOTS) ? j : 0)
   {
-    if(asc_data->ino[j] == socket_ino)
+    if(asc_data->ino[j] != socket_ino) continue;
+
+    pid_struct = find_get_pid(asc_data->pid[j]);
+    if(!pid_struct)
     {
-      struct pid * pid_struct = find_get_pid(asc_data->pid[j]);
-      if(!pid_struct)
-      {
-        continue; // pid is dead. todo: clear this entry?
-      }
+      asc_data->ino[j] = 0;
+      asc_data->pid[j] = 0;
 
-      task = get_pid_task(pid_struct, PIDTYPE_PID);
-      if(!task)
-      {
-        LOG_ERR(packet_id, "invalid task info");
-        goto refresh_cache;
-      }
-
-      TASK_REFINC(task);
-      found_task = task;
-      found_pid = asc_data->pid[j];
-
-      LOG_DEBUG(packet_id, "searching for INO %ld - found in cache with PID %d", socket_ino, found_pid);
-      goto out_found;
+      LOG_DEBUG(packet_id, "searching for INO %ld - orphaned", socket_ino);
+      goto refresh_cache;
     }
+
+    task = get_pid_task(pid_struct, PIDTYPE_PID);
+    if(!task)
+    {
+      LOG_ERR(packet_id, "invalid task info");
+      goto refresh_cache;
+    }
+
+    TASK_REFINC(task);
+    found_task = task;
+    found_pid = asc_data->pid[j];
+
+    LOG_DEBUG(packet_id, "searching for INO %ld - found in cache with PID %d", socket_ino, found_pid);
+    goto out_found;
   }
 
 refresh_cache:
