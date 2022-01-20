@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include <exception>
 #include <cstdint>
@@ -233,8 +234,6 @@ static int e7_nlcallback(struct nl_msg *msg, void *arg) {
 
 ///////////////////
 
-const int fdstdin = 0;
-
 struct CMDBUF
 {
   const static int textlen = 100;
@@ -293,9 +292,6 @@ struct CMDBUF
 void e7_parsecmd(CMDBUF & buf)
 {
   uint32_t iflag, iconst, ivalue;
-
-  // 0==incomplete, -ve==error, +ve==complete_length
-  if(0>=buf.appendln_noblock(fdstdin)) return;
 
   auto is_int_or_const = [](char* sz, uint32_t& u) -> bool
   {
@@ -386,6 +382,8 @@ void e7_parsecmd(CMDBUF & buf)
       if(ac==1) e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_QUERY) );
       else printf("query\n");
       break;
+    case crc32("#"): // comment
+      break;
     default:
       printf("quit, bye, get, set, block, allow, enable, clear, query\n");
   }
@@ -410,11 +408,19 @@ struct EPOLL
   int pwait() { return epoll_pwait(fdepoll, events, EPOLL_MAX_EVENTS, timeout, sigset); }
 };
 
-int main(void)
+int main(int argc, char* argv[])
 {
   int rc = 0;
 
   if(0!=(rc = def_init())) { E7_LOG("def_init failed"); return -1; }
+
+  int fdin = 0; // normally stdin
+  if(argc == 2)
+  {
+    E7_LOG("loading script");
+
+    if((fdin = open(argv[1], O_RDONLY)) && errno!=0) { E7_LOG("error loading script '%s'.", argv[1]); return -1; }
+  }
 
   E7_LOG("nice");
 
@@ -459,7 +465,7 @@ int main(void)
   EPOLL epoll(&sigset);
   epoll.addfd(fdsig);
   epoll.addfd(fdnl);
-  epoll.addfd(fdstdin);
+  if(fdin == 0) epoll.addfd(fdin); // can't epoll an actual file
 
   E7_LOG("begin console");
 
@@ -468,6 +474,18 @@ int main(void)
   CMDBUF buf;
   while(!stop)
   {
+    if (fdin > 0)
+    {
+      rc = buf.appendln_noblock(fdin);
+      if(rc<0)
+        stop = true;
+      else if(rc>0)
+      {
+        E7_LOG("command: %s", buf.text);
+        e7_parsecmd(buf);
+      }
+    }
+
     int nfds = epoll.pwait();
     assert(nfds>=0);
 
@@ -477,12 +495,13 @@ int main(void)
         stop = true;
       else if (epoll.events[n].data.fd == fdnl)
         e7_printrc( "nl_recvmsgs", nl_recvmsgs_default(nl_sk) ); // 0==EOF +ve==#bytes
-      else if (epoll.events[n].data.fd == fdstdin)
-        e7_parsecmd(buf);
+      else if (fdin == 0 && epoll.events[n].data.fd == fdin)
+        if(buf.appendln_noblock(fdin) > 0)
+          e7_parsecmd(buf);
     }
   }
 
-  E7_LOG("Shutting down...");
+  E7_LOG("Disconnecting...");
   e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_DISCONNECT));
 
   return 0;

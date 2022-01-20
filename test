@@ -2,6 +2,8 @@ trap "make uninstall; tail /var/log/kern.log" EXIT
 make -j 4
 > /var/log/kern.log
 make install
+sleep 1
+./ed7 rules
 #echo 'file kernel/douane +p' > /sys/kernel/debug/dynamic_debug/control
 tail -f /var/log/kern.log
 make uninstall
