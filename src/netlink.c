@@ -473,6 +473,10 @@ static int enl__comm_enable(struct sk_buff *skb_in, struct genl_info *info)
     LOG_DEBUG(stack_id, "connected to daemon NET %p PORT %u", nl_net, nl_port); // todo: pid and process name
 
   def_flag_value[E7F_MODE] = E7C_ENABLED;
+
+  if(def_flag_value[E7F_RULE_CHANGE_QUERY] == E7C_ENABLED)
+    enl__send_query(stack_id);
+
   return 0;
 }
 
