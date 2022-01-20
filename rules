@@ -1,0 +1,6 @@
+query
+clear
+allow udp /usr/lib/systemd/systemd-resolved
+allow any /usr/bin/firefox
+allow any /usr/bin/transmission-gtk
+enable

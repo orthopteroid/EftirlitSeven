@@ -334,21 +334,27 @@ void e7_parsecmd(CMDBUF & buf)
       e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_DISCONNECT) );
       break;
     case crc32("get"):
-      if(ac!=2) goto help_get;
-      if(!def_flag_alias_idx(&iflag, a1)) goto help_get;
-      e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_GET, ENL_ATTR_FLAG, iflag) );
-      break;
-help_get:
-        printf("get <flagname>\n");
+      do
+      {
+        if(ac!=2) break;
+        if(!def_flag_alias_idx(&iflag, a1)) break;
+        e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_GET, ENL_ATTR_FLAG, iflag) );
+        return;
+      }
+      while (false);
+      printf("get <flagname>\n");
       break;
     case crc32("set"):
-      if(ac!=3) goto help_set;
-      if(!def_flag_alias_idx(&iflag, a1)) goto help_set;
-      if(!is_int_or_const(a2, iconst)) goto help_set;
-      e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_SET, ENL_ATTR_FLAG, iflag, ENL_ATTR_VALUE, iconst) );
-      break;
-help_set:
-        printf("set <flagname> ( <constnum> | <constname> )\n");
+      do
+      {
+        if(ac!=3) break;
+        if(!def_flag_alias_idx(&iflag, a1)) break;
+        if(!is_int_or_const(a2, iconst)) break;
+        e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_SET, ENL_ATTR_FLAG, iflag, ENL_ATTR_VALUE, iconst) );
+        return;
+      }
+      while(false);
+      printf("set <flagname> ( <constnum> | <constname> )\n");
       break;
     case crc32("block"):
       if(ac==1)                                     e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_BLOCK) );
