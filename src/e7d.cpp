@@ -414,14 +414,6 @@ int main(int argc, char* argv[])
 
   if(0!=(rc = def_init())) { E7_LOG("def_init failed"); return -1; }
 
-  int fdin = 0; // normally stdin
-  if(argc == 2)
-  {
-    E7_LOG("loading script");
-
-    if((fdin = open(argv[1], O_RDONLY)) && errno!=0) { E7_LOG("error loading script '%s'.", argv[1]); return -1; }
-  }
-
   E7_LOG("nice");
 
   errno = 0;
@@ -461,13 +453,21 @@ int main(int argc, char* argv[])
   // configure epoll
 
   E7_LOG("configure epoll");
+  int fdin = 0; // normally stdin
 
   EPOLL epoll(&sigset);
   epoll.addfd(fdsig);
   epoll.addfd(fdnl);
-  if(fdin == 0) epoll.addfd(fdin); // can't epoll an actual file
-
-  E7_LOG("begin console");
+  if(argc == 2)
+  {
+    E7_LOG("begin script");
+    if((fdin = open(argv[1], O_RDONLY)) && errno!=0) { E7_LOG("error loading script '%s'.", argv[1]); return -1; }
+  }
+  else
+  {
+    E7_LOG("begin console");
+    epoll.addfd(fdin); // can't epoll an actual file
+  }
 
   e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_QUERY));
 
