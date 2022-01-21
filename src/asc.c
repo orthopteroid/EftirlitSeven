@@ -196,7 +196,7 @@ out_found:
     return false;
   }
 
-  TASK_LOCK(found_task);
+  TASK_LOCK(found_task); // todo: increase code locality of LOCK/UNLOCK
   if(!(found_task->mm) || !(found_task->mm->exe_file))
   {
     TASK_UNLOCK(found_task);

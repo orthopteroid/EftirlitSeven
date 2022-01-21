@@ -8,6 +8,7 @@ struct psi
   unsigned long i_ino;                     // Process socket file inode // todo: get the right type here...
   pid_t         pid;                       // PID of the process
   char          process_path[PATH_LENGTH +1]; // Path of the process, +1 for null
+  // todo: add path_hash here and ensure it gets initialized in asc/ksc and used where necessary
   uint32_t      sequence;                  // TCP sequence (Is be 0 for non TCP packets)
 };
 

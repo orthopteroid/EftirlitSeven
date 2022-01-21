@@ -45,7 +45,7 @@ enum nf_ip_hook_priorities {
 #include "prot_tcp.h"
 #include "prot_udp.h"
 
-static uint32_t squelch[64];
+static uint32_t squelch[64]; // todo: buid an api for this
 
 // fwd decls
 static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
@@ -59,7 +59,7 @@ static struct nf_hook_ops netfilter_config = {
 
 ///////////////
 
-static int enf__get_mode_action(const char * message, uint32_t packet_id)
+static int enf__get_mode_action(const char * message, uint32_t packet_id) // todo: merge into enf__get_action(...) and add E7F_MODE codepath
 {
   switch(def_flag_value[E7F_MODE])
   {
@@ -129,7 +129,7 @@ static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct
 
   if (mod_isstopping())
   {
-    LOG_DEBUG(packet_id, "module is stopping - NF_ACCEPT)");
+    LOG_DEBUG(packet_id, "module is stopping - NF_ACCEPT)"); // todo: make important state changes into LOG_INFO
     return NF_ACCEPT;
   }
 
@@ -183,7 +183,7 @@ static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct
 
       if((def_flag_value[E7F_NORULE_SQUELCH]==E7C_ENABLED))
       {
-        uint32_t hash = ((uint32_t)ktime_get_seconds()) ^ ip_header->protocol ^ crc32(psi.process_path);
+        uint32_t hash = ((uint32_t)ktime_get_seconds()) ^ ip_header->protocol ^ crc32(psi.process_path); // todo: call a squelch-hash api
         if(squelch[hash & 63] != hash)
           squelch[hash & 63] = hash;
         else
@@ -225,7 +225,7 @@ int enf_init(void)
   const char * szaction = 0;
 
   nf_register_net_hook(&init_net, &netfilter_config);
-  prot_tcp_init();
+  prot_tcp_init(); // todo: add udp_init
 
   action = enf__get_mode_action("firewall mode invalid state", 0);
   LOG_INFO(0, "firewall mode - %s", def_actionname(&szaction, action) ? szaction : "?");
@@ -235,6 +235,7 @@ int enf_init(void)
 
 void enf_exit(void)
 {
-  prot_tcp_exit();
+  prot_tcp_exit(); // todo: add udp_exit
   nf_unregister_net_hook(&init_net, &netfilter_config);
+  // todo: add LOG_INFO saying module is unhooked from netfilter
 }

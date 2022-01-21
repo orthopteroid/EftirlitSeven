@@ -55,7 +55,7 @@ struct ksc_data
   unsigned long  i_ino[CACHE_SLOTS] ALIGNED;
   pid_t          pid[CACHE_SLOTS] ALIGNED;
   uint32_t       sequence[CACHE_SLOTS] ALIGNED;
-  process_path_t path[CACHE_SLOTS] ALIGNED;
+  process_path_t path[CACHE_SLOTS] ALIGNED; // review: ALIGN vs sizeof issues?
   uint32_t       path_hash[CACHE_SLOTS] ALIGNED;
 
   // bookkeeping baloney
