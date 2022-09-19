@@ -46,24 +46,24 @@
 
 #include <stdint.h>
 
-constexpr uint32_t crc32_tab[] = {
+constexpr uint32_t e7_crc32_tab[] = {
   CRC32_TABLE
 };
 
-constexpr uint32_t crc32(const char* sz)
+constexpr uint32_t e7_crc32(const char* sz)
 {
   uint32_t crc = ~0, i = 0;
   for(i = 0;  sz[i] != 0;  i++) {
-      crc = (crc >> 8) ^ crc32_tab[ (crc & (uint32_t)0xFF) ^ sz[i] ];
+      crc = (crc >> 8) ^ e7_crc32_tab[ (crc & (uint32_t)0xFF) ^ sz[i] ];
   }
   return ~crc;
 }
 
-constexpr uint32_t crc32_continued(uint32_t previouscrc, const char* s, uint32_t len)
+constexpr uint32_t e7_crc32_continued(uint32_t previouscrc, const char* s, uint32_t len)
 {
   uint32_t crc = ~previouscrc, i = 0;
   for(i = 0;  i < len;  i++) {
-      crc = (crc >> 8) ^ crc32_tab[ (crc & (uint32_t)0xFF) ^ s[i] ];
+      crc = (crc >> 8) ^ e7_crc32_tab[ (crc & (uint32_t)0xFF) ^ s[i] ];
   }
   return ~crc;
 }
@@ -72,10 +72,10 @@ constexpr uint32_t crc32_continued(uint32_t previouscrc, const char* s, uint32_t
 
 #include <linux/types.h>
 
-extern uint32_t crc32_tab[];
+extern uint32_t e7_crc32_tab[];
 
-uint32_t crc32(const char* sz);
-uint32_t crc32_continued(uint32_t previouscrc, const char* s, uint32_t len);
+uint32_t e7_crc32(const char* sz);
+uint32_t e7_crc32_continued(uint32_t previouscrc, const char* s, uint32_t len);
 
 #endif // __cplusplus
 

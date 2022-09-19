@@ -108,7 +108,7 @@ static void e7_printrc(const char* cxt, int rc)
 
 static int e7_prep(MSGSTATE & ms, uint8_t comm) {
   ms.msg = nlmsg_alloc();
-  if (ms.msg<0) return -1;
+  if (!ms.msg) return -1;
 
   ms.hdr = genlmsg_put(ms.msg, NL_AUTO_PORT, NL_AUTO_SEQ, nl_familyid, 0, 0, comm, ENL_VERSION);
   if (ms.hdr) return 0;
@@ -321,15 +321,15 @@ void e7_parsecmd(CMDBUF & buf)
 
   int ac = buf.argc;
   char *a0 = buf.arg[0], *a1 = buf.arg[1], *a2 = buf.arg[2];
-  switch(crc32(a0))
+  switch(e7_crc32(a0))
   {
-    case crc32("quit"):
+    case e7_crc32("quit"):
       stop = true;
       break;
-    case crc32("bye"):
+    case e7_crc32("bye"):
       e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_DISCONNECT) );
       break;
-    case crc32("get"):
+    case e7_crc32("get"):
       do
       {
         if(ac!=2) break;
@@ -340,7 +340,7 @@ void e7_parsecmd(CMDBUF & buf)
       while (false);
       printf("get <flagname>\n");
       break;
-    case crc32("set"):
+    case e7_crc32("set"):
       do
       {
         if(ac!=3) break;
@@ -352,25 +352,25 @@ void e7_parsecmd(CMDBUF & buf)
       while(false);
       printf("set <flagname> ( <constnum> | <constname> )\n");
       break;
-    case crc32("block"):
+    case e7_crc32("block"):
       if(ac==1)                                     e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_BLOCK) );
       else if(ac==2 && is_int_or_const(a1, ivalue)) e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_BLOCK, ENL_ATTR_PROT, ivalue) );
       else if(ac==2 && is_path(a1))                 e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_BLOCK, ENL_ATTR_PATH, a1) );
       else if(ac==3 && is_int_or_const(a1, ivalue) && is_path(a2)) e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_BLOCK, ENL_ATTR_PROT, ivalue, ENL_ATTR_PATH, a2) );
       else printf("allow [ <protocolnum> | <protocolname> ] [ <path/app> | <path/> ]\n");
       break;
-    case crc32("allow"):
+    case e7_crc32("allow"):
       if(ac==1)                                     e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_ALLOW) );
       else if(ac==2 && is_int_or_const(a1, ivalue)) e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_ALLOW, ENL_ATTR_PROT, ivalue) );
       else if(ac==2 && is_path(a1))                 e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_ALLOW, ENL_ATTR_PATH, a1) );
       else if(ac==3 && is_int_or_const(a1, ivalue) && is_path(a2)) e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_ALLOW, ENL_ATTR_PROT, ivalue, ENL_ATTR_PATH, a2) );
       else printf("allow [ <protocolnum> | <protocolname> ] [ <path/app> | <path/> ]\n");
       break;
-    case crc32("enable"):
+    case e7_crc32("enable"):
       if(ac==1) e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_ENABLE) );
       else printf("enable\n");
       break;
-    case crc32("clear"):
+    case e7_crc32("clear"):
       if(ac==1)                                     e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_CLEAR) );
       else if(ac==2 && is_state(a1, ivalue))        e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_CLEAR, ENL_ATTR_STATE, ivalue) );
       else if(ac==2 && is_int_or_const(a1, ivalue)) e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_CLEAR, ENL_ATTR_PROT, ivalue) );
@@ -378,11 +378,11 @@ void e7_parsecmd(CMDBUF & buf)
       else if(ac==3 && is_int_or_const(a1, ivalue) && is_path(a2)) e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_CLEAR, ENL_ATTR_PROT, ivalue, ENL_ATTR_PATH, a2) );
       else printf("clear [ state ] | ( [ <protocolnum> | <protocolname> ] [ <path/app> | <path/> ] )\n");
       break;
-    case crc32("query"):
+    case e7_crc32("query"):
       if(ac==1) e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_QUERY) );
       else printf("query\n");
       break;
-    case crc32("#"): // comment
+    case e7_crc32("#"): // comment
       break;
     default:
       printf("quit, bye, get, set, block, allow, enable, clear, query\n");

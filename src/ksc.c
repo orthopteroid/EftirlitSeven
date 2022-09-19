@@ -132,7 +132,7 @@ out:
   ksc_data->pid[k] = change->pid;
   ksc_data->sequence[k] = change->sequence;
   strncpy(ksc_data->path[k], change->path, PATH_LENGTH);
-  ksc_data->path_hash[k] = crc32(change->path);
+  ksc_data->path_hash[k] = e7_crc32(change->path);
 
   // tracking/indicies
   ksc_data->age[k] = change->age;
@@ -180,7 +180,7 @@ static void ksc_async_update_all(struct work_struct *work)
     ksc_data->pid[k] = change->pid;
     ksc_data->sequence[k] = change->sequence;
     strncpy(ksc_data->path[k], change->path, PATH_LENGTH);
-    ksc_data->path_hash[k] = crc32(change->path);
+    ksc_data->path_hash[k] = e7_crc32(change->path);
 
     // tracking/indicies
     ksc_data->age[k] = change->age;
@@ -401,7 +401,7 @@ void ksc_remember(const unsigned long i_ino, const uint32_t sequence, const pid_
   new_work->pid = pid;
   new_work->sequence = sequence;
   strncpy(new_work->path, path, PATH_LENGTH);
-  new_work->path_hash = crc32(path);
+  new_work->path_hash = e7_crc32(path);
   new_work->age = ksc_data->era;
   //
   INIT_WORK(&new_work->worker, ksc_async_remember);
@@ -438,7 +438,7 @@ void ksc_update_all(const unsigned long i_ino, const uint32_t sequence, const pi
   new_work->pid = pid;
   new_work->sequence = sequence;
   strncpy(new_work->path, path, PATH_LENGTH);
-  new_work->path_hash = crc32(path);
+  new_work->path_hash = e7_crc32(path);
   new_work->age = ksc_data->era;
   //
   INIT_WORK(&new_work->worker, ksc_async_update_all);

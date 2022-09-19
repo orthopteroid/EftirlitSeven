@@ -183,7 +183,7 @@ static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct
 
       if((def_flag_value[E7F_NORULE_SQUELCH]==E7C_ENABLED))
       {
-        uint32_t hash = ((uint32_t)ktime_get_seconds()) ^ ip_header->protocol ^ crc32(psi.process_path); // todo: call a squelch-hash api
+        uint32_t hash = ((uint32_t)ktime_get_seconds()) ^ ip_header->protocol ^ e7_crc32(psi.process_path); // todo: call a squelch-hash api
         if(squelch[hash & 63] != hash)
           squelch[hash & 63] = hash;
         else
