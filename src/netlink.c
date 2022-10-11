@@ -560,6 +560,9 @@ static int enl__comm_set(struct sk_buff *skb_in, struct genl_info *info)
   if((a = info->attrs[ENL_ATTR_FLAG])) flag = nla_get_u32(a);
   if((a = info->attrs[ENL_ATTR_VALUE])) u32 = nla_get_u32(a);
 
+  if(flag == E7F_STAT_UPTIME)
+    { LOG_ERR(stack_id, "bad write to psuedoflag id %d", flag); return 0; }
+  
   if(!def_flag_name_str(&sz,flag))
     { LOG_ERR(stack_id, "bad flag id %d", flag); return 0; }
 
@@ -589,6 +592,10 @@ static int enl__comm_get(struct sk_buff *skb_in, struct genl_info *info)
     LOG_ERR(stack_id, "bad flag id %d", flag);
     return 0;
   }
+
+  // set state of psuedoflag
+  if(flag == E7F_STAT_UPTIME)
+    mod_sample_uptime();
 
   if(!enl__prep(&ms, ENL_COMM_GET)) goto fail;
   if(0>(ms.err=nla_put_u32(ms.msg, ENL_ATTR_FLAG, flag))) goto fail;
