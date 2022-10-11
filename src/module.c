@@ -126,6 +126,8 @@ static int __init mod_init(void)
   }
 
   mod_init_uptime();
+
+  LOG_INFO(0, "module loaded");
   return 0;
 }
 module_init(mod_init);
