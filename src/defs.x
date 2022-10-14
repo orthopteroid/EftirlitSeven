@@ -52,6 +52,8 @@ E7X_FLAG(E7F_NORULE_ACTION,        "unkrule", E7C_ALLOW)     // what to do with 
 E7X_FLAG(E7F_RULE_DROPS,           "drops",   E7C_DISABLED)  // notify daemon when a packet is DROPPED due to a rule
 E7X_FLAG(E7F_RULE_ACCEPTS,         "accepts", E7C_DISABLED)  // notify daemon when a packet is ACCEPTED due to a rule
 E7X_FLAG(E7F_RULE_CHANGE_QUERY,    "rchngq",  E7C_ENABLED)   // notify daemon with full query when rules are added/removed
+E7X_FLAG(E7F_STAT_UPTIME,          "uptime",  0) // in secs. psuedoflag. initialized on module start
+E7X_FLAG(E7F_STAT_PACKETS,         "qpackets", 0)
 
 E7X_COMM(ENL_COMM_ERROR)
 E7X_COMM(ENL_COMM_DISCONNECT)

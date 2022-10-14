@@ -1,7 +1,8 @@
 clear
 allow udp /usr/lib/systemd/systemd-resolved
-allow any /usr/bin/firefox
-allow any /usr/lib/firefox/firefox
+allow udp /usr/bin/ping
+# allow any /usr/bin/firefox
+# allow any /usr/lib/firefox/firefox
 allow any /usr/bin/transmission-gtk
 enable
 quit

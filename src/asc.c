@@ -25,7 +25,7 @@ enum nf_ip_hook_priorities {
 #include <linux/ip.h>             // ip_hdr()
 #include <linux/udp.h>            // udp_hdr()
 #include <linux/tcp.h>            // tcp_hdr()
-#include <linux/fdtable.h>        // files_fdtable(), fcheck_files()
+#include <linux/fdtable.h>        // files_fdtable(), files_lookup_fd()
 #include <linux/list.h>           // INIT_LIST_HEAD(), list_for_each_entry(), list_add_tail(), list_empty(), list_entry(), list_del(), list_for_each_entry_safe()
 #include <linux/dcache.h>         // d_path()
 #include <linux/skbuff.h>         // alloc_skb()
@@ -143,7 +143,7 @@ refresh_cache:
 
       for(fd_i = 0; fd_i < fd_max; fd_i++)
       {
-        if(!(file = fcheck_files(task->files, fd_i))) continue;
+        if(!(file = files_lookup_fd_rcu(task->files, fd_i))) continue;
         if(!(inode = file_inode(file))) continue;
         if(!S_ISSOCK(inode->i_mode)) continue; // not a socket file
         if(!(socket_= SOCKET_I(inode))) continue;
@@ -296,7 +296,7 @@ bool asc_psi_from_ino_pid(struct psi * psi_out, unsigned long socket_ino, pid_t 
   fd_max = files_fdtable(task->files)->max_fds;
   for(fd_i = 0; fd_i < fd_max; fd_i++)
   {
-    if(!(file = fcheck_files(task->files, fd_i))) continue;
+    if(!(file = files_lookup_fd_rcu(task->files, fd_i))) continue;
     if(!(inode = file_inode(file))) continue;
     if(!S_ISSOCK(inode->i_mode)) continue; // not a socket file
     if(inode->i_ino != socket_ino) continue;
@@ -414,7 +414,7 @@ bool asc_pid_owns_ino(unsigned long socket_ino, pid_t pid, const uint32_t packet
     unsigned int fd_max = files_fdtable(task->files)->max_fds;
     for(fd_i = 0; fd_i < fd_max; fd_i++)
     {
-      if (!(file = fcheck_files(task->files, fd_i))) continue;
+      if (!(file = files_lookup_fd_rcu(task->files, fd_i))) continue;
       if (!S_ISSOCK(file_inode(file)->i_mode)) continue; // not a socket file
       if (file_inode(file)->i_ino != socket_ino) continue;
 

@@ -38,6 +38,8 @@
 
 #endif
 
+void mod_sample_uptime(void);
+
 bool mod_isstopping(void);
 
 #endif // _MODULE_H_

@@ -21,6 +21,8 @@
 #include <linux/pid_namespace.h>  // task_active_pid_ns()
 #include <linux/rculist.h>        // hlist_for_each_entry_rcu
 
+#include <linux/timekeeping.h>
+
 #include "module.h"
 #include "types.h"
 #include "netfilter.h"
@@ -41,6 +43,16 @@ MODULE_DESCRIPTION(MOD_NAME);
 MODULE_AUTHOR(MOD_AUTHOR);
 MODULE_VERSION(MOD_VERSION);
 MODULE_LICENSE("GPL v2");
+
+static time64_t starttime;
+static void mod_init_uptime(void)
+{
+  starttime = ktime_get_seconds();
+}
+void mod_sample_uptime(void)
+{
+  def_flag_value[E7F_STAT_UPTIME] = ktime_get_seconds() - starttime;
+}
 
 static atomic_t stopping = ATOMIC_INIT(0);
 
@@ -112,6 +124,8 @@ static int __init mod_init(void)
     LOG_ERR(0, "enf_init failed");
     return -1;
   }
+
+  mod_init_uptime();
 
   LOG_INFO(0, "module loaded");
   return 0;

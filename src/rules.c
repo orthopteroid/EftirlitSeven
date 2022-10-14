@@ -173,7 +173,7 @@ bool rules_add(uint32_t protocol, const char * process_path, const bool is_allow
 
   if(!rules__check_path(process_path, packet_id)) return false;
 
-  path_hash = crc32(process_path);
+  path_hash = e7_crc32(process_path);
 
   queued_write_lock(&rules_rwlock);
 
@@ -230,7 +230,7 @@ bool rules_remove(uint32_t protocol, const char * process_path, const uint32_t p
 
   if(!rules__check_path(process_path, packet_id)) return false;
 
-  path_hash = crc32(process_path);
+  path_hash = e7_crc32(process_path);
 
   queued_write_lock(&rules_rwlock);
 
@@ -289,13 +289,13 @@ bool rules_search(struct rule_struct * rule_out, uint32_t protocol, const char *
 
   if(!rules__check_path(process_path, packet_id)) return false;
 
-  path_hash = crc32(process_path);
+  path_hash = e7_crc32(process_path);
 
   // todo: parse path to resolve escapes?
   for(i=0; process_path[i]; i++) { if(process_path[i]=='/') parent_len = i; }
 
   if(parent_len)
-    parent_hash = crc32_continued(0, process_path, parent_len);
+    parent_hash = e7_crc32_continued(0, process_path, parent_len);
 
   queued_read_lock(&rules_rwlock);
 
