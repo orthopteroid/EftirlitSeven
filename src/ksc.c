@@ -84,9 +84,6 @@ struct change_work
   struct rcu_head rcu;
 };
 
-DEFINE_SPINLOCK(ksc_workq_lock);
-struct workqueue_struct * ksc_change_workq;
-
 ////////////
 
 static void ksc_async_remember(struct rcu_head *work)
@@ -320,11 +317,6 @@ void ksc_forget(const unsigned long i_ino, const uint32_t packet_id)
     LOG_ERR(packet_id, "kzalloc failure");
     return;
   }
-  if (!ksc_change_workq)
-  {
-    LOG_ERR(packet_id, "!ksc_change_workq");
-    return;
-  }
   if (!ksc_data)
   {
     LOG_ERR(packet_id, "!ksc_data");
@@ -350,11 +342,6 @@ void ksc_clear(const uint32_t packet_id)
     LOG_ERR(packet_id, "kzalloc failure");
     return;
   }
-  if (!ksc_change_workq)
-  {
-    LOG_ERR(packet_id, "!ksc_change_workq");
-    return;
-  }
   if (!ksc_data)
   {
     LOG_ERR(packet_id, "!ksc_data");
@@ -373,11 +360,6 @@ void ksc_remember(const unsigned long i_ino, const uint32_t sequence, const pid_
   if (!new_work)
   {
     LOG_ERR(packet_id, "kzalloc failure");
-    return;
-  }
-  if (!ksc_change_workq)
-  {
-    LOG_ERR(packet_id, "!ksc_change_workq");
     return;
   }
   if (!ksc_data)
@@ -408,11 +390,6 @@ void ksc_update_all(const unsigned long i_ino, const uint32_t sequence, const pi
     LOG_ERR(packet_id, "kzalloc failure");
     return;
   }
-  if (!ksc_change_workq)
-  {
-    LOG_ERR(packet_id, "!ksc_change_workq");
-    return;
-  }
   if (!ksc_data)
   {
     LOG_ERR(packet_id, "!ksc_data");
@@ -441,11 +418,6 @@ void ksc_update_seq(const unsigned long i_ino, const uint32_t sequence, const ui
     LOG_ERR(packet_id, "kzalloc failure");
     return;
   }
-  if (!ksc_change_workq)
-  {
-    LOG_ERR(packet_id, "!ksc_change_workq");
-    return;
-  }
   if (!ksc_data)
   {
     LOG_ERR(packet_id, "!ksc_data");
@@ -469,11 +441,6 @@ void ksc_update_age(const unsigned long i_ino, const uint32_t packet_id)
   if (!new_work)
   {
     LOG_ERR(packet_id, "kzalloc failure");
-    return;
-  }
-  if (!ksc_change_workq)
-  {
-    LOG_ERR(packet_id, "!ksc_change_workq");
     return;
   }
   if (!ksc_data)
@@ -501,22 +468,10 @@ int ksc_init(void)
     return -1;
   }
 
-  // serialize all write-operations on the cache using a single, ordered queue
-  ksc_change_workq = alloc_ordered_workqueue("%s", WQ_HIGHPRI, "e7_ksc");
-  if (!ksc_change_workq)
-  {
-    LOG_ERR(0, "alloc_ordered_workqueue failed");
-    return -1;
-  }
-
   return 0;
 }
 
 void ksc_exit(void)
 {
-  // review: workq clear first?
-  destroy_workqueue(ksc_change_workq);
-  ksc_change_workq = NULL;
-
   kfree(ksc_data); // review: rcu?
 }
