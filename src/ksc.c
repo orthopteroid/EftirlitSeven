@@ -237,7 +237,7 @@ static void ksc_async_clearcache(struct rcu_head *work)
   struct change_work * change = container_of(work, struct change_work, rcu);
 
   memset(ksc_data, 0, sizeof(struct ksc_data));
-
+  
   kfree(change);
 
   LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
@@ -258,6 +258,7 @@ bool ksc_from_inode(struct psi * psi_out, const unsigned long i_ino, const uint3
   // log-squash
   //LOG_DEBUG(packet_id, "searching for INO %lu", i_ino);
 
+  rcu_read_lock();
   for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(i_ino) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
   {
     if (ksc_data->i_ino[k] != i_ino) continue;
@@ -267,11 +268,13 @@ bool ksc_from_inode(struct psi * psi_out, const unsigned long i_ino, const uint3
     psi_out->pid = ksc_data->pid[k];
     psi_out->sequence = ksc_data->sequence[k];
     strncpy(psi_out->process_path, ksc_data->path[k], PATH_LENGTH);
-
+    rcu_read_unlock();
+  
     LOG_DEBUG(packet_id, "found INO %lu in slot %d", i_ino, k);
     return true;
   }
-
+  rcu_read_unlock();
+  
   LOG_DEBUG(packet_id, "searching for INO %lu - not found", i_ino);
   return false;
 }
@@ -289,6 +292,7 @@ bool ksc_from_sequence(struct psi * psi_out, const uint32_t sequence, const uint
   // log-squash
   //LOG_DEBUG(packet_id, "searching for SEQ %u", sequence);
 
+  rcu_read_lock();
   for(i=0, k = ksc_data->key_seq[ KEY_TO_SLOT(sequence) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
   {
     if (!ksc_data->sequence[k]) continue;
@@ -299,11 +303,13 @@ bool ksc_from_sequence(struct psi * psi_out, const uint32_t sequence, const uint
     psi_out->pid = ksc_data->pid[k];
     psi_out->sequence = ksc_data->sequence[k];
     strncpy(psi_out->process_path, ksc_data->path[k], PATH_LENGTH);
+    rcu_read_unlock();
 
     LOG_DEBUG(packet_id, "found SEQ %u in slot %d", sequence, k);
     return true;
   }
-
+  rcu_read_unlock();
+  
   LOG_DEBUG(packet_id, "searching for SEQ %u - not found", sequence);
   return false;
 }
