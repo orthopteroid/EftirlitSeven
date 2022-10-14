@@ -2,8 +2,7 @@
 
 Development Details:
 - test/development hardware is an old ssd-assisted Intel Atom 330 (dual cpu with HT)
-- kernel 5.15.0-47-generic (ubuntu 22.04.1) on branch kernel-5.15
-- kernel 5.4.0-74 (ubuntu 18.04.1 x64) code on branch master
+- kernel 5.15.0-47-generic (ubuntu 22.04.1)
 - uses libnl-genl and libnl (libnl 3.2.29+ is needed to accommodate problems with attribute nesting)
 - `sudo make` will build the LKM on unsecure kernels
 - `sudo make dkms` builds the LKM on secure kernels but if debugfs support is missing kernel log output is limited
