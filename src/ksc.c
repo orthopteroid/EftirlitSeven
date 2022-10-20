@@ -96,6 +96,12 @@ static void ksc_async_remember(struct rcu_head *work)
   int oldest_index;
   int i, k;
 
+  if (!ksc_data)
+  {
+    LOG_ERR(change->packet_id, "!ksc_data");
+    goto ack;
+  }
+
   era0 = (uint16_t)era;
   era1 = 0xFF + (uint16_t)era;;
   oldest_age = 0;
@@ -139,6 +145,7 @@ out:
 
   ksc_data->era++;
 
+ack:
   kfree(change);
 
   LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
@@ -149,8 +156,15 @@ static void ksc_async_forget(struct rcu_head *work)
   struct change_work * change = container_of(work, struct change_work, rcu);
   int i, k;
 
-  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
+  if (!ksc_data)
   {
+    LOG_ERR(change->packet_id, "!ksc_data");
+    goto ack;
+  }
+
+  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; ++i, ++k)
+  {
+    if (k == CACHE_SLOTS) k = 0;
     if (ksc_data->i_ino[k] != change->i_ino) continue;
     if (!ksc_data->inuse[k]) continue;
 
@@ -158,6 +172,7 @@ static void ksc_async_forget(struct rcu_head *work)
     break;
   }
 
+ack:
   kfree(change);
 
   LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
@@ -168,8 +183,15 @@ static void ksc_async_update_all(struct rcu_head *work)
   struct change_work * change = container_of(work, struct change_work, rcu);
   int i, k;
 
-  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
+  if (!ksc_data)
   {
+    LOG_ERR(change->packet_id, "!ksc_data");
+    goto ack;
+  }
+
+  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; ++i, ++k)
+  {
+    if (k == CACHE_SLOTS) k = 0;
     if (ksc_data->i_ino[k] != change->i_ino) continue;
     if (!ksc_data->inuse[k]) continue;
 
@@ -187,6 +209,7 @@ static void ksc_async_update_all(struct rcu_head *work)
     break;
   }
 
+ack:
   kfree(change);
 
   LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
@@ -197,8 +220,15 @@ static void ksc_async_update_seq(struct rcu_head *work)
   struct change_work * change = container_of(work, struct change_work, rcu);
   int i, k;
 
-  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
+  if (!ksc_data)
   {
+    LOG_ERR(change->packet_id, "!ksc_data");
+    goto ack;
+  }
+
+  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; ++i, ++k)
+  {
+    if (k == CACHE_SLOTS) k = 0;
     if (ksc_data->i_ino[k] != change->i_ino) continue;
     if (!ksc_data->inuse[k]) continue;
     if (ksc_data->sequence[k] == change->sequence) break; // no change needed
@@ -207,7 +237,8 @@ static void ksc_async_update_seq(struct rcu_head *work)
     ksc_data->age[k] = change->age;
     break;
   }
-
+  
+ack:
   kfree(change);
 
   LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
@@ -218,15 +249,23 @@ static void ksc_async_update_age(struct rcu_head *work)
   struct change_work * change = container_of(work, struct change_work, rcu);
   int i, k;
 
-  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
+  if (!ksc_data)
   {
+    LOG_ERR(change->packet_id, "!ksc_data");
+    goto ack;
+  }
+
+  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(change->i_ino) ]; i<CACHE_SLOTS; ++i, ++k)
+  {
+    if (k == CACHE_SLOTS) k = 0;
     if (ksc_data->i_ino[k] != change->i_ino) continue;
     if (!ksc_data->inuse[k]) continue;
 
     ksc_data->age[k] = change->age;
     break;
   }
-
+  
+ack:
   kfree(change);
 
   LOG_DEBUG_ASYNC(change->packet_id, "async work complete");
@@ -259,8 +298,9 @@ bool ksc_from_inode(struct psi * psi_out, const unsigned long i_ino, const uint3
   //LOG_DEBUG(packet_id, "searching for INO %lu", i_ino);
 
   rcu_read_lock();
-  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(i_ino) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
+  for(i=0, k = ksc_data->key_ino[ KEY_TO_SLOT(i_ino) ]; i<CACHE_SLOTS; ++i, ++k)
   {
+    if (k == CACHE_SLOTS) k = 0;
     if (ksc_data->i_ino[k] != i_ino) continue;
     if (!ksc_data->inuse[k]) continue;
 
@@ -293,8 +333,9 @@ bool ksc_from_sequence(struct psi * psi_out, const uint32_t sequence, const uint
   //LOG_DEBUG(packet_id, "searching for SEQ %u", sequence);
 
   rcu_read_lock();
-  for(i=0, k = ksc_data->key_seq[ KEY_TO_SLOT(sequence) ]; i<CACHE_SLOTS; ++i, k = (++k < CACHE_SLOTS) ? k : 0)
+  for(i=0, k = ksc_data->key_seq[ KEY_TO_SLOT(sequence) ]; i<CACHE_SLOTS; ++i, ++k)
   {
+    if (k == CACHE_SLOTS) k = 0;
     if (!ksc_data->sequence[k]) continue;
     if ((ksc_data->sequence[k] != sequence) && ((ksc_data->sequence[k] + 1) != sequence)) continue;
     if (!ksc_data->inuse[k]) continue;
@@ -323,11 +364,6 @@ void ksc_forget(const unsigned long i_ino, const uint32_t packet_id)
     LOG_ERR(packet_id, "kzalloc failure");
     return;
   }
-  if (!ksc_data)
-  {
-    LOG_ERR(packet_id, "!ksc_data");
-    return;
-  }
 
   LOG_DEBUG_ASYNC(packet_id, "queuing async call to forget entry for INO %lu", i_ino);
 
@@ -348,11 +384,6 @@ void ksc_clear(const uint32_t packet_id)
     LOG_ERR(packet_id, "kzalloc failure");
     return;
   }
-  if (!ksc_data)
-  {
-    LOG_ERR(packet_id, "!ksc_data");
-    return;
-  }
 
   new_work->packet_id = packet_id;
   //
@@ -366,11 +397,6 @@ void ksc_remember(const unsigned long i_ino, const uint32_t sequence, const pid_
   if (!new_work)
   {
     LOG_ERR(packet_id, "kzalloc failure");
-    return;
-  }
-  if (!ksc_data)
-  {
-    LOG_ERR(packet_id, "!ksc_data");
     return;
   }
 
@@ -396,11 +422,6 @@ void ksc_update_all(const unsigned long i_ino, const uint32_t sequence, const pi
     LOG_ERR(packet_id, "kzalloc failure");
     return;
   }
-  if (!ksc_data)
-  {
-    LOG_ERR(packet_id, "!ksc_data");
-    return;
-  }
 
   LOG_DEBUG_ASYNC(packet_id, "queueing async call to update_all for INO %lu", i_ino);
 
@@ -424,11 +445,6 @@ void ksc_update_seq(const unsigned long i_ino, const uint32_t sequence, const ui
     LOG_ERR(packet_id, "kzalloc failure");
     return;
   }
-  if (!ksc_data)
-  {
-    LOG_ERR(packet_id, "!ksc_data");
-    return;
-  }
 
   LOG_DEBUG_ASYNC(packet_id, "queueing async call to update_seq for INO %lu", i_ino);
 
@@ -447,11 +463,6 @@ void ksc_update_age(const unsigned long i_ino, const uint32_t packet_id)
   if (!new_work)
   {
     LOG_ERR(packet_id, "kzalloc failure");
-    return;
-  }
-  if (!ksc_data)
-  {
-    LOG_ERR(packet_id, "!ksc_data");
     return;
   }
 
