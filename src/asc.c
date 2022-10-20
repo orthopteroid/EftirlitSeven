@@ -89,7 +89,7 @@ bool asc_psi_from_ino(struct psi * psi_out, unsigned long socket_ino, const uint
   struct pid * pid_struct = NULL;
   pid_t found_pid = 0;
   int name_str_len;
-  int i = 0, j = 0, k = 0;
+  int i = 0, k = 0, e = 0;
   //
   char * deleted_str = " (deleted)";
   int deleted_str_len = 10;
@@ -97,15 +97,16 @@ bool asc_psi_from_ino(struct psi * psi_out, unsigned long socket_ino, const uint
   spin_lock_bh(&asc_lock);
   rcu_read_lock();
 
-  for(i=0, j = KEY_TO_SLOT(socket_ino); i<CACHE_SLOTS; ++i, j = (++j < CACHE_SLOTS) ? j : 0)
+  for(i = 0, k = KEY_TO_SLOT(socket_ino); i<CACHE_SLOTS; ++i, ++k)
   {
-    if(asc_data->ino[j] != socket_ino) continue;
+    if(k == CACHE_SLOTS) k = 0;
+    if(asc_data->ino[k] != socket_ino) continue;
 
-    pid_struct = find_get_pid(asc_data->pid[j]);
+    pid_struct = find_get_pid(asc_data->pid[k]);
     if(!pid_struct)
     {
-      asc_data->ino[j] = 0;
-      asc_data->pid[j] = 0;
+      asc_data->ino[k] = 0;
+      asc_data->pid[k] = 0;
 
       LOG_DEBUG(packet_id, "searching for INO %ld - orphaned", socket_ino);
       goto refresh_cache;
@@ -120,7 +121,7 @@ bool asc_psi_from_ino(struct psi * psi_out, unsigned long socket_ino, const uint
 
     TASK_REFINC(task);
     found_task = task;
-    found_pid = asc_data->pid[j];
+    found_pid = asc_data->pid[k];
 
     LOG_DEBUG(packet_id, "searching for INO %ld - found in cache with PID %d", socket_ino, found_pid);
     goto out_found;
@@ -129,7 +130,7 @@ bool asc_psi_from_ino(struct psi * psi_out, unsigned long socket_ino, const uint
 refresh_cache:
 
   // clean cache
-  for(i=0; i<CACHE_SLOTS; i++) asc_data->ino[i] = 0;
+  for(i = 0; i < CACHE_SLOTS; i++) asc_data->ino[i] = 0;
 
   // refresh
   for_each_process(task)
@@ -158,13 +159,14 @@ refresh_cache:
           LOG_DEBUG(packet_id, "searching for INO %ld - found in process table with PID %d", socket_ino, found_pid);
         }
 
-        for(i=0, j = KEY_TO_SLOT(inode->i_ino); i<CACHE_SLOTS; ++i, j = (++j < CACHE_SLOTS) ? j : 0)
+        for(i = 0, k = KEY_TO_SLOT(inode->i_ino); i<CACHE_SLOTS; ++i, ++k)
         {
-          if(asc_data->ino[j] == 0)
+          if(k == CACHE_SLOTS) k = 0;
+          if(asc_data->ino[k] == 0)
           {
-            asc_data->ino[j] = inode->i_ino;
-            asc_data->pid[j] = task->pid;
-            k++;
+            asc_data->ino[k] = inode->i_ino;
+            asc_data->pid[k] = task->pid;
+            e++;
             break;
           }
         }
@@ -177,7 +179,7 @@ refresh_cache:
     TASK_UNLOCK(task);
     TASK_REFDEC(task);
   }
-  LOG_DEBUG(packet_id, "cache refreshed - %d entries", k);
+  LOG_DEBUG(packet_id, "cache refreshed - %d entries", e);
 
 out_found:
   // if (found_task) then it will be ref'd
@@ -424,6 +426,7 @@ bool asc_pid_owns_ino(unsigned long socket_ino, pid_t pid, const uint32_t packet
       goto out;
     }
   }
+  // this may be happening when a socket is closed at the time the last packet is received...
   LOG_DEBUG(packet_id, "searching PID %d for INO %ld - not found", pid, socket_ino);
 
 out:
