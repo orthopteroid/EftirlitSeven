@@ -56,7 +56,8 @@ bool prot_tcp_parse(struct psi *psi_out, uint32_t packet_id, void *priv, struct 
   dport = (unsigned int) ntohs(tcp_header->dest);
 
   // from packet header and socket buffer try to identify process
-  do {
+  do
+  {
     struct file * socket_file = (skb->sk && skb->sk->sk_socket) ? skb->sk->sk_socket->file : NULL;
     unsigned long socket_ino = socket_file ? file_inode(socket_file)->i_ino : 0;
     uint32_t tcp_seq = tcp_header ? ntohl(tcp_header->seq) : 0;
@@ -78,36 +79,38 @@ bool prot_tcp_parse(struct psi *psi_out, uint32_t packet_id, void *priv, struct 
       socket_ino = psi_out->i_ino;
     }
 
-    if (!socket_ino)
     {
       unsigned int tcp_state = (skb->sk && skb->sk) ? skb->sk->sk_state : 0; // 0 invalid
-      do {
-        if(tcp_state == TCP_FIN_WAIT1) break;
-        if(tcp_state == TCP_FIN_WAIT2) break;
-        if(tcp_state == TCP_CLOSE) break;
-        if(tcp_state == TCP_CLOSE_WAIT) break;
-        if(tcp_state == TCP_CLOSING) break;
-
-        LOG_ERR(packet_id, "fail - unidentified tcp socket state. possibly for FILE %p INODE %ld process '%s'", socket_file, socket_ino, psi_out->process_path);
-        return false;
-      } while(false);
-
-      LOG_DEBUG(packet_id, "fail - closed/closing tcp socket. possibly for FILE %p INODE %ld process '%s'", socket_file, socket_ino, psi_out->process_path);
-      return true;
-    }
-
-    {
+      bool closing = (tcp_state == TCP_FIN_WAIT1) || (tcp_state == TCP_FIN_WAIT2) || (tcp_state == TCP_CLOSE) || (tcp_state == TCP_CLOSE_WAIT) || (tcp_state == TCP_LAST_ACK) || (tcp_state == TCP_CLOSING);
       bool cache_hit = ksc_from_inode(psi_out, socket_ino, packet_id);
       bool cache_uptodate = cache_hit ? asc_pid_owns_ino(socket_ino, psi_out->pid, packet_id) : false;
 
-      if(cache_uptodate)
+      if( !cache_hit && closing )
       {
-        ksc_update_age(socket_ino, packet_id);
-
-        LOG_DEBUG(packet_id, "hit for INODE %ld SEQ %u for PID %d and process '%s'", socket_ino, tcp_seq, psi_out->pid, psi_out->process_path);
+        LOG_DEBUG(packet_id, "unidentified closed/closing tcp socket. possibly for FILE %p INODE %ld process '%s'", socket_file, socket_ino, psi_out->process_path);
         break;
       }
 
+      if( cache_uptodate || closing )
+      {
+        LOG_DEBUG(packet_id, "hit for INODE %ld SEQ %u for PID %d and process '%s'", socket_ino, tcp_seq, psi_out->pid, psi_out->process_path);
+
+        if (tcp_seq)
+        {
+          ksc_update_seq(socket_ino, tcp_seq, packet_id);
+
+          LOG_DEBUG(packet_id, "seq update for INODE %ld to SEQ %u. returning '%s'", socket_ino, tcp_seq, psi_out->process_path);
+        }
+        else
+        {
+          ksc_update_age(socket_ino, packet_id);
+
+          LOG_DEBUG(packet_id, "age update for INODE %ld. returning '%s'", socket_ino, psi_out->process_path);
+        }
+        break;
+      }
+
+      // dig deeper to find psi
       if(asc_psi_from_ino_pid(psi_out, socket_ino, current->pid, packet_id)) ; // no need for message
       else if(asc_psi_from_ino(psi_out, socket_ino, packet_id)) ; // no need for message
       else
@@ -116,32 +119,19 @@ bool prot_tcp_parse(struct psi *psi_out, uint32_t packet_id, void *priv, struct 
         return false;
       };
 
-      if (!cache_hit)
+      if (cache_hit)
+      {
+        ksc_update_all(socket_ino, tcp_seq, psi_out->pid, psi_out->process_path, packet_id);
+
+        LOG_DEBUG(packet_id, "all updated for INODE %ld. returning '%s'", socket_ino, psi_out->process_path);
+      }
+      else
       {
         ksc_remember(socket_ino, tcp_seq, psi_out->pid, psi_out->process_path, packet_id);
 
         LOG_DEBUG(packet_id, "caching new socket INODE %ld SEQ %u for PID %d and process '%s'", socket_ino, tcp_seq, psi_out->pid, psi_out->process_path);
-        break;
       }
-
-      ksc_update_all(socket_ino, tcp_seq, psi_out->pid, psi_out->process_path, packet_id);
-
-      LOG_DEBUG(packet_id, "all updated for INODE %ld. returning '%s'", socket_ino, psi_out->process_path);
-      break;
     }
-
-    if (tcp_seq)
-    {
-      ksc_update_seq(socket_ino, tcp_seq, packet_id);
-
-      LOG_DEBUG(packet_id, "seq update for INODE %ld to SEQ %u. returning '%s'", socket_ino, tcp_seq, psi_out->process_path);
-      break;
-    }
-
-    // fallback to update only age field
-    ksc_update_age(socket_ino, packet_id);
-
-    LOG_DEBUG(packet_id, "age update for INODE %ld. returning '%s'", socket_ino, psi_out->process_path);
   } while(false);
 
   if (psi_out->process_path[0] == 0)
