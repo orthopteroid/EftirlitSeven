@@ -39,112 +39,89 @@ enum nf_ip_hook_priorities {
 #include "rules.h"
 #include "prot_tcp.h"
 
+// per sock.c
+static bool sk_info(struct sock* sk, kuid_t* uid, unsigned long* ino, unsigned int* state)
+{
+  struct inode* inode = 0;
+  bool rc = false;
+
+  read_lock_bh(&sk->sk_callback_lock);
+  if( sk->sk_socket )
+  {
+    inode = SOCK_INODE(sk->sk_socket);
+    *uid = inode->i_uid;
+    *ino = inode->i_ino;
+    *state = sk->sk_state;
+    rc = true;
+  }
+  read_unlock_bh(&sk->sk_callback_lock);
+
+  return rc;
+}
+
 // douane: code packet identification logic. e7 added tcp state checking and multiple levels of cache integration.
 bool prot_tcp_parse(struct psi *psi_out, uint32_t packet_id, void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
-  struct tcphdr * tcp_header = NULL;
-  int sport = 0;
-  int dport = 0;
+  kuid_t uid;
+  unsigned long socket_ino = 0;
+  unsigned int tcp_state = 0;
+  bool info = sk_info( skb->sk, &uid, &socket_ino, &tcp_state );
+  bool closing = (tcp_state == TCP_FIN_WAIT1) || (tcp_state == TCP_FIN_WAIT2) || (tcp_state == TCP_CLOSE) || (tcp_state == TCP_CLOSE_WAIT) || (tcp_state == TCP_LAST_ACK) || (tcp_state == TCP_CLOSING);
 
-  tcp_header = tcp_hdr(skb);
-  if (tcp_header == NULL)
+  if (!info)
   {
-    LOG_ERR(packet_id, "fail - tcp_header is null");
+    LOG_ERR(packet_id, "fail - unable to identify INODE for skb %p", skb);
     return false;
   }
-  sport = (unsigned int) ntohs(tcp_header->source);
-  dport = (unsigned int) ntohs(tcp_header->dest);
 
   // from packet header and socket buffer try to identify process
-  do {
-    struct file * socket_file = (skb->sk && skb->sk->sk_socket) ? skb->sk->sk_socket->file : NULL;
-    unsigned long socket_ino = socket_file ? file_inode(socket_file)->i_ino : 0;
-    uint32_t tcp_seq = tcp_header ? ntohl(tcp_header->seq) : 0;
-
+  do
+  {
     // ? use sock_hold/_put on skb->sk ?
     // https://github.com/torvalds/linux/blob/v5.8/drivers/crypto/chelsio/chtls/chtls_cm.c#L1488
+    bool cache_hit = ksc_from_inode(psi_out, socket_ino, packet_id);
+    bool cache_uptodate = cache_hit ? asc_pid_owns_ino(socket_ino, psi_out->pid, packet_id) : false;
 
-    if (!socket_file)
+    if( !cache_hit && closing )
     {
-      bool tcpseq_cached = tcp_header ? ksc_from_sequence(psi_out, tcp_seq, packet_id) : false;
-      //bool tcpseq_lookup = (tcp_seq & !tcpseq_cached) ? asc_psi_from_tcpseq(psi_out, tcp_seq, packet_id) : false; // todo
-      if (!tcpseq_cached)
-      {
-        LOG_ERR(packet_id, "fail - missing header or bad seq. unable to identify socket for process '%s'", psi_out->process_path);
-        return false;
-      }
-
-      // set ino, if it can be found from seq number
-      socket_ino = psi_out->i_ino;
-    }
-
-    if (!socket_ino)
-    {
-      unsigned int tcp_state = (skb->sk && skb->sk) ? skb->sk->sk_state : 0; // 0 invalid
-      do {
-        if(tcp_state == TCP_FIN_WAIT1) break;
-        if(tcp_state == TCP_FIN_WAIT2) break;
-        if(tcp_state == TCP_CLOSE) break;
-        if(tcp_state == TCP_CLOSE_WAIT) break;
-        if(tcp_state == TCP_CLOSING) break;
-
-        LOG_ERR(packet_id, "fail - unidentified tcp socket state. possibly for FILE %p INODE %ld process '%s'", socket_file, socket_ino, psi_out->process_path);
-        return false;
-      } while(false);
-
-      LOG_DEBUG(packet_id, "fail - closed/closing tcp socket. possibly for FILE %p INODE %ld process '%s'", socket_file, socket_ino, psi_out->process_path);
+      LOG_DEBUG(packet_id, "closed/closing unidentified socket for INODE %ld process '%s'", socket_ino, psi_out->process_path);
       return true;
     }
 
+    if( cache_uptodate || closing )
     {
-      bool cache_hit = ksc_from_inode(psi_out, socket_ino, packet_id);
-      bool cache_uptodate = cache_hit ? asc_pid_owns_ino(socket_ino, psi_out->pid, packet_id) : false;
+      LOG_DEBUG(packet_id, "hit for INODE %ld for PID %d and process '%s'", socket_ino, psi_out->pid, psi_out->process_path);
 
-      if(cache_uptodate)
-      {
-        ksc_update_age(socket_ino, packet_id);
+      ksc_update_age(socket_ino, packet_id);
 
-        LOG_DEBUG(packet_id, "hit for INODE %ld SEQ %u for PID %d and process '%s'", socket_ino, tcp_seq, psi_out->pid, psi_out->process_path);
-        break;
-      }
-
-      if(asc_psi_from_ino_pid(psi_out, socket_ino, current->pid, packet_id)) ; // no need for message
-      else if(asc_psi_from_ino(psi_out, socket_ino, packet_id)) ; // no need for message
-      else
-      {
-        LOG_DEBUG(packet_id, "fail - unable to locate process for FILE %p INODE %ld", socket_file, socket_ino);
-        return false;
-      };
-
-      if (!cache_hit)
-      {
-        ksc_remember(socket_ino, tcp_seq, psi_out->pid, psi_out->process_path, packet_id);
-
-        LOG_DEBUG(packet_id, "caching new socket INODE %ld SEQ %u for PID %d and process '%s'", socket_ino, tcp_seq, psi_out->pid, psi_out->process_path);
-        break;
-      }
-
-      ksc_update_all(socket_ino, tcp_seq, psi_out->pid, psi_out->process_path, packet_id);
-
-      LOG_DEBUG(packet_id, "all updated for INODE %ld. returning '%s'", socket_ino, psi_out->process_path);
+      LOG_DEBUG(packet_id, "updating age for INODE %ld. returning '%s'", socket_ino, psi_out->process_path);
       break;
     }
 
-    if (tcp_seq)
+    // dig deeper to find psi
+    if(asc_psi_from_ino_pid(psi_out, socket_ino, current->pid, packet_id)) ; // no need for message
+    else if(asc_psi_from_ino(psi_out, socket_ino, packet_id)) ; // no need for message
+    else
     {
-      ksc_update_seq(socket_ino, tcp_seq, packet_id);
+      LOG_ERR(packet_id, "fail - unable to locate process for INODE %ld", socket_ino);
+      return false;
+    };
 
-      LOG_DEBUG(packet_id, "seq update for INODE %ld to SEQ %u. returning '%s'", socket_ino, tcp_seq, psi_out->process_path);
-      break;
+    if( cache_hit )
+    {
+      ksc_update_all(socket_ino, 0 /* todo: remove */, psi_out->pid, psi_out->process_path, packet_id);
+
+      LOG_DEBUG(packet_id, "updating all info for INODE %ld. returning '%s'", socket_ino, psi_out->process_path);
     }
+    else
+    {
+      ksc_remember(socket_ino, 0 /* todo: remove */, psi_out->pid, psi_out->process_path, packet_id);
 
-    // fallback to update only age field
-    ksc_update_age(socket_ino, packet_id);
-
-    LOG_DEBUG(packet_id, "age update for INODE %ld. returning '%s'", socket_ino, psi_out->process_path);
+      LOG_DEBUG(packet_id, "caching new socket for INODE %ld for PID %d and process '%s'", socket_ino, psi_out->pid, psi_out->process_path);
+    }
   } while(false);
 
-  if (psi_out->process_path[0] == 0)
+  if( psi_out->process_path[0] == 0 )
   {
     LOG_ERR(packet_id, "fail - no process path");
     return false;
