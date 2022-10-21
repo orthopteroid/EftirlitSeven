@@ -102,7 +102,7 @@ bool prot_tcp_parse(struct psi *psi_out, uint32_t packet_id, void *priv, struct 
 
       if( cache_uptodate || closing )
       {
-        LOG_DEBUG(packet_id, "hit for INODE %ld SEQ %u for PID %d and process '%s'", socket_ino, tcp_seq, psi_out->pid, psi_out->process_path);
+        LOG_DEBUG(packet_id, "hit for INODE %ld for PID %d and process '%s'", socket_ino, psi_out->pid, psi_out->process_path);
 
         ksc_update_age(socket_ino, packet_id);
 
@@ -121,15 +121,15 @@ bool prot_tcp_parse(struct psi *psi_out, uint32_t packet_id, void *priv, struct 
 
       if (cache_hit)
       {
-        ksc_update_all(socket_ino, tcp_seq, psi_out->pid, psi_out->process_path, packet_id);
+        ksc_update_all(socket_ino, 0 /* todo: remove */, psi_out->pid, psi_out->process_path, packet_id);
 
         LOG_DEBUG(packet_id, "all updated for INODE %ld. returning '%s'", socket_ino, psi_out->process_path);
       }
       else
       {
-        ksc_remember(socket_ino, tcp_seq, psi_out->pid, psi_out->process_path, packet_id);
+        ksc_remember(socket_ino, 0 /* todo: remove */, psi_out->pid, psi_out->process_path, packet_id);
 
-        LOG_DEBUG(packet_id, "caching new socket INODE %ld SEQ %u for PID %d and process '%s'", socket_ino, tcp_seq, psi_out->pid, psi_out->process_path);
+        LOG_DEBUG(packet_id, "caching new socket INODE %ld for PID %d and process '%s'", socket_ino, psi_out->pid, psi_out->process_path);
       }
     }
   } while(false);
