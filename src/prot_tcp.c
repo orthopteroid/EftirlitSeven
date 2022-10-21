@@ -71,7 +71,7 @@ bool prot_tcp_parse(struct psi *psi_out, uint32_t packet_id, void *priv, struct 
       //bool tcpseq_lookup = (tcp_seq & !tcpseq_cached) ? asc_psi_from_tcpseq(psi_out, tcp_seq, packet_id) : false; // todo
       if (!tcpseq_cached)
       {
-        LOG_ERR(packet_id, "fail - missing header or bad seq. unable to identify socket for process '%s'", psi_out->process_path);
+        LOG_ERR(packet_id, "fail - missing header or bad seq. unable to identify socket for FILE %p process '%s'", socket_file, psi_out->process_path);
         return false;
       }
 
@@ -115,7 +115,7 @@ bool prot_tcp_parse(struct psi *psi_out, uint32_t packet_id, void *priv, struct 
       else if(asc_psi_from_ino(psi_out, socket_ino, packet_id)) ; // no need for message
       else
       {
-        LOG_DEBUG(packet_id, "fail - unable to locate process for FILE %p INODE %ld", socket_file, socket_ino);
+        LOG_ERR(packet_id, "fail - unable to locate process for FILE %p INODE %ld", socket_file, socket_ino);
         return false;
       };
 
