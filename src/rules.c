@@ -22,7 +22,7 @@
 #include <asm-generic/qrwlock.h>
 
 #include "module.h"
-#include "crc32.h"
+#include "fnv1a32.h"
 #include "rules.h"
 #include "defs.h"
 
@@ -37,8 +37,9 @@ struct rule_data
 {
   uint32_t       protocol[CIRCQ_SLOTS] ALIGNED;
   uint32_t       allowed[CIRCQ_SLOTS] ALIGNED;
-  process_path_t path[CIRCQ_SLOTS] ALIGNED;
   uint32_t       path_hash[CIRCQ_SLOTS] ALIGNED;
+  uint32_t       path_len[CIRCQ_SLOTS] ALIGNED;
+  process_path_t path[CIRCQ_SLOTS] ALIGNED; // stick at end of struct
 };
 
 struct rule_data * rule_data = 0;
@@ -111,6 +112,7 @@ void rules_clear_state(const bool is_allowed, const uint32_t packet_id)
     rule_data->allowed[k] = rule_data->allowed[rules_circq_front];
     rule_data->protocol[k] = rule_data->protocol[rules_circq_front];
     rule_data->path_hash[k] = rule_data->path_hash[rules_circq_front];
+    rule_data->path_len[k] = rule_data->path_len[rules_circq_front];
     strncpy(rule_data->path[k], rule_data->path[rules_circq_front], PATH_LENGTH);
 
     rules_circq_front++;
@@ -166,6 +168,7 @@ out:
 
 bool rules_add(uint32_t protocol, const char * process_path, const bool is_allowed, const uint32_t packet_id)
 {
+  uint32_t path_len = 0;
   uint32_t path_hash = 0;
   const char *szprot0 = 0, *szprot1 = 0;
   bool dupl = false, full = false;
@@ -173,7 +176,8 @@ bool rules_add(uint32_t protocol, const char * process_path, const bool is_allow
 
   if(!rules__check_path(process_path, packet_id)) return false;
 
-  path_hash = e7_crc32(process_path);
+  path_len = strlen(process_path);
+  path_hash = e7_fnv1a32(process_path);
 
   queued_write_lock(&rules_rwlock);
 
@@ -186,6 +190,7 @@ bool rules_add(uint32_t protocol, const char * process_path, const bool is_allow
     if (k == CIRCQ_SLOTS) k = 0;
     if (rule_data->protocol[k] != protocol) continue;
     if (rule_data->path_hash[k] != path_hash) continue;
+    if (rule_data->path_len[k] != path_len) continue;
     if (strncmp(rule_data->path[k], process_path, PATH_LENGTH) != 0) continue;
 
     dupl = true;
@@ -199,6 +204,7 @@ bool rules_add(uint32_t protocol, const char * process_path, const bool is_allow
   rule_data->allowed[k] = is_allowed;
   rule_data->protocol[k] = protocol;
   rule_data->path_hash[k] = path_hash;
+  rule_data->path_len[k] = path_len;
   strncpy(rule_data->path[k], process_path, PATH_LENGTH);
 
 out:
@@ -223,6 +229,7 @@ out:
 
 bool rules_remove(uint32_t protocol, const char * process_path, const uint32_t packet_id)
 {
+  uint32_t path_len = 0;
   uint32_t path_hash = 0;
   const char *szprot0 = 0, *szprot1 = 0;
   bool found = true;
@@ -230,7 +237,8 @@ bool rules_remove(uint32_t protocol, const char * process_path, const uint32_t p
 
   if(!rules__check_path(process_path, packet_id)) return false;
 
-  path_hash = e7_crc32(process_path);
+  path_len = strlen(process_path);
+  path_hash = e7_fnv1a32(process_path);
 
   queued_write_lock(&rules_rwlock);
 
@@ -240,6 +248,7 @@ bool rules_remove(uint32_t protocol, const char * process_path, const uint32_t p
     if (k == CIRCQ_SLOTS) k = 0;
     if (rule_data->protocol[k] != protocol) continue;
     if (rule_data->path_hash[k] != path_hash) continue;
+    if (rule_data->path_len[k] != path_len) continue;
     if (strncmp(rule_data->path[k], process_path, PATH_LENGTH) != 0) continue;
 
     rules_circq_size--;
@@ -248,6 +257,7 @@ bool rules_remove(uint32_t protocol, const char * process_path, const uint32_t p
     rule_data->allowed[k] = rule_data->allowed[rules_circq_front];
     rule_data->protocol[k] = rule_data->protocol[rules_circq_front];
     rule_data->path_hash[k] = rule_data->path_hash[rules_circq_front];
+    rule_data->path_len[k] = rule_data->path_len[rules_circq_front];
     strncpy(rule_data->path[k], rule_data->path[rules_circq_front], PATH_LENGTH);
 
     rules_circq_front++;
@@ -277,6 +287,7 @@ out:
 
 bool rules_search(struct rule_struct * rule_out, uint32_t protocol, const char * process_path, const uint32_t packet_id)
 {
+  uint32_t path_len = 0;
   uint32_t path_hash = 0;
   uint32_t parent_hash = 0;
   uint32_t parent_len = 0; // length incl last '/'
@@ -289,13 +300,14 @@ bool rules_search(struct rule_struct * rule_out, uint32_t protocol, const char *
 
   if(!rules__check_path(process_path, packet_id)) return false;
 
-  path_hash = e7_crc32(process_path);
+  path_len = strlen(process_path);
+  path_hash = e7_fnv1a32(process_path);
 
   // todo: parse path to resolve escapes?
   for(i=0; process_path[i]; i++) { if(process_path[i]=='/') parent_len = i; }
 
   if(parent_len)
-    parent_hash = e7_crc32_continued(0, process_path, parent_len);
+    parent_hash = e7_fnv1a32_len(process_path, parent_len);
 
   queued_read_lock(&rules_rwlock);
 
@@ -305,6 +317,7 @@ bool rules_search(struct rule_struct * rule_out, uint32_t protocol, const char *
     if (k == CIRCQ_SLOTS) k = 0;
     if ((rule_data->protocol[k] != E7C_IP_ANY) && (rule_data->protocol[k] != protocol)) continue;
     if (rule_data->path_hash[k] != path_hash) continue;
+    if (rule_data->path_len[k] != path_len) continue;
     if (strncmp(rule_data->path[k], process_path, PATH_LENGTH) != 0) continue;
 
     matchlevel = 1;
@@ -320,6 +333,7 @@ bool rules_search(struct rule_struct * rule_out, uint32_t protocol, const char *
       if (k == CIRCQ_SLOTS) k = 0;
       if ((rule_data->protocol[k] != E7C_IP_ANY) && (rule_data->protocol[k] != protocol)) continue;
       if (rule_data->path_hash[k] != parent_hash) continue;
+      if (rule_data->path_len[k] != parent_len) continue;
       if (strncmp(rule_data->path[k], process_path, parent_len) != 0) continue;
 
       matchlevel = 2;

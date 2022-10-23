@@ -39,7 +39,7 @@ enum nf_ip_hook_priorities {
 #include "asc.h"
 #include "rules.h"
 #include "netlink.h"
-#include "crc32.h"
+#include "fnv1a32.h"
 #include "defs.h"
 
 #include "prot_tcp.h"
@@ -183,7 +183,7 @@ static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct
 
       if((def_flag_value[E7F_NORULE_SQUELCH]==E7C_ENABLED))
       {
-        uint32_t hash = ((uint32_t)ktime_get_seconds()) ^ ip_header->protocol ^ e7_crc32(psi.process_path); // todo: call a squelch-hash api
+        uint32_t hash = ((uint32_t)ktime_get_seconds()) ^ ip_header->protocol ^ e7_fnv1a32(psi.process_path); // todo: call a squelch-hash api
         if(squelch[hash & 63] != hash)
           squelch[hash & 63] = hash;
         else
