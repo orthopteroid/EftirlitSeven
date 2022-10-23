@@ -5,5 +5,6 @@ allow udp /usr/bin/ping
 # allow any /usr/lib/firefox/firefox
 allow udp /usr/bin/iperf
 allow any /usr/bin/transmission-gtk
+allow any /usr/bin/wget
 enable
 quit

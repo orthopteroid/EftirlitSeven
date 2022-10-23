@@ -249,6 +249,18 @@ struct CMDBUF
       int rc = read(fd, (void*)&text[idx], 1); // read single char
       if (0==rc) return -EAGAIN; // no data
       if (0>rc) return rc; // other err
+      if ('#'==text[idx])
+      {
+        while (1 == read(fd, (void*)&text[idx], 1)) // read rest of line
+        {
+          if ('\n'==text[idx]) break;
+        }
+        text[idx] = '\0';
+        len = idx;
+        int cl = idx;
+        idx = 0; // reset to buf start for next line
+        return cl;
+      }
       if ('\n'==text[idx])
       {
         text[idx] = '\0';
@@ -381,8 +393,6 @@ void e7_parsecmd(CMDBUF & buf)
     case e7_fnv1a32("query"):
       if(ac==1) e7_printrc( "e7_compose_send", e7_compose_send(ENL_COMM_QUERY) );
       else printf("query\n");
-      break;
-    case e7_fnv1a32("#"): // comment
       break;
     default:
       printf("quit, bye, get, set, block, allow, enable, clear, query\n");
