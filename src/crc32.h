@@ -53,17 +53,19 @@ constexpr uint32_t e7_crc32_tab[] = {
 constexpr uint32_t e7_crc32(const char* sz)
 {
   uint32_t crc = ~0, i = 0;
-  for(i = 0;  sz[i] != 0;  i++) {
-      crc = (crc >> 8) ^ e7_crc32_tab[ (crc & (uint32_t)0xFF) ^ sz[i] ];
+  for(i = 0; sz[i] != 0; i++)
+  {
+    crc = (crc >> 8) ^ e7_crc32_tab[ (crc & (uint32_t)0xFF) ^ sz[i] ];
   }
   return ~crc;
 }
 
-constexpr uint32_t e7_crc32_continued(uint32_t previouscrc, const char* s, uint32_t len)
+constexpr uint32_t e7_crc32_len(const char* sz, uint32_t len)
 {
-  uint32_t crc = ~previouscrc, i = 0;
-  for(i = 0;  i < len;  i++) {
-      crc = (crc >> 8) ^ e7_crc32_tab[ (crc & (uint32_t)0xFF) ^ s[i] ];
+  uint32_t crc = ~0, i = 0;
+  for(i = 0; (sz[i] != 0) && (i < len); i++)
+  {
+    crc = (crc >> 8) ^ e7_crc32_tab[ (crc & (uint32_t)0xFF) ^ sz[i] ];
   }
   return ~crc;
 }
@@ -75,7 +77,7 @@ constexpr uint32_t e7_crc32_continued(uint32_t previouscrc, const char* s, uint3
 extern uint32_t e7_crc32_tab[];
 
 uint32_t e7_crc32(const char* sz);
-uint32_t e7_crc32_continued(uint32_t previouscrc, const char* s, uint32_t len);
+uint32_t e7_crc32_len(const char* sz, uint32_t len);
 
 #endif // __cplusplus
 

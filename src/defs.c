@@ -1,6 +1,6 @@
 // eftirlit7 (gpl2) - orthopteroid@gmail.com
 
-#include "crc32.h"
+#include "fnv1a32.h"
 #include "defs.h"
 
 #define E7X_NAME(x)       const char * ENL_NAME = #x;
@@ -293,7 +293,7 @@ bool def_flag_alias_idx(uint32_t *i_out, const char* alias)
 
   if(!i_out) return false;
   if(!alias) return false;
-  h = e7_crc32(alias);
+  h = e7_fnv1a32(alias);
 
   for(i=0; i<_E7F_COUNT; i++)
     if(h==def_flag_alias_hash[i]) { *i_out = i; return true; }
@@ -329,7 +329,7 @@ bool def_const_alias_value(uint32_t *v_out, const char* alias)
 
   if(!v_out) return false;
   if(!alias) return false;
-  h = e7_crc32(alias);
+  h = e7_fnv1a32(alias);
 
   for(i=0; i<_E7C_COUNT; i++)
     if(h==def_const_alias_hash[i]) { *v_out = def_const_value[i]; return true; }
@@ -342,14 +342,14 @@ int def_init(void)
   int i = 0, j = 0;
 
   for(i=0; i<_E7F_COUNT; i++)
-    def_flag_alias_hash[i] = e7_crc32(def_flag_alias[i]);
+    def_flag_alias_hash[i] = e7_fnv1a32(def_flag_alias[i]);
 
   for(i=0; i<_E7F_COUNT; i++)
     for(j=i+1; j<_E7F_COUNT; j++)
       if(def_flag_alias_hash[i]==def_flag_alias_hash[j]) return -1;
 
   for(i=0; i<_E7C_COUNT; i++)
-    def_const_alias_hash[i] = e7_crc32(def_const_alias[i]);
+    def_const_alias_hash[i] = e7_fnv1a32(def_const_alias[i]);
 
   for(i=0; i<_E7C_COUNT; i++)
     for(j=i+1; j<_E7C_COUNT; j++)

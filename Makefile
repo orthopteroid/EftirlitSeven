@@ -15,7 +15,7 @@ EXTRA_CFLAGS=-g $(MOD_DEFINES) -DDEBUG
 # in a subfolder otherwise module initializers are clobbered.
 # related - https://stackoverflow.com/a/13642063
 obj-m += $(MODULE_NAME).o
-$(MODULE_NAME)-objs += src/module.o src/netfilter.o src/ksc.o src/rules.o src/netlink.o src/asc.o src/prot_udp.o src/prot_tcp.o src/defs.o src/crc32.o
+$(MODULE_NAME)-objs += src/module.o src/netfilter.o src/ksc.o src/rules.o src/netlink.o src/asc.o src/prot_udp.o src/prot_tcp.o src/defs.o src/crc32.o src/fnv1a32.o
 
 PRJ_ROOT=$(shell pwd)
 DKMS_ROOT=/usr/src/$(MODULE_NAME)-$(MODULE_VERSION)
