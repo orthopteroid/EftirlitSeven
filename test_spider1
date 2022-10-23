@@ -1,0 +1,4 @@
+#!/bin/bash
+
+mkdir ~/tmp
+wget --base=~/tmp -e robots=off --span-hosts -r $1
