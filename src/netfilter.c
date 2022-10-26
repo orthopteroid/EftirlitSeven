@@ -165,7 +165,7 @@ static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct
 
     if (!process_identified)
     {
-      nfoperation = enf__get_action(E7F_UNKN_PROCESS_ACTION, "unhandled protocol failpath config invalid", packet_id);
+      nfoperation = enf__get_action(E7F_UNKN_PROCESS_ACTION, "unidentified process failpath config invalid", packet_id);
       LOG_DEBUG(packet_id, "unidentfied process PID %d '%s' - %s", psi.pid, psi.process_path, def_actionname(&szaction, nfoperation) ? szaction : "?");
       return nfoperation;
     }
@@ -177,7 +177,7 @@ static unsigned int enf__nfhandler(void *priv, struct sk_buff *skb, const struct
     if (!rules_search(&rule, ip_header->protocol, psi.process_path, packet_id))
     {
       bool squelched = false;
-      nfoperation = enf__get_action(E7F_NORULE_ACTION, "unhandled protocol failpath config invalid", packet_id);
+      nfoperation = enf__get_action(E7F_NORULE_ACTION, "no rule for process failpath config invalid", packet_id);
 
       LOG_DEBUG(packet_id, "rules_search failed for %s - %s", psi.process_path, def_actionname(&szaction, nfoperation) ? szaction : "?");
 
