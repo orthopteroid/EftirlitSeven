@@ -1,6 +1,7 @@
 trap "make cleandkms; tail /var/log/kern.log" EXIT
 > /var/log/kern.log
 make dkms
+(sleep 1; ./e7d rules; sleep 1)& 
 #echo 'file kernel/douane +p' > /sys/kernel/debug/dynamic_debug/control
 tail -f /var/log/kern.log
 make cleandkms

@@ -1,4 +1,3 @@
-clear
 allow udp /usr/lib/systemd/systemd-resolved
 allow udp /usr/bin/ping
 # allow any /usr/bin/firefox
@@ -7,4 +6,3 @@ allow udp /usr/bin/iperf
 allow any /usr/bin/transmission-gtk
 allow any /usr/bin/wget
 enable
-quit
