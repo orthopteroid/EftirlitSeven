@@ -171,7 +171,7 @@ bool rules_add(uint32_t protocol, const char * process_path, const bool is_allow
   uint32_t path_len = 0;
   uint32_t path_hash = 0;
   const char *szprot0 = 0, *szprot1 = 0;
-  bool dupl = false, full = false;
+  bool dupl = false, full = false, change = false;
   int i, k;
 
   if(!rules__check_path(process_path, packet_id)) return false;
@@ -193,19 +193,30 @@ bool rules_add(uint32_t protocol, const char * process_path, const bool is_allow
     if (rule_data->path_len[k] != path_len) continue;
     if (strncmp(rule_data->path[k], process_path, PATH_LENGTH) != 0) continue;
 
-    dupl = true;
-    goto out;
+    if (is_allowed == rule_data->allowed[k])
+    {
+      dupl = true;
+      goto out;
+    }
+
+    change = true;
+    break;
   }
 
-  k = rules_circq_front + rules_circq_size;
-  if (k >= CIRCQ_SLOTS) k -= CIRCQ_SLOTS;
-  rules_circq_size++;
+  if (change)
+    rule_data->allowed[k] = is_allowed;
+  else
+  {
+    k = rules_circq_front + rules_circq_size;
+    if (k >= CIRCQ_SLOTS) k -= CIRCQ_SLOTS;
+    rules_circq_size++;
 
-  rule_data->allowed[k] = is_allowed;
-  rule_data->protocol[k] = protocol;
-  rule_data->path_hash[k] = path_hash;
-  rule_data->path_len[k] = path_len;
-  strncpy(rule_data->path[k], process_path, PATH_LENGTH);
+    rule_data->allowed[k] = is_allowed;
+    rule_data->protocol[k] = protocol;
+    rule_data->path_hash[k] = path_hash;
+    rule_data->path_len[k] = path_len;
+    strncpy(rule_data->path[k], process_path, PATH_LENGTH);
+  }
 
 out:
   queued_write_unlock(&rules_rwlock);
@@ -220,11 +231,13 @@ out:
     if(!def_protname(&szprot1, rule_data->protocol[k])) szprot1 = "?";
     LOG_DEBUG(packet_id, "searching for (%s:%s) - match (%s:%s) in slot %d, not adding", szprot0, process_path, szprot1, rule_data->path[k], k);
   }
+  else if(change)
+    LOG_DEBUG(packet_id, "found (%s:%s) - status changed", szprot0, process_path);
   else
     LOG_DEBUG(packet_id, "searching for (%s:%s) - not found, added", szprot0, process_path);
 #endif // DEBUG
 
-  return !(full | dupl);
+  return !full;
 }
 
 bool rules_remove(uint32_t protocol, const char * process_path, const uint32_t packet_id)

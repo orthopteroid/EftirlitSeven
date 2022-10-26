@@ -85,7 +85,7 @@ bool prot_tcp_parse(struct psi *psi_out, uint32_t packet_id, void *priv, struct 
     if( !cache_hit && closing )
     {
       LOG_DEBUG(packet_id, "closed/closing unidentified socket for INODE %ld process '%s'", socket_ino, psi_out->process_path);
-      return true;
+      return false;
     }
 
     if( cache_uptodate || closing )
