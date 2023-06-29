@@ -42,11 +42,11 @@ clean:
 	$(MAKE) -C /lib/modules/$(KERNEL_VERSION)/build M=$(PRJ_ROOT) clean
 
 install:
-	@echo "Installing Douane Linux kernel module..."
+	@echo "Installing kernel module..."
 	@insmod $(MODULE_NAME).ko
 
 uninstall:
-	@echo "Uninstalling Douane Linux kernel module..."
+	@echo "Uninstalling kernel module..."
 	@rmmod $(MODULE_NAME).ko
 
 reinstall:
@@ -81,7 +81,7 @@ cleandkms:
 		echo "Uninstalling kernel module...";\
 		rmmod $(MODULE_NAME);\
 	fi
-	@sed -i s'/^douane$$//' $(BOOT_MODULES)
+	@sed -i s'/^eftirlit7$$//' $(BOOT_MODULES)
 	@echo "Removing kernel module..."
 	@dkms remove -m $(MODULE_NAME) -v $(MODULE_VERSION) --all
 	@rm -rf $(DKMS_ROOT)
